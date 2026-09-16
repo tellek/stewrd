@@ -1,1 +1,2 @@
-pub mod spike;
+pub mod plugins;
+pub mod watcher;

@@ -5,12 +5,10 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>stewrd</title>
-    <!-- Milestone 2a transport spike: proves a Blob-URL-imported module can resolve
-         a bare specifier against the document's import map. Real plugin React-sharing
-         import map (generated at build time by a Vite plugin) lands in Milestone 2b. -->
-    <script type="importmap">
-      { "imports": { "spike-dep": "/spike-dep.js" } }
-    </script>
+    <!-- The <script type="importmap"> that shares the host's React with plugins is
+         injected here at build/dev-server time by reactImportMapPlugin (see
+         scripts/vite-plugin-react-importmap.ts + vite.config.ts) - there is no
+         stable static path to hand-write, since Vite hashes/cache-busts it. -->
   </head>
 
   <body>

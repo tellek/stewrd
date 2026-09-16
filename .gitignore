@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Plugin build output (each plugin's own esbuild dist/, not the host's)
+plugins/*/dist
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

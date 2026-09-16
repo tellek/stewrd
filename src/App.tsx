@@ -1,49 +1,45 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { useEffect } from "react";
+import { usePluginRegistry } from "./host/loader/usePluginRegistry";
+import { PluginErrorBoundary } from "./host/errors/PluginErrorBoundary";
+import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import "./App.css";
 
+// Milestone 2b: no Sidebar/StatusBar yet (Milestone 3) - just prove plugins
+// discover, load via Blob URL, hot-reload, and are isolated by error boundaries.
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  useEffect(() => {
+    registerGlobalErrorHandlers();
+  }, []);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
-  }
+  const { entries, discoveryErrors, safeMode } = usePluginRegistry();
 
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <main style={{ padding: 16 }}>
+      <h1>stewrd</h1>
+      {safeMode && (
+        <p style={{ color: "#a60" }}>
+          SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data plugins directory to
+          resume normal loading.
+        </p>
+      )}
+      {discoveryErrors.map((e) => (
+        <p key={e.dir} style={{ color: "#c33" }}>
+          Plugin "{e.dir}" failed to load: {e.message}
+        </p>
+      ))}
+      <div id="plugin-content">
+        {entries.map((entry) => (
+          <PluginErrorBoundary key={`${entry.manifest.id}:${entry.generation}`} pluginId={entry.manifest.id}>
+            {entry.loadError ? (
+              <p style={{ color: "#c33" }}>
+                Plugin "{entry.manifest.id}" failed to load/activate: {entry.loadError}
+              </p>
+            ) : (
+              <entry.Component />
+            )}
+          </PluginErrorBoundary>
+        ))}
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
     </main>
   );
 }
