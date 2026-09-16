@@ -10,6 +10,9 @@ export interface PluginRegistryEntry {
   api: PluginApi | null;
   generation: number;
   loadError?: string;
+  /** false = discovered but not yet activated (lazy, background: false,
+   * waiting for first sidebar selection - see ensureLoaded). */
+  loaded: boolean;
 }
 
 export interface DiscoveryError {
@@ -22,6 +25,8 @@ export function usePluginRegistry() {
   const [discoveryErrors, setDiscoveryErrors] = useState<DiscoveryError[]>([]);
   const [safeMode, setSafeMode] = useState(false);
   const loadedByDir = useRef<Map<string, LoadedPlugin>>(new Map());
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
   const loadOneRef = useRef<((dir: string, manifest: PluginManifest, source: string) => Promise<void>) | undefined>(
     undefined,
   );
@@ -46,6 +51,7 @@ export function usePluginRegistry() {
             Component: loaded.module.Component,
             api: loaded.api,
             generation: loaded.generation,
+            loaded: true,
           },
         }));
       } catch (err) {
@@ -58,6 +64,7 @@ export function usePluginRegistry() {
             api: null,
             generation: -1,
             loadError: err instanceof Error ? err.message : String(err),
+            loaded: false,
           },
         }));
       }
@@ -78,7 +85,31 @@ export function usePluginRegistry() {
       if (safe) return; // manual escape hatch: load nothing
 
       const ok = discovered.filter((d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && !d.disabled);
-      await Promise.all(ok.map((d) => loadOne(d.dir, d.manifest, d.source)));
+
+      // background: true activates eagerly now; everything else is merely
+      // listed (so the sidebar can show it) and stays lazy until first
+      // selected - see ensureLoaded. This shrinks eager-activation blast
+      // radius to only the plugins that actually declare they need it.
+      const eager = ok.filter((d) => d.manifest.background);
+      const lazy = ok.filter((d) => !d.manifest.background);
+
+      setEntries((e) => {
+        const next = { ...e };
+        for (const d of lazy) {
+          if (!next[d.manifest.id]) {
+            next[d.manifest.id] = {
+              manifest: d.manifest,
+              Component: () => null,
+              api: null,
+              generation: -1,
+              loaded: false,
+            };
+          }
+        }
+        return next;
+      });
+
+      await Promise.all(eager.map((d) => loadOne(d.dir, d.manifest, d.source)));
     }
 
     (async () => {
@@ -93,7 +124,10 @@ export function usePluginRegistry() {
       const match = discovered.find(
         (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.dir === changedDir,
       );
-      if (match && !match.disabled) {
+      if (!match || match.disabled) return;
+      // Only hot-reload plugins that were already loaded (eager, or lazy but
+      // already selected once) - an untouched lazy plugin should stay lazy.
+      if (entriesRef.current[match.manifest.id]?.loaded) {
         await loadOne(match.dir, match.manifest, match.source);
       }
     });
@@ -114,5 +148,15 @@ export function usePluginRegistry() {
     if (match) await loadOneRef.current?.(match.dir, match.manifest, match.source);
   }, []);
 
-  return { entries: Object.values(entries), discoveryErrors, safeMode, reloadPlugin };
+  /** Call when a plugin is selected in the sidebar for the first time - a
+   * no-op if it's already loaded (eager, or a previously-selected lazy one). */
+  const ensureLoaded = useCallback(
+    async (pluginId: string) => {
+      if (entriesRef.current[pluginId]?.loaded) return;
+      await reloadPlugin(pluginId);
+    },
+    [reloadPlugin],
+  );
+
+  return { entries: Object.values(entries), discoveryErrors, safeMode, reloadPlugin, ensureLoaded };
 }

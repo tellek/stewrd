@@ -24,12 +24,15 @@ export function MainContent({
       }}
     >
       {!active && <p style={{ color: defaultPalette.textMuted }}>Select a plugin from the sidebar.</p>}
+      {active && !active.loaded && !active.loadError && (
+        <p style={{ color: defaultPalette.textMuted }}>Loading "{active.manifest.name}"...</p>
+      )}
       {active &&
-        (active.loadError || !active.api ? (
+        (active.loadError ? (
           <p style={{ color: defaultPalette.status.error }}>
             Plugin "{active.manifest.id}" failed to load/activate: {active.loadError}
           </p>
-        ) : (
+        ) : active.loaded && active.api ? (
           <PluginErrorBoundary
             key={`${active.manifest.id}:${active.generation}`}
             pluginId={active.manifest.id}
@@ -37,7 +40,7 @@ export function MainContent({
           >
             <active.Component api={active.api} />
           </PluginErrorBoundary>
-        ))}
+        ) : null)}
     </main>
   );
 }

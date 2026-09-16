@@ -15,10 +15,15 @@ function App() {
     registerGlobalErrorHandlers();
   }, []);
 
-  const { entries, discoveryErrors, safeMode, reloadPlugin } = usePluginRegistry();
+  const { entries, discoveryErrors, safeMode, reloadPlugin, ensureLoaded } = usePluginRegistry();
   const setPlugins = useAppStore((s) => s.setPlugins);
   const setPluginStatus = useAppStore((s) => s.setPluginStatus);
   const logMessage = useAppStore((s) => s.logMessage);
+  const activePluginId = useAppStore((s) => s.activePluginId);
+
+  useEffect(() => {
+    if (activePluginId) ensureLoaded(activePluginId);
+  }, [activePluginId, ensureLoaded]);
 
   useEffect(() => {
     setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle" })));

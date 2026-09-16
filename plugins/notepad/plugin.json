@@ -1,0 +1,11 @@
+{
+  "id": "notepad",
+  "name": "Notepad",
+  "version": "1.0.0",
+  "category": "Utilities",
+  "icon": "default",
+  "entry": "dist/index.js",
+  "description": "Autosaving scratch pad with Claude memory extraction",
+  "apiVersion": "1",
+  "background": false
+}
