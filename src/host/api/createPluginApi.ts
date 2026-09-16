@@ -1,10 +1,12 @@
 // Assembles the full PluginApi + PluginContext for one plugin activation.
 //
-// Generation tokens: `ctx.onDispose`/AbortSignal are enforcement aids, not
-// guarantees - an in-flight promise created before deactivation can still
-// resolve after it. currentGeneration tracks the latest activation per
-// pluginId; statusIcon/log/toast calls from a stale (superseded) context are
-// dropped instead of mutating shared host state after teardown. storage/
+// Generation tokens: an in-flight promise created before deactivation can
+// still resolve after it, and a plugin can capture references before
+// teardown - ctx.onDispose/AbortSignal are enforcement aids, not guarantees.
+// currentGeneration tracks the latest activation per pluginId; statusIcon/
+// log/toast calls made by a stale (superseded) context THROW instead of
+// silently mutating shared host state after teardown, so a lingering async
+// callback fails loudly rather than quietly corrupting live state. storage/
 // shell/fs/modal are not guarded this way - the AbortSignal is the intended
 // cancellation mechanism for those (per docs/architecture-plan.md).
 import { createFsApi } from "./fs";
@@ -28,7 +30,9 @@ function isCurrent(pluginId: string, generation: number): boolean {
 
 function guardVoid<A extends unknown[]>(pluginId: string, generation: number, fn: (...args: A) => void) {
   return (...args: A) => {
-    if (!isCurrent(pluginId, generation)) return;
+    if (!isCurrent(pluginId, generation)) {
+      throw new Error(`[plugin:${pluginId}] api call after deactivation`);
+    }
     fn(...args);
   };
 }
@@ -37,11 +41,15 @@ export interface CreatedPluginContext {
   ctx: PluginContext;
   tickHandle: TickHandle & { readonly entryId: number };
   abortController: AbortController;
+  disposeBag: Array<() => void>;
+  pluginId: string;
+  generation: number;
 }
 
 export function createPluginContext(pluginId: string, generation: number): CreatedPluginContext {
   currentGeneration.set(pluginId, generation);
   const abortController = new AbortController();
+  const disposeBag: Array<() => void> = [];
 
   const statusIconBase = createStatusIconApi(pluginId);
   const logBase = createLogApi(pluginId);
@@ -74,11 +82,32 @@ export function createPluginContext(pluginId: string, generation: number): Creat
     },
   };
 
-  const ctx: PluginContext = { api, tick: tickHandle, pluginId, signal: abortController.signal };
-  return { ctx, tickHandle, abortController };
+  const ctx: PluginContext = {
+    api,
+    tick: tickHandle,
+    pluginId,
+    signal: abortController.signal,
+    onDispose: (fn) => {
+      disposeBag.push(fn);
+    },
+  };
+
+  return { ctx, tickHandle, abortController, disposeBag, pluginId, generation };
 }
 
 export function destroyPluginContext(created: CreatedPluginContext): void {
+  for (const fn of created.disposeBag) {
+    try {
+      fn();
+    } catch (err) {
+      console.error("[plugin] onDispose callback threw", err);
+    }
+  }
   created.abortController.abort();
   tickScheduler.destroyHandle(created.tickHandle);
+  // Only clear if no newer generation has already taken over (hot reload
+  // creates the new context before the old one is torn down in some paths).
+  if (currentGeneration.get(created.pluginId) === created.generation) {
+    currentGeneration.delete(created.pluginId);
+  }
 }

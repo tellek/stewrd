@@ -1,0 +1,95 @@
+/// <reference path="../.stewrd/plugin-api.d.ts" />
+// Copy this whole folder to start a new plugin. Rename the directory, update
+// plugin.json's id/name/category, then build it into working functionality
+// starting from the minimal activate()/Component below. Every commented-out
+// block demonstrates one host API surface - uncomment what you need, delete
+// the rest. See README.md for manifest fields + lifecycle order.
+import { useState } from "react";
+import type { PluginContext, PluginApi } from "stewrd-plugin-api";
+
+export function activate(ctx: PluginContext) {
+  ctx.api.log.info("template plugin activated");
+  ctx.api.statusIcon.set("idle");
+
+  // --- statusIcon: reflect background work state in the sidebar dot ---
+  // ctx.api.statusIcon.set("in-progress", "checking something...");
+  // ctx.api.statusIcon.set("success");
+  // ctx.api.statusIcon.set("error", "something went wrong");
+
+  // --- modal: blocking-style dialogs, all return a Promise ---
+  // await ctx.api.modal.info({ title: "Heads up", message: "Just so you know..." });
+  // await ctx.api.modal.error({ title: "Failed", message: "Something broke." });
+  // const choice = await ctx.api.modal.question({
+  //   title: "Pick one",
+  //   message: "Which do you want?",
+  //   buttons: ["A", "B", "C"],
+  // });
+  // const confirmed = await ctx.api.modal.confirm({ title: "Delete?", message: "This can't be undone." });
+
+  // --- toast: brief non-blocking notifications ---
+  // ctx.api.toast.show({ message: "Saved", kind: "success" });
+
+  // --- shell.exec: run a command and await its full output ---
+  // const result = await ctx.api.shell.exec("git", ["status", "--short"], { cwd: "/some/repo" });
+  // if (result.code !== 0) ctx.api.log.warn(`git status failed: ${result.stderr}`);
+
+  // --- shell.spawn: stream output from a long-running process ---
+  // const child = ctx.api.shell.spawn("git", ["log", "--oneline", "-20"], {
+  //   onStdout: (chunk) => ctx.api.log.info(chunk),
+  //   onStderr: (chunk) => ctx.api.log.warn(chunk),
+  // });
+  // const { code } = await child.done; // or child.kill() to stop it early
+
+  // --- storage: per-plugin key/value JSON on disk (plaintext - no secrets) ---
+  // await ctx.api.storage.set("lastRun", Date.now());
+  // const lastRun = await ctx.api.storage.get<number>("lastRun");
+  // const all = await ctx.api.storage.getAll();
+
+  // --- fs: raw file access, namespaced under this plugin's own folder ---
+  // const contents = await ctx.api.fs.readTextFile("notes.txt");
+  // await ctx.api.fs.writeTextFile("notes.txt", "updated contents");
+  // const unwatch = ctx.api.fs.watchFile("notes.txt", () => ctx.api.log.info("notes.txt changed"));
+  // ctx.onDispose(unwatch);
+
+  // --- theme: read the current palette and react to live changes ---
+  // const currentPalette = ctx.api.theme.palette;
+  // const unsubscribeTheme = ctx.api.theme.subscribe((palette) => {
+  //   ctx.api.log.info(`theme changed: background=${palette.background}`);
+  // });
+
+  // --- tick: background work that keeps running while this plugin isn't
+  //     the active sidebar selection (survives being unmounted, not survives
+  //     the window being minimized for long periods - see architecture-plan.md) ---
+  // ctx.tick.register(async () => {
+  //   ctx.api.log.info("tick fired");
+  // });
+  // ctx.tick.setInterval(60_000); // recurring, every 60s
+  // ctx.tick.requestWake(5_000); // one-off, 5s from now
+
+  // --- signal: cancel in-flight async work on deactivate ---
+  // fetch("https://example.com", { signal: ctx.signal }).catch(() => {});
+}
+
+export function deactivate() {
+  // Undo anything activate() registered outside the tracked APIs (the host
+  // auto-revokes tick registrations and aborts ctx.signal for you already).
+}
+
+export function Component({ api }: { api: PluginApi }) {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <h2>Template Plugin</h2>
+      <p>This is a starting point, not a real plugin - copy this folder to build one.</p>
+      <p>
+        Count: {count} <button onClick={() => setCount((c) => c + 1)}>+1</button>
+      </p>
+      <api.ui.StatusDot color="idle" />
+
+      {/* --- ui.TextBox: a shared controlled textarea primitive --- */}
+      {/* const [text, setText] = useState("");
+      <api.ui.TextBox value={text} onChange={setText} placeholder="type here" /> */}
+    </div>
+  );
+}

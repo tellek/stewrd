@@ -54,6 +54,11 @@ export interface PluginContext {
    * cancellation (e.g. pass into fetch()/long-running loops) instead of
    * relying only on manual isActive-flag checks. */
   signal: AbortSignal;
+  /** Disposal bag for anything registered outside the tracked APIs (raw DOM
+   * listeners, extra timers, fs watchers). Tracked-API resources (tick,
+   * fs watchers created via api.fs.watchFile, spawned processes) are
+   * auto-revoked by the host already - this is only for the rest. */
+  onDispose(fn: () => void): void;
 }
 
 export interface PluginModule {
