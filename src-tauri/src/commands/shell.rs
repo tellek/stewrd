@@ -115,6 +115,7 @@ pub async fn spawn_command(
 
     let (kill_tx, kill_rx) = tokio::sync::oneshot::channel();
     state.child_kill_senders.lock().unwrap().insert(id.clone(), kill_tx);
+    state.child_pids.lock().unwrap().insert(id.clone(), pid);
 
     let app_for_task = app.clone();
     let id_for_task = id.clone();
@@ -128,12 +129,9 @@ pub async fn spawn_command(
         };
         let code = status.ok().and_then(|s| s.code()).unwrap_or(-1);
         let _ = app_for_task.emit(&format!("process-exit:{id_for_task}"), serde_json::json!({"code": code}));
-        app_for_task
-            .state::<AppState>()
-            .child_kill_senders
-            .lock()
-            .unwrap()
-            .remove(&id_for_task);
+        let app_state = app_for_task.state::<AppState>();
+        app_state.child_kill_senders.lock().unwrap().remove(&id_for_task);
+        app_state.child_pids.lock().unwrap().remove(&id_for_task);
     });
 
     Ok(pid)

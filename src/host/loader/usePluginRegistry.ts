@@ -13,6 +13,9 @@ export interface PluginRegistryEntry {
   /** false = discovered but not yet activated (lazy, background: false,
    * waiting for first sidebar selection - see ensureLoaded). */
   loaded: boolean;
+  /** Discovery directory name - needed to reverse-lookup an entry on
+   * hot-remove even if it was never actually loaded (lazy). */
+  dir: string;
 }
 
 export interface DiscoveryError {
@@ -52,6 +55,7 @@ export function usePluginRegistry() {
             api: loaded.api,
             generation: loaded.generation,
             loaded: true,
+            dir,
           },
         }));
       } catch (err) {
@@ -65,6 +69,7 @@ export function usePluginRegistry() {
             generation: -1,
             loadError: err instanceof Error ? err.message : String(err),
             loaded: false,
+            dir,
           },
         }));
       }
@@ -103,6 +108,7 @@ export function usePluginRegistry() {
               api: null,
               generation: -1,
               loaded: false,
+              dir: d.dir,
             };
           }
         }
@@ -124,12 +130,51 @@ export function usePluginRegistry() {
       const match = discovered.find(
         (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.dir === changedDir,
       );
-      if (!match || match.disabled) return;
-      // Only hot-reload plugins that were already loaded (eager, or lazy but
-      // already selected once) - an untouched lazy plugin should stay lazy.
-      if (entriesRef.current[match.manifest.id]?.loaded) {
-        await loadOne(match.dir, match.manifest, match.source);
+
+      if (!match || match.disabled) {
+        // Hot-remove: the plugin's folder/dist output is gone (or now
+        // disabled) - unload it if it was actually loaded, and remove its
+        // entry entirely (including a lazy entry that was only ever listed,
+        // never loaded, which loadedByDir never tracked) so a stale sidebar
+        // entry doesn't linger until the app restarts.
+        const previouslyLoaded = loadedByDir.current.get(changedDir);
+        if (previouslyLoaded) {
+          unloadPlugin(previouslyLoaded);
+          loadedByDir.current.delete(changedDir);
+        }
+        setEntries((e) => {
+          const staleId = Object.keys(e).find((id) => e[id].dir === changedDir);
+          if (!staleId) return e;
+          const next = { ...e };
+          delete next[staleId];
+          return next;
+        });
+        return;
       }
+
+      const known = entriesRef.current[match.manifest.id];
+      if (known?.loaded) {
+        // Already loaded (eager, or a previously-selected lazy one) - hot-reload it.
+        await loadOne(match.dir, match.manifest, match.source);
+      } else if (!known) {
+        // Hot-add: a brand-new plugin folder appeared while running.
+        if (match.manifest.background) {
+          await loadOne(match.dir, match.manifest, match.source);
+        } else {
+          setEntries((e) => ({
+            ...e,
+            [match.manifest.id]: {
+              manifest: match.manifest,
+              Component: () => null,
+              api: null,
+              generation: -1,
+              loaded: false,
+              dir: match.dir,
+            },
+          }));
+        }
+      }
+      // else: known but not loaded (untouched lazy plugin) - stays lazy, no-op.
     });
 
     return () => {

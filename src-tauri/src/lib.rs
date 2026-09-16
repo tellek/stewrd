@@ -55,12 +55,21 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| {
             // Windows does not kill child processes when the parent exits, so
-            // any still-running spawned children must be explicitly killed here.
+            // any still-running spawned children must be explicitly killed
+            // here. This can't route through the normal kill_command oneshot
+            // signal - by RunEvent::Exit time there's no guarantee the tokio
+            // runtime is still scheduled to act on it - so this kills each
+            // tracked pid directly via a synchronous OS call instead.
             if let tauri::RunEvent::Exit = event {
                 let state = app_handle.state::<AppState>();
-                let mut senders = state.child_kill_senders.lock().unwrap();
-                for (_, tx) in senders.drain() {
-                    let _ = tx.send(());
+                let pids: Vec<u32> = state.child_pids.lock().unwrap().values().copied().collect();
+                for pid in pids {
+                    #[cfg(windows)]
+                    let _ = std::process::Command::new("taskkill")
+                        .args(["/F", "/PID", &pid.to_string(), "/T"])
+                        .status();
+                    #[cfg(not(windows))]
+                    let _ = std::process::Command::new("kill").args(["-9", &pid.to_string()]).status();
                 }
             }
         });
