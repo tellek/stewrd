@@ -25,6 +25,8 @@ const BUILD_SPECIFIER_TO_ENTRY_NAME: Record<string, string> = {
   "react-dom": "vendor-react-dom",
   "react-dom/client": "vendor-react-dom-client",
   "react/jsx-runtime": "vendor-react-jsx-runtime",
+  "@tauri-apps/api/core": "vendor-tauri-core",
+  "@tauri-apps/api/event": "vendor-tauri-event",
 };
 
 // Maps each vendor-entry facade file (see src/host/vendor-entries/) to the bare
@@ -35,6 +37,8 @@ const VENDOR_ENTRY_SPECIFIERS: Record<string, string> = {
   "react-dom.ts": "react-dom",
   "react-dom-client.ts": "react-dom/client",
   "react-jsx-runtime.ts": "react/jsx-runtime",
+  "tauri-core.ts": "@tauri-apps/api/core",
+  "tauri-event.ts": "@tauri-apps/api/event",
 };
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;

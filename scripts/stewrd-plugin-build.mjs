@@ -41,7 +41,11 @@ const buildOptions = {
   target: "es2022",
   jsx: "automatic",
   sourcemap: true,
-  external: ["react", "react-dom", "react-dom/*", "react/*"],
+  // react/react-dom: share the host's single instance (see import map).
+  // @tauri-apps/api/*: escape hatch for advanced plugins needing raw
+  // invoke()/listen() beyond the standard PluginApi surface (e.g. Git
+  // Tracker's Rust-interval-driven background poll) - shared the same way.
+  external: ["react", "react-dom", "react-dom/*", "react/*", "@tauri-apps/api/*"],
   logLevel: "info",
 };
 

@@ -36,6 +36,8 @@ export default defineConfig(() => ({
         "vendor-react-dom": path.resolve(dirname, "src/host/vendor-entries/react-dom.ts"),
         "vendor-react-dom-client": path.resolve(dirname, "src/host/vendor-entries/react-dom-client.ts"),
         "vendor-react-jsx-runtime": path.resolve(dirname, "src/host/vendor-entries/react-jsx-runtime.ts"),
+        "vendor-tauri-core": path.resolve(dirname, "src/host/vendor-entries/tauri-core.ts"),
+        "vendor-tauri-event": path.resolve(dirname, "src/host/vendor-entries/tauri-event.ts"),
       },
     },
   },

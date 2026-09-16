@@ -2,6 +2,7 @@
 mod commands;
 mod state;
 
+use commands::interval::IntervalState;
 use state::AppState;
 use tauri::Manager;
 
@@ -15,6 +16,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
+        .manage(IntervalState::default())
         .setup(|app| {
             let app_handle = app.handle().clone();
             let plugins_dir = commands::plugins::resolve_plugins_dir(&app_handle)?;
@@ -46,6 +48,8 @@ pub fn run() {
             commands::shell::kill_command,
             commands::fs::fs_read_text_file,
             commands::fs::fs_write_text_file,
+            commands::interval::start_interval,
+            commands::interval::stop_interval,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

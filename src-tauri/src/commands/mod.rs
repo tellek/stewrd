@@ -1,4 +1,5 @@
 pub mod fs;
+pub mod interval;
 pub mod logging;
 pub mod plugins;
 pub mod shell;
