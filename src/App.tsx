@@ -1,46 +1,55 @@
 import { useEffect } from "react";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
-import { PluginErrorBoundary } from "./host/errors/PluginErrorBoundary";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
+import { useAppStore } from "./host/state/appStore";
+import { Sidebar } from "./host/layout/Sidebar";
+import { MainContent } from "./host/layout/MainContent";
+import { StatusBar } from "./host/layout/StatusBar";
+import { defaultPalette } from "./shared/palette";
 import "./App.css";
 
-// Milestone 2b: no Sidebar/StatusBar yet (Milestone 3) - just prove plugins
-// discover, load via Blob URL, hot-reload, and are isolated by error boundaries.
 function App() {
   useEffect(() => {
     registerGlobalErrorHandlers();
   }, []);
 
-  const { entries, discoveryErrors, safeMode } = usePluginRegistry();
+  const { entries, discoveryErrors, safeMode, reloadPlugin } = usePluginRegistry();
+  const setPlugins = useAppStore((s) => s.setPlugins);
+  const setPluginStatus = useAppStore((s) => s.setPluginStatus);
+  const logMessage = useAppStore((s) => s.logMessage);
+
+  useEffect(() => {
+    setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle" })));
+    for (const e of entries) {
+      if (e.loadError) {
+        setPluginStatus(e.manifest.id, "error");
+        logMessage("error", `Plugin "${e.manifest.id}" failed to load/activate: ${e.loadError}`, e.manifest.id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+
+  useEffect(() => {
+    for (const e of discoveryErrors) {
+      logMessage("error", `Plugin "${e.dir}" failed discovery: ${e.message}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discoveryErrors]);
 
   return (
-    <main style={{ padding: 16 }}>
-      <h1>stewrd</h1>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {safeMode && (
-        <p style={{ color: "#a60" }}>
-          SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data plugins directory to
-          resume normal loading.
+        <p style={{ color: defaultPalette.status.warning, padding: "4px 12px", margin: 0 }}>
+          SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data plugins directory to resume
+          normal loading.
         </p>
       )}
-      {discoveryErrors.map((e) => (
-        <p key={e.dir} style={{ color: "#c33" }}>
-          Plugin "{e.dir}" failed to load: {e.message}
-        </p>
-      ))}
-      <div id="plugin-content">
-        {entries.map((entry) => (
-          <PluginErrorBoundary key={`${entry.manifest.id}:${entry.generation}`} pluginId={entry.manifest.id}>
-            {entry.loadError ? (
-              <p style={{ color: "#c33" }}>
-                Plugin "{entry.manifest.id}" failed to load/activate: {entry.loadError}
-              </p>
-            ) : (
-              <entry.Component />
-            )}
-          </PluginErrorBoundary>
-        ))}
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+        <Sidebar />
+        <MainContent entries={entries} onReload={reloadPlugin} />
       </div>
-    </main>
+      <StatusBar />
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { PluginManifest, PluginModule } from "../../shared/plugin-api.d.ts";
 import { isSafeMode, listPlugins, reconcileBootMarks } from "./pluginDiscovery";
@@ -21,6 +21,9 @@ export function usePluginRegistry() {
   const [discoveryErrors, setDiscoveryErrors] = useState<DiscoveryError[]>([]);
   const [safeMode, setSafeMode] = useState(false);
   const loadedByDir = useRef<Map<string, LoadedPlugin>>(new Map());
+  const loadOneRef = useRef<((dir: string, manifest: PluginManifest, source: string) => Promise<void>) | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +55,7 @@ export function usePluginRegistry() {
         }));
       }
     }
+    loadOneRef.current = loadOne;
 
     async function discoverAndLoadAll() {
       const discovered = await listPlugins();
@@ -95,5 +99,13 @@ export function usePluginRegistry() {
     };
   }, []);
 
-  return { entries: Object.values(entries), discoveryErrors, safeMode };
+  const reloadPlugin = useCallback(async (pluginId: string) => {
+    const discovered = await listPlugins();
+    const match = discovered.find(
+      (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.manifest.id === pluginId,
+    );
+    if (match) await loadOneRef.current?.(match.dir, match.manifest, match.source);
+  }, []);
+
+  return { entries: Object.values(entries), discoveryErrors, safeMode, reloadPlugin };
 }
