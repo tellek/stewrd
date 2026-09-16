@@ -37,7 +37,27 @@ pub fn run() {
             commands::plugins::mark_plugin_attempt,
             commands::plugins::clear_plugin_attempt,
             commands::plugins::set_plugin_disabled,
+            commands::storage::storage_get,
+            commands::storage::storage_set,
+            commands::storage::storage_get_all,
+            commands::logging::append_log_line,
+            commands::shell::run_command,
+            commands::shell::spawn_command,
+            commands::shell::kill_command,
+            commands::fs::fs_read_text_file,
+            commands::fs::fs_write_text_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Windows does not kill child processes when the parent exits, so
+            // any still-running spawned children must be explicitly killed here.
+            if let tauri::RunEvent::Exit = event {
+                let state = app_handle.state::<AppState>();
+                let mut senders = state.child_kill_senders.lock().unwrap();
+                for (_, tx) in senders.drain() {
+                    let _ = tx.send(());
+                }
+            }
+        });
 }

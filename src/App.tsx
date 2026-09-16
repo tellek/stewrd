@@ -5,6 +5,8 @@ import { useAppStore } from "./host/state/appStore";
 import { Sidebar } from "./host/layout/Sidebar";
 import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
+import { Modal } from "./components/Modal/Modal";
+import { ToastContainer } from "./components/Toast/ToastContainer";
 import { defaultPalette } from "./shared/palette";
 import "./App.css";
 
@@ -49,6 +51,8 @@ function App() {
         <MainContent entries={entries} onReload={reloadPlugin} />
       </div>
       <StatusBar />
+      <Modal />
+      <ToastContainer />
     </div>
   );
 }

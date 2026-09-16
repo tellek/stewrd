@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { PluginManifest, PluginModule } from "../../shared/plugin-api.d.ts";
+import type { PluginApi, PluginManifest, PluginModule } from "../../shared/plugin-api.d.ts";
 import { isSafeMode, listPlugins, reconcileBootMarks } from "./pluginDiscovery";
 import { loadPlugin, unloadPlugin, type LoadedPlugin } from "./pluginLoader";
 
 export interface PluginRegistryEntry {
   manifest: PluginManifest;
   Component: PluginModule["Component"];
+  api: PluginApi | null;
   generation: number;
   loadError?: string;
 }
@@ -30,7 +31,7 @@ export function usePluginRegistry() {
 
     async function loadOne(dir: string, manifest: PluginManifest, source: string) {
       try {
-        const loaded = await loadPlugin(manifest, source, { pluginId: manifest.id });
+        const loaded = await loadPlugin(manifest, source);
         if (cancelled) {
           unloadPlugin(loaded);
           return;
@@ -40,7 +41,12 @@ export function usePluginRegistry() {
         loadedByDir.current.set(dir, loaded);
         setEntries((e) => ({
           ...e,
-          [manifest.id]: { manifest, Component: loaded.module.Component, generation: loaded.generation },
+          [manifest.id]: {
+            manifest,
+            Component: loaded.module.Component,
+            api: loaded.api,
+            generation: loaded.generation,
+          },
         }));
       } catch (err) {
         console.error(`[plugin:${manifest.id}] load failed`, err);
@@ -49,6 +55,7 @@ export function usePluginRegistry() {
           [manifest.id]: {
             manifest,
             Component: () => null,
+            api: null,
             generation: -1,
             loadError: err instanceof Error ? err.message : String(err),
           },

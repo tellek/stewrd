@@ -25,7 +25,7 @@ export function MainContent({
     >
       {!active && <p style={{ color: defaultPalette.textMuted }}>Select a plugin from the sidebar.</p>}
       {active &&
-        (active.loadError ? (
+        (active.loadError || !active.api ? (
           <p style={{ color: defaultPalette.status.error }}>
             Plugin "{active.manifest.id}" failed to load/activate: {active.loadError}
           </p>
@@ -35,7 +35,7 @@ export function MainContent({
             pluginId={active.manifest.id}
             onReload={() => onReload(active.manifest.id)}
           >
-            <active.Component />
+            <active.Component api={active.api} />
           </PluginErrorBoundary>
         ))}
     </main>

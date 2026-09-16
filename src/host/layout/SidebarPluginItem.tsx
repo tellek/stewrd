@@ -23,7 +23,7 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         cursor: "pointer",
       }}
     >
-      <StatusIcon status={entry.status} tooltip={entry.status} />
+      <StatusIcon status={entry.status} tooltip={entry.statusTooltip ?? entry.status} />
       <span>{entry.manifest.name}</span>
     </button>
   );

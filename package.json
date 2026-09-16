@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "plugin:build": "node scripts/stewrd-plugin-build.mjs"
+    "plugin:build": "node scripts/stewrd-plugin-build.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -24,6 +25,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "esbuild": "^0.28.2",
     "typescript": "~6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^5.0.1"
   }
 }

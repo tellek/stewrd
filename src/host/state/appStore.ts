@@ -6,6 +6,7 @@ import { defaultPalette } from "../../shared/palette";
 export interface PluginSidebarEntry {
   manifest: PluginManifest;
   status: StatusColor;
+  statusTooltip?: string;
 }
 
 export interface StatusLogEntry {
@@ -16,9 +17,26 @@ export interface StatusLogEntry {
   pluginId?: string;
 }
 
+export interface ModalRequest {
+  id: number;
+  kind: "error" | "info" | "question" | "confirm";
+  title: string;
+  message: string;
+  buttons?: string[];
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
+export interface ToastEntry {
+  id: number;
+  message: string;
+  kind: StatusColor;
+  durationMs: number;
+}
+
 const MAX_LOG_ENTRIES = 500; // bounded ring buffer - logging is also persisted
-// to a rolling app-data file separately (Milestone 4); this is just the
-// in-memory scrollback for StatusBar.
+// to a rolling app-data file separately; this is just the in-memory
+// scrollback for StatusBar.
 
 let nextLogId = 1;
 
@@ -28,12 +46,18 @@ interface AppState {
   statusLog: StatusLogEntry[];
   categoriesExpanded: Record<string, boolean>;
   palette: Palette;
+  modalQueue: ModalRequest[];
+  toasts: ToastEntry[];
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setActivePlugin(id: string | null): void;
-  setPluginStatus(id: string, status: StatusColor): void;
+  setPluginStatus(id: string, status: StatusColor, tooltip?: string): void;
   logMessage(level: StatusColor, message: string, pluginId?: string): void;
   toggleCategory(category: string): void;
+  pushModal(request: ModalRequest): void;
+  dismissModal(id: number): void;
+  pushToast(entry: ToastEntry): void;
+  dismissToast(id: number): void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -42,6 +66,8 @@ export const useAppStore = create<AppState>((set) => ({
   statusLog: [],
   categoriesExpanded: {},
   palette: defaultPalette,
+  modalQueue: [],
+  toasts: [],
 
   setPlugins: (plugins) =>
     set((state) => {
@@ -54,11 +80,11 @@ export const useAppStore = create<AppState>((set) => ({
 
   setActivePlugin: (id) => set({ activePluginId: id }),
 
-  setPluginStatus: (id, status) =>
+  setPluginStatus: (id, status, tooltip) =>
     set((state) => {
       const existing = state.plugins[id];
       if (!existing) return {};
-      return { plugins: { ...state.plugins, [id]: { ...existing, status } } };
+      return { plugins: { ...state.plugins, [id]: { ...existing, status, statusTooltip: tooltip } } };
     }),
 
   logMessage: (level, message, pluginId) =>
@@ -73,4 +99,10 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       categoriesExpanded: { ...state.categoriesExpanded, [category]: !(state.categoriesExpanded[category] ?? true) },
     })),
+
+  pushModal: (request) => set((state) => ({ modalQueue: [...state.modalQueue, request] })),
+  dismissModal: (id) => set((state) => ({ modalQueue: state.modalQueue.filter((m) => m.id !== id) })),
+
+  pushToast: (entry) => set((state) => ({ toasts: [...state.toasts, entry] })),
+  dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));
