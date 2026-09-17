@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { SidebarCategory } from "./SidebarCategory";
 import { SidebarCategoryCollapsed } from "./SidebarCategoryCollapsed";
@@ -16,6 +17,7 @@ export function Sidebar() {
   const expandIcon = getCategoryIcon(categoryIconFiles, "fast-forward");
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const palette = useAppStore((s) => s.palette);
+  const [expandHovered, setExpandHovered] = useState(false);
 
   // Plugins are grouped by resolving each manifest.category against the
   // app-controlled category list (Settings > Categories) - anything that
@@ -53,6 +55,8 @@ export function Sidebar() {
         <button
           onClick={toggleSidebarCollapsed}
           title="Expand sidebar"
+          onMouseEnter={() => setExpandHovered(true)}
+          onMouseLeave={() => setExpandHovered(false)}
           style={{
             display: "flex",
             alignItems: "center",
@@ -67,7 +71,12 @@ export function Sidebar() {
           }}
         >
           {expandIcon && (
-            <MaskIcon png={expandIcon.png} alt="Expand sidebar" size={COLLAPSE_ICON_SIZE} color={palette.textMuted} />
+            <MaskIcon
+              png={expandIcon.png}
+              alt="Expand sidebar"
+              size={COLLAPSE_ICON_SIZE}
+              color={expandHovered ? palette.accent : palette.textMuted}
+            />
           )}
         </button>
       ) : (

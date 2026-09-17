@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { SidebarPluginItem } from "./SidebarPluginItem";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
@@ -13,7 +14,8 @@ export function SidebarCategory({ category, entries }: { category: CategoryDef; 
   const palette = useAppStore((s) => s.palette);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const icon = getCategoryIcon(categoryIconFiles, category.icon);
-  const iconColor = categoryStatusColor(entries, palette, palette.textMuted);
+  const [hovered, setHovered] = useState(false);
+  const iconColor = hovered ? palette.accent : categoryStatusColor(entries, palette, palette.textMuted);
 
   return (
     <div>
@@ -36,9 +38,22 @@ export function SidebarCategory({ category, entries }: { category: CategoryDef; 
           cursor: "pointer",
         }}
       >
-        <span style={{ display: "flex", alignItems: "center", gap: 6, height: ICON_SIZE }}>
+        <span
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{ display: "flex", alignItems: "center", gap: 6, height: ICON_SIZE }}
+        >
           {icon && <MaskIcon png={icon.png} alt={category.name} size={ICON_SIZE} color={iconColor} />}
-          <span style={{ display: "flex", alignItems: "center", height: ICON_SIZE, position: "relative", top: 2 }}>
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: ICON_SIZE,
+              position: "relative",
+              top: 2,
+              color: hovered ? palette.accent : undefined,
+            }}
+          >
             {category.name}
           </span>
         </span>

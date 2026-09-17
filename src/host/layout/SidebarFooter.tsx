@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { getCategoryIcon } from "./categoryIcons";
@@ -14,6 +15,8 @@ export function SidebarFooter() {
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const collapseIcon = getCategoryIcon(categoryIconFiles, sidebarCollapsed ? "fast-forward" : "fast-backward");
   const settingsIcon = getCategoryIcon(categoryIconFiles, "settings");
+  const [settingsHovered, setSettingsHovered] = useState(false);
+  const [collapseHovered, setCollapseHovered] = useState(false);
 
   return (
     <div
@@ -28,6 +31,8 @@ export function SidebarFooter() {
     >
       <button
         onClick={openSettings}
+        onMouseEnter={() => setSettingsHovered(true)}
+        onMouseLeave={() => setSettingsHovered(false)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -38,18 +43,25 @@ export function SidebarFooter() {
           padding: "0 12px",
           border: "none",
           background: "transparent",
-          color: palette.textMuted,
+          color: settingsHovered ? palette.accent : palette.textMuted,
           cursor: "pointer",
         }}
       >
         {settingsIcon && (
-          <MaskIcon png={settingsIcon.png} alt="" size={COLLAPSE_ICON_SIZE} color={palette.textMuted} />
+          <MaskIcon
+            png={settingsIcon.png}
+            alt=""
+            size={COLLAPSE_ICON_SIZE}
+            color={settingsHovered ? palette.accent : palette.textMuted}
+          />
         )}
         Settings
       </button>
       <button
         onClick={toggleSidebarCollapsed}
         title="Collapse sidebar"
+        onMouseEnter={() => setCollapseHovered(true)}
+        onMouseLeave={() => setCollapseHovered(false)}
         style={{
           display: "flex",
           alignItems: "center",
@@ -66,7 +78,7 @@ export function SidebarFooter() {
             png={collapseIcon.png}
             alt={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             size={COLLAPSE_ICON_SIZE}
-            color={palette.textMuted}
+            color={collapseHovered ? palette.accent : palette.textMuted}
           />
         )}
       </button>

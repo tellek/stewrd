@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
@@ -9,6 +10,7 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <button
@@ -27,8 +29,21 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
       }}
     >
       <StatusIcon status={entry.status} tooltip={entry.statusTooltip ?? entry.status} />
-      {icon.png && <MaskIcon png={icon.png} alt={entry.manifest.name} size={24} color={palette.text} />}
-      <span>{entry.manifest.name}</span>
+      <span
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{ display: "flex", alignItems: "center", gap: 8 }}
+      >
+        {icon.png && (
+          <MaskIcon
+            png={icon.png}
+            alt={entry.manifest.name}
+            size={24}
+            color={hovered ? palette.accent : palette.text}
+          />
+        )}
+        <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
+      </span>
     </button>
   );
 }
