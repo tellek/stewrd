@@ -32,11 +32,11 @@ stewrd/
   src/                        React + TS host shell
     main.tsx                   React entry point
     host/
-      layout/                  Sidebar, SidebarCategory, SidebarPluginItem, MainContent, StatusBar, StatusIcon
+      layout/                  Sidebar, SidebarCategory, SidebarCategoryCollapsed, SidebarPluginItem, SidebarFooter, SettingsPage, categoryIcons, MainContent, StatusBar, StatusIcon
       loader/                  pluginDiscovery.ts, pluginLoader.ts, usePluginRegistry.ts
       scheduler/               tickScheduler.ts (+ its own unit tests)
       api/                     one file per PluginApi sub-surface (theme/modals/toast/shell/storage/fs/logging/statusIcon) + createPluginApi.ts which assembles them
-      state/                   appStore.ts (zustand: plugins, activePluginId, statusLog, modals, toasts, palette)
+      state/                   appStore.ts (zustand: plugins, activePluginId, statusLog, modals, toasts, palette, sidebarCollapsed, view)
       errors/                  PluginErrorBoundary.tsx, globalErrorHandlers.ts
       vendor-entries/          facade files used only to produce import-map targets for react/react-dom/tauri-api (see §5)
     shared/
@@ -246,14 +246,19 @@ Framework-agnostic singleton (no Tauri/React deps — independently unit-tested 
 
 ```
 App.tsx
- ├─ Sidebar.tsx → SidebarCategory.tsx[] (grouped live by manifest.category) → SidebarPluginItem.tsx[] (name + StatusIcon; click → setActivePlugin)
- ├─ MainContent.tsx → PluginErrorBoundary → <activePlugin.Component api={...} />
- └─ StatusBar.tsx (bounded 500-entry ring buffer + severity color; also persisted to app-data/stewrd.log)
+ ├─ Sidebar.tsx (width 220, or 48 when collapsed)
+ │   ├─ expanded: SidebarCategory.tsx[] (grouped live by manifest.category) → SidebarPluginItem.tsx[] (indented, name + StatusIcon; click → setActivePlugin)
+ │   ├─ collapsed: SidebarCategoryCollapsed.tsx[] (category icon via categoryIcons.ts, or ▸/▾ fallback) → icon-only SidebarPluginItem row per plugin
+ │   └─ SidebarFooter.tsx (expanded: "Settings" + "<<"; collapsed: just ">>") — pinned to the bottom of the sidebar, height-matched to StatusBar's summary row
+ └─ content column (flex: 1)
+     ├─ MainContent.tsx → `view === "settings"` renders SettingsPage.tsx, else PluginErrorBoundary → <activePlugin.Component api={...} />
+     └─ StatusBar.tsx (bounded 500-entry ring buffer + severity color; also persisted to app-data/stewrd.log; expanded log renders as an overlay above the fixed-height summary row, not by growing it) — spans only the content column's width, not the sidebar
 Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore's modalQueue/toasts
 ```
 
 - `usePluginRegistry()` (`host/loader/usePluginRegistry.ts`) is the single source of truth for discovered/loaded plugins; `App.tsx` feeds its `entries` into `appStore.setPlugins` for the sidebar, and calls `ensureLoaded(activePluginId)` when the user selects a plugin for the first time.
-- `appStore` (`host/state/appStore.ts`, zustand) holds: `plugins` (sidebar entries + status), `activePluginId`, `statusLog`, `categoriesExpanded`, `palette`, `modalQueue`, `toasts`. Plugins never touch this directly — only through the `PluginApi` surfaces in §6.
+- `appStore` (`host/state/appStore.ts`, zustand) holds: `plugins` (sidebar entries + status), `activePluginId`, `statusLog`, `categoriesExpanded`, `palette`, `modalQueue`, `toasts`, `sidebarCollapsed`, `view` (`"plugin" | "settings"`). Plugins never touch this directly — only through the `PluginApi` surfaces in §6.
+- `categoryIcons.ts` looks up a bundled icon by category name from `src/assets/category-icons/` (drop in a `<Category>.svg`/`.png` to give a category a real icon); categories with no matching file fall back to the ▸/▾ disclosure glyph in the collapsed sidebar.
 - Categories require zero host changes to add — they're derived live from whatever `manifest.category` values are currently discovered.
 
 ---

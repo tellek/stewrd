@@ -53,9 +53,11 @@ function App() {
       )}
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
         <Sidebar />
-        <MainContent entries={entries} onReload={reloadPlugin} />
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+          <MainContent entries={entries} onReload={reloadPlugin} />
+          <StatusBar />
+        </div>
       </div>
-      <StatusBar />
       <Modal />
       <ToastContainer />
     </div>

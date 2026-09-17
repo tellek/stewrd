@@ -48,6 +48,8 @@ interface AppState {
   palette: Palette;
   modalQueue: ModalRequest[];
   toasts: ToastEntry[];
+  sidebarCollapsed: boolean;
+  view: "plugin" | "settings";
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setActivePlugin(id: string | null): void;
@@ -58,6 +60,8 @@ interface AppState {
   dismissModal(id: number): void;
   pushToast(entry: ToastEntry): void;
   dismissToast(id: number): void;
+  toggleSidebarCollapsed(): void;
+  openSettings(): void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -68,6 +72,8 @@ export const useAppStore = create<AppState>((set) => ({
   palette: defaultPalette,
   modalQueue: [],
   toasts: [],
+  sidebarCollapsed: false,
+  view: "plugin",
 
   setPlugins: (plugins) =>
     set((state) => {
@@ -78,7 +84,7 @@ export const useAppStore = create<AppState>((set) => ({
       return { plugins: next };
     }),
 
-  setActivePlugin: (id) => set({ activePluginId: id }),
+  setActivePlugin: (id) => set({ activePluginId: id, view: "plugin" }),
 
   setPluginStatus: (id, status, tooltip) =>
     set((state) => {
@@ -105,4 +111,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   pushToast: (entry) => set((state) => ({ toasts: [...state.toasts, entry] })),
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+
+  toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  openSettings: () => set({ view: "settings" }),
 }));
