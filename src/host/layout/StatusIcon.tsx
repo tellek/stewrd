@@ -12,7 +12,7 @@ export function StatusIcon({ status, tooltip }: { status: StatusColor; tooltip?:
   if (status === "idle" && moreIcon) {
     return (
       <span title={tooltip}>
-        <MaskIcon png={moreIcon.png} alt="idle" size={14} color={palette.textMuted} />
+        <MaskIcon png={moreIcon.png} alt="idle" size={16} color={palette.textMuted} />
       </span>
     );
   }

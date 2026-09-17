@@ -21,7 +21,7 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         gap: 8,
         width: "100%",
         textAlign: "left",
-        padding: "6px 12px 6px 28px",
+        padding: "6px 12px 6px 22px",
         border: "none",
         background: isActive ? palette.surfaceHover : "transparent",
         color: palette.text,
