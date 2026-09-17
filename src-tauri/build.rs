@@ -1,6 +1,11 @@
 use std::{env, fs, path::PathBuf};
 
 fn main() {
+    // tauri-build compiles icons/icon.ico into the exe's Win32 icon resource but
+    // never emits a rerun-if-changed for it, so replacing the icon alone leaves
+    // the cached resource.lib (and the old Explorer/shortcut icon) in place.
+    println!("cargo:rerun-if-changed=icons/icon.ico");
+
     tauri_build::build();
 
     // `bundle.resources` in tauri.conf.json only copies files during
