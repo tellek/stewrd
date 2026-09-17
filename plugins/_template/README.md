@@ -35,7 +35,7 @@ one React instance instead of bundling a second copy.
 2. **Load** - `background: true` plugins are Blob-URL-imported immediately; everything else waits until first selected in the sidebar.
 3. **Activate** - `activate(ctx)` runs once per load. Register tick handlers here, kick off any startup work.
 4. **Mount / Unmount** - pure React, toggled by sidebar selection. Does **not** re-run activate/deactivate - your component can mount and unmount many times across one activation.
-5. **Deactivate** - runs on hot-reload-replace or app shutdown. Your `deactivate()` export runs, then the host aborts `ctx.signal`, unregisters your tick handler, and runs anything you registered via `ctx.onDispose(fn)`.
+5. **Deactivate** - runs on hot-reload-replace or app shutdown. Your `deactivate()` export runs first (its return value isn't awaited), then the host runs anything you registered via `ctx.onDispose(fn)`, then aborts `ctx.signal`, then unregisters your tick handler - so an `onDispose` callback can't assume `ctx.signal` is already aborted.
 6. **Uninstall** - delete the folder; the next discovery pass removes it and deactivates it if it was active.
 
 ## Type checking while authoring

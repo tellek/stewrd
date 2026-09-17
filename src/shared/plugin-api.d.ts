@@ -55,9 +55,11 @@ export interface PluginContext {
    * relying only on manual isActive-flag checks. */
   signal: AbortSignal;
   /** Disposal bag for anything registered outside the tracked APIs (raw DOM
-   * listeners, extra timers, fs watchers). Tracked-API resources (tick,
-   * fs watchers created via api.fs.watchFile, spawned processes) are
-   * auto-revoked by the host already - this is only for the rest. */
+   * listeners, extra timers, fs watchers). Only ctx.tick and ctx.signal are
+   * actually auto-revoked by the host on deactivate - spawned processes
+   * (api.shell.spawn) and anything else created through the other api.*
+   * surfaces are NOT auto-cleaned-up; register their teardown here yourself
+   * (e.g. onDispose(() => child.kill())). */
   onDispose(fn: () => void): void;
 }
 

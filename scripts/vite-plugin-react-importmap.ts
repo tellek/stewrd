@@ -3,11 +3,12 @@
 // instance the host app itself uses - critical so hooks work (two separate
 // React instances break hooks). See docs/architecture-plan.md "Plugin loading
 // mechanism" for why this can't just be a hand-written static path:
-// - Dev: Vite's dependency pre-bundler serves react at a stable filename but
-//   cache-busts it with a `?v=<hash>` query that changes per optimize run, so
-//   the exact URL must be read from node_modules/.vite/deps/_metadata.json.
+// - Dev: the target is just the static vendor-entries facade path itself
+//   (/src/host/vendor-entries/react.ts etc) - Vite's normal dev transform
+//   pipeline rewrites that facade's own `export {...} from "react"` line with
+//   real named exports, same as it would for any app source file.
 // - Build: react/react-dom get bundled into content-hashed chunk files, so the
-//   exact URL must be read from the Rollup output bundle after it's built.
+//   exact URL must be read from the Rollup/Rolldown output bundle after build.
 //
 // Extra bare specifiers (e.g. spike-dep) can be merged in via `extraImports`
 // so only one <script type="importmap"> ever exists in the document (a

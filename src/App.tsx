@@ -47,8 +47,8 @@ function App() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {safeMode && (
         <p style={{ color: defaultPalette.status.warning, padding: "4px 12px", margin: 0 }}>
-          SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data plugins directory to resume
-          normal loading.
+          SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data root directory (not the
+          plugins subfolder) to resume normal loading.
         </p>
       )}
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
