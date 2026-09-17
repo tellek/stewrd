@@ -12,7 +12,7 @@ export interface CategoryDef {
 export const OTHER_CATEGORY_ID = "Other";
 
 export const DEFAULT_CATEGORIES: CategoryDef[] = [
-  { id: OTHER_CATEGORY_ID, name: "Other", icon: "" },
+  { id: OTHER_CATEGORY_ID, name: "Other", icon: "menu" },
   { id: "Utilities", name: "Utilities", icon: "" },
   { id: "Templates", name: "Templates", icon: "" },
 ];
