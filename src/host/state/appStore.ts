@@ -11,7 +11,7 @@ export interface PluginSidebarEntry {
   manifest: PluginManifest;
   status: StatusColor;
   statusTooltip?: string;
-  /** Discovery directory name - needed to fetch the plugin's icon.png/icon.gif. */
+  /** Discovery directory name - needed to fetch the plugin's icon.png. */
   dir: string;
 }
 

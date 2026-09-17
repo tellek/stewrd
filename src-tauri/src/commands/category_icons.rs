@@ -1,19 +1,17 @@
 // Category icons live next to the running executable (not bundled at build
-// time), so a user can drop new <name>.png / <name>.gif pairs into
+// time), so a user can drop new <name>.png files into
 // <exe-dir>/assets/category-icons/ - dev (`target/debug`) and a release
 // install both "just work" since the folder is resolved relative to
 // whatever binary is actually running, not a fixed absolute path.
 use crate::commands::icon_util::read_as_data_url;
 use serde::Serialize;
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tauri::AppHandle;
 
 #[derive(Debug, Serialize)]
 pub struct CategoryIconFile {
     pub name: String,
-    pub png: Option<String>,
-    pub gif: Option<String>,
+    pub png: String,
 }
 
 pub fn resolve_category_icons_dir(_app: &AppHandle) -> Result<PathBuf, String> {
@@ -31,33 +29,28 @@ pub fn list_category_icons(app: AppHandle) -> Result<Vec<CategoryIconFile>, Stri
     let dir = resolve_category_icons_dir(&app)?;
     let read_dir = std::fs::read_dir(&dir).map_err(|e| format!("could not read {}: {e}", dir.display()))?;
 
-    let mut by_name: BTreeMap<String, CategoryIconFile> = BTreeMap::new();
+    let mut files = Vec::new();
     for entry in read_dir.flatten() {
         let path = entry.path();
         if !path.is_file() {
             continue;
         }
-        let Some(ext) = path.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase()) else {
-            continue;
-        };
-        if ext != "png" && ext != "gif" {
+        let is_png = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("png"))
+            .unwrap_or(false);
+        if !is_png {
             continue;
         }
         let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
             continue;
         };
-
-        let file = by_name.entry(stem.to_string()).or_insert_with(|| CategoryIconFile {
-            name: stem.to_string(),
-            png: None,
-            gif: None,
-        });
-        if ext == "png" {
-            file.png = read_as_data_url(&path, "image/png");
-        } else {
-            file.gif = read_as_data_url(&path, "image/gif");
+        if let Some(png) = read_as_data_url(&path, "image/png") {
+            files.push(CategoryIconFile { name: stem.to_string(), png });
         }
     }
 
-    Ok(by_name.into_values().collect())
+    files.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(files)
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { OTHER_CATEGORY_ID } from "../../shared/category";
 import { getCategoryIcon, listCategoryIconNames } from "./categoryIcons";
-import { HoverIcon } from "../../components/HoverIcon/HoverIcon";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 
 export function SettingsCategories() {
   const palette = useAppStore((s) => s.palette);
@@ -23,8 +23,8 @@ export function SettingsCategories() {
     <div>
       <p style={{ color: palette.textMuted, fontSize: 13 }}>
         A plugin's <code>category</code> field must match a category name below or it lands in "Other". Icons
-        come from <code>&lt;name&gt;.png</code> (optionally paired with <code>&lt;name&gt;.gif</code> for a hover
-        animation) dropped into the <code>assets/category-icons</code> folder next to the running app.{" "}
+        come from <code>&lt;name&gt;.png</code> dropped into the <code>assets/category-icons</code> folder next
+        to the running app, and are tinted to match the current theme.{" "}
         <button onClick={() => loadCategoryIcons()} style={{ cursor: "pointer" }}>
           Refresh icon list
         </button>
@@ -36,8 +36,8 @@ export function SettingsCategories() {
             const isOther = category.id === OTHER_CATEGORY_ID;
             return (
               <tr key={category.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
-                <td style={{ padding: "6px 8px", width: 24 }}>
-                  {icon?.png && <HoverIcon png={icon.png} gif={icon.gif} alt={category.name} />}
+                <td style={{ padding: "6px 8px", width: 40 }}>
+                  {icon?.png && <MaskIcon png={icon.png} alt={category.name} size={24} color={palette.text} />}
                 </td>
                 <td style={{ padding: "6px 8px" }}>
                   <input

@@ -1,6 +1,6 @@
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
-import { HoverIcon } from "../../components/HoverIcon/HoverIcon";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { usePluginIcon } from "./usePluginIcon";
 
 export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
@@ -27,7 +27,7 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
       }}
     >
       <StatusIcon status={entry.status} tooltip={entry.statusTooltip ?? entry.status} />
-      {icon.png && <HoverIcon png={icon.png} gif={icon.gif} alt={entry.manifest.name} />}
+      {icon.png && <MaskIcon png={icon.png} alt={entry.manifest.name} size={24} color={palette.text} />}
       <span>{entry.manifest.name}</span>
     </button>
   );

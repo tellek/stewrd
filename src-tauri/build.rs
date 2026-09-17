@@ -23,7 +23,7 @@ fn main() {
             let is_icon = path
                 .extension()
                 .and_then(|e| e.to_str())
-                .map(|e| e.eq_ignore_ascii_case("png") || e.eq_ignore_ascii_case("gif"))
+                .map(|e| e.eq_ignore_ascii_case("png"))
                 .unwrap_or(false);
             if path.is_file() && is_icon {
                 if let Some(name) = path.file_name() {

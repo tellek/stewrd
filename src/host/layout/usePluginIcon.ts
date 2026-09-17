@@ -3,8 +3,8 @@ import { getPluginIcon, type PluginIconUrls } from "../api/pluginIcons";
 
 const cache = new Map<string, PluginIconUrls>();
 
-/** Fetches a plugin's icon.png/icon.gif (if present) once per dir, cached
- * for the life of the app - plugin icons don't change without a reload. */
+/** Fetches a plugin's icon.png (if present) once per dir, cached for the
+ * life of the app - plugin icons don't change without a reload. */
 export function usePluginIcon(dir: string): PluginIconUrls {
   const [icons, setIcons] = useState<PluginIconUrls>(() => cache.get(dir) ?? {});
 

@@ -18,6 +18,9 @@ plugins/*/dist
 # Serena MCP local project cache
 .serena/
 
+# Ad-hoc debug screenshots dropped in during a session
+screenshots/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

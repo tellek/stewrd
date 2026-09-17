@@ -1,7 +1,8 @@
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { getCategoryIcon } from "./categoryIcons";
-import { HoverIcon } from "../../components/HoverIcon/HoverIcon";
+import { categoryStatusColor } from "./categoryStatus";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import type { CategoryDef } from "../../shared/category";
 
 export function SidebarCategoryCollapsed({ category, entries }: { category: CategoryDef; entries: PluginSidebarEntry[] }) {
@@ -12,6 +13,7 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: Cate
   const palette = useAppStore((s) => s.palette);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const icon = getCategoryIcon(categoryIconFiles, category.icon);
+  const iconColor = categoryStatusColor(entries, palette, palette.textMuted);
 
   return (
     <div>
@@ -30,7 +32,7 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: Cate
         }}
       >
         {icon?.png ? (
-          <HoverIcon png={icon.png} gif={icon.gif} alt={category.name} />
+          <MaskIcon png={icon.png} alt={category.name} size={24} color={iconColor} />
         ) : (
           <span>{expanded ? "▾" : "▸"}</span>
         )}

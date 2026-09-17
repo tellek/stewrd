@@ -11,7 +11,7 @@ and update `plugin.json`'s `id`/`name`/`category` to match.
 | `name` | Display name shown in the sidebar. |
 | `version` | Your own semver, informational only. |
 | `category` | Sidebar grouping. Must match a category id defined in Settings > Categories (host-controlled) or your plugin lands under "Other" until someone adds it there. |
-| `icon` | Unused - reserved. To give your plugin a sidebar icon, drop `icon.png` (and optionally `icon.gif` for a hover animation) into the plugin's own folder instead. |
+| `icon` | Unused - reserved. To give your plugin a sidebar icon, drop `icon.png` into the plugin's own folder instead - it's rendered as a CSS mask, tinted to the current theme color. |
 | `entry` | Path to the **built** output the loader actually imports, always `dist/index.js` - you write `index.tsx`, esbuild produces this. |
 | `description` | Shown in discovery-error messages and tooling; keep it short. |
 | `apiVersion` | Must match the host's supported version (currently `"1"`) or discovery rejects the plugin with a clear error. |
