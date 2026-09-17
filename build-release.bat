@@ -1,37 +1,31 @@
 @echo off
 setlocal
 
-set "SRC=%~dp0src-tauri\target\release"
-set "DEST=C:\Utilities\stewrd"
+set REPO=%~dp0
+set DEPLOY=C:\Utilities\stewrd
+set RELEASE=%REPO%src-tauri\target\release
 
-echo Stopping running stewrd...
+echo Closing running stewrd...
 taskkill /IM stewrd.exe /F >nul 2>&1
 
 echo Building release...
-call npm run tauri build
+cd /d "%REPO%"
+call npx tauri build
 if errorlevel 1 (
     echo Build failed.
     exit /b 1
 )
 
-echo Deploying to %DEST% (skipping user-generated files)...
-if not exist "%DEST%" mkdir "%DEST%"
+echo Deploying to %DEPLOY% (preserving stewrd.config.json, notes, and rules/settings-suggestions data)...
+if not exist "%DEPLOY%" mkdir "%DEPLOY%"
+robocopy "%RELEASE%" "%DEPLOY%" /E /XF stewrd.config.json notes.txt notes.stewrd-state.json *.pdb *.lib *.exp *.rlib /XD deps build incremental .fingerprint examples wix nsis bundle rules-suggestions settings-suggestions /NFL /NDL /NJH /NJS
+if %errorlevel% geq 8 (
+    echo Deploy copy failed.
+    exit /b 1
+)
 
-rem make sure nothing is holding the deployed exe open before we overwrite it
-taskkill /IM stewrd.exe /F >nul 2>&1
-
-rem exe: always overwrite with the freshly built one
-robocopy "%SRC%" "%DEST%" stewrd.exe /R:3 /W:2 >nul
-
-rem resources: not user-editable, always overwrite
-robocopy "%SRC%\resources" "%DEST%\resources" /E /R:3 /W:2 >nul
-
-rem assets (category icons etc.): only add files the user doesn't already have,
-rem never touch existing files (icons/templates/themes the user may have customized)
-robocopy "%SRC%\assets" "%DEST%\assets" /E /XC /XN /XO /R:3 /W:2 >nul
-
-echo Restarting stewrd from %DEST%...
-start "" "%DEST%\stewrd.exe"
+echo Relaunching stewrd from %DEPLOY%...
+start "" "%DEPLOY%\stewrd.exe"
 
 echo Done.
 endlocal
