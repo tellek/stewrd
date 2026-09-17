@@ -48,9 +48,10 @@ export function StatusBar() {
         style={{
           display: "flex",
           width: "100%",
+          height: 32,
           alignItems: "center",
           gap: 8,
-          padding: "4px 12px",
+          padding: "0 12px",
           border: "none",
           background: "transparent",
           color: latest ? defaultPalette.status[latest.level] : defaultPalette.textMuted,

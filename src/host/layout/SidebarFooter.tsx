@@ -21,9 +21,12 @@ export function SidebarFooter() {
       <button
         onClick={openSettings}
         style={{
+          display: "flex",
+          alignItems: "center",
           flex: 1,
+          height: 32,
           textAlign: "left",
-          padding: "4px 12px",
+          padding: "0 12px",
           border: "none",
           background: "transparent",
           color: defaultPalette.textMuted,
@@ -36,7 +39,10 @@ export function SidebarFooter() {
         onClick={toggleSidebarCollapsed}
         title="Collapse sidebar"
         style={{
-          padding: "4px 12px",
+          display: "flex",
+          alignItems: "center",
+          height: 32,
+          padding: "0 12px",
           border: "none",
           background: "transparent",
           color: defaultPalette.textMuted,
