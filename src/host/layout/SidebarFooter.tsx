@@ -13,6 +13,7 @@ export function SidebarFooter() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const collapseIcon = getCategoryIcon(categoryIconFiles, sidebarCollapsed ? "fast-forward" : "fast-backward");
+  const settingsIcon = getCategoryIcon(categoryIconFiles, "settings");
 
   return (
     <div
@@ -30,6 +31,7 @@ export function SidebarFooter() {
         style={{
           display: "flex",
           alignItems: "center",
+          gap: 6,
           flex: 1,
           height: 32,
           textAlign: "left",
@@ -40,6 +42,9 @@ export function SidebarFooter() {
           cursor: "pointer",
         }}
       >
+        {settingsIcon && (
+          <MaskIcon png={settingsIcon.png} alt="" size={COLLAPSE_ICON_SIZE} color={palette.textMuted} />
+        )}
         Settings
       </button>
       <button
