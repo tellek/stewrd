@@ -34,8 +34,5 @@ if %errorlevel% geq 8 (
     exit /b 1
 )
 
-echo Relaunching stewrd from %DEPLOY%...
-start "" "%DEPLOY%\stewrd.exe"
-
 echo Done.
 endlocal

@@ -4,7 +4,15 @@ import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { useAppStore } from "../state/appStore";
 import { getCategoryIcon } from "./categoryIcons";
 
-export function StatusIcon({ status, tooltip }: { status: StatusColor; tooltip?: string }) {
+export function StatusIcon({
+  status,
+  tooltip,
+  idleColor,
+}: {
+  status: StatusColor;
+  tooltip?: string;
+  idleColor?: string;
+}) {
   const palette = useAppStore((s) => s.palette);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const moreIcon = getCategoryIcon(categoryIconFiles, "more");
@@ -12,7 +20,7 @@ export function StatusIcon({ status, tooltip }: { status: StatusColor; tooltip?:
   if (status === "idle" && moreIcon) {
     return (
       <span title={tooltip}>
-        <MaskIcon png={moreIcon.png} alt="idle" size={16} color={palette.textMuted} />
+        <MaskIcon png={moreIcon.png} alt="idle" size={16} color={idleColor ?? palette.textMuted} />
       </span>
     );
   }

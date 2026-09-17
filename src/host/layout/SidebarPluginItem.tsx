@@ -28,12 +28,16 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         cursor: "pointer",
       }}
     >
-      <StatusIcon status={entry.status} tooltip={entry.statusTooltip ?? entry.status} />
       <span
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ display: "flex", alignItems: "center", gap: 8 }}
       >
+        <StatusIcon
+          status={entry.status}
+          tooltip={entry.statusTooltip ?? entry.status}
+          idleColor={hovered ? palette.accent : undefined}
+        />
         {icon.png && (
           <MaskIcon
             png={icon.png}
