@@ -22,9 +22,11 @@ function App() {
   const palette = useAppStore((s) => s.palette);
   const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
   const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
+  const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
 
   useEffect(() => {
     hydrateHostSettings();
+    loadCategoryIcons();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

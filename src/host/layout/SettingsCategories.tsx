@@ -10,7 +10,9 @@ export function SettingsCategories() {
   const addCategory = useAppStore((s) => s.addCategory);
   const updateCategory = useAppStore((s) => s.updateCategory);
   const removeCategory = useAppStore((s) => s.removeCategory);
-  const iconNames = listCategoryIconNames();
+  const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
+  const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
+  const iconNames = listCategoryIconNames(categoryIconFiles);
 
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
@@ -21,12 +23,16 @@ export function SettingsCategories() {
     <div>
       <p style={{ color: palette.textMuted, fontSize: 13 }}>
         A plugin's <code>category</code> field must match a category name below or it lands in "Other". Icons
-        come from files dropped into <code>src/assets/category-icons/</code>.
+        come from <code>&lt;name&gt;.png</code> (optionally paired with <code>&lt;name&gt;.gif</code> for a hover
+        animation) dropped into the <code>assets/category-icons</code> folder next to the running app.{" "}
+        <button onClick={() => loadCategoryIcons()} style={{ cursor: "pointer" }}>
+          Refresh icon list
+        </button>
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
           {categories.map((category) => {
-            const icon = getCategoryIcon(category.icon);
+            const icon = getCategoryIcon(categoryIconFiles, category.icon);
             const isOther = category.id === OTHER_CATEGORY_ID;
             return (
               <tr key={category.id} style={{ borderBottom: `1px solid ${palette.border}` }}>

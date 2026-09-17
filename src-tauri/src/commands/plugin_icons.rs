@@ -3,10 +3,9 @@
 // any asset-protocol/filesystem-plugin configuration. `dir` comes straight
 // from the webview, so it's validated as a single path segment before being
 // joined onto the plugins root - mirrors fs.rs's resolve_scoped_path guard.
+use crate::commands::icon_util::read_as_data_url;
 use crate::commands::plugins::resolve_plugins_dir;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
-use std::path::Path;
 use tauri::AppHandle;
 
 #[derive(Debug, Serialize, Default)]
@@ -17,11 +16,6 @@ pub struct PluginIconUrls {
 
 fn is_valid_dir_segment(dir: &str) -> bool {
     !dir.is_empty() && dir != "." && dir != ".." && !dir.contains('/') && !dir.contains('\\')
-}
-
-fn read_as_data_url(path: &Path, mime: &str) -> Option<String> {
-    let bytes = std::fs::read(path).ok()?;
-    Some(format!("data:{mime};base64,{}", STANDARD.encode(bytes)))
 }
 
 #[tauri::command]

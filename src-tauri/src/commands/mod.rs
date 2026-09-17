@@ -1,4 +1,6 @@
+pub mod category_icons;
 pub mod fs;
+pub mod icon_util;
 pub mod interval;
 pub mod logging;
 pub mod plugin_icons;

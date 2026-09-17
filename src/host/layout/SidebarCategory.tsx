@@ -8,7 +8,8 @@ export function SidebarCategory({ category, entries }: { category: CategoryDef; 
   const expanded = useAppStore((s) => s.categoriesExpanded[category.id] ?? true);
   const toggleCategory = useAppStore((s) => s.toggleCategory);
   const palette = useAppStore((s) => s.palette);
-  const icon = getCategoryIcon(category.icon);
+  const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
+  const icon = getCategoryIcon(categoryIconFiles, category.icon);
 
   return (
     <div>

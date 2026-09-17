@@ -5,6 +5,7 @@ import { premadePalettes } from "../../shared/palette";
 import type { CategoryDef } from "../../shared/category";
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
 import { loadHostSettings, saveHostSettings } from "./hostSettings";
+import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 
 export interface PluginSidebarEntry {
   manifest: PluginManifest;
@@ -51,6 +52,7 @@ interface AppState {
   statusLog: StatusLogEntry[];
   categoriesExpanded: Record<string, boolean>;
   categories: CategoryDef[];
+  categoryIconFiles: CategoryIconFile[];
   paletteId: string;
   customPalettes: NamedPalette[];
   hostSettingsLoaded: boolean;
@@ -77,6 +79,7 @@ interface AppState {
   toggleSidebarCollapsed(): void;
   openSettings(): void;
   hydrateHostSettings(): Promise<void>;
+  loadCategoryIcons(): Promise<void>;
   setCategories(categories: CategoryDef[]): void;
   addCategory(category: CategoryDef): void;
   updateCategory(id: string, updates: Partial<Pick<CategoryDef, "name" | "icon">>): void;
@@ -98,6 +101,7 @@ export const useAppStore = create<AppState>((set) => ({
   statusLog: [],
   categoriesExpanded: {},
   categories: DEFAULT_CATEGORIES,
+  categoryIconFiles: [],
   paletteId: premadePalettes[0].id,
   customPalettes: [],
   hostSettingsLoaded: false,
@@ -165,6 +169,15 @@ export const useAppStore = create<AppState>((set) => ({
         palette: resolvePalette(paletteId, customPalettes),
       };
     });
+  },
+
+  loadCategoryIcons: async () => {
+    try {
+      const categoryIconFiles = await listCategoryIcons();
+      set({ categoryIconFiles });
+    } catch (err) {
+      console.error("[appStore] failed to load category icons", err);
+    }
   },
 
   setCategories: (categories) => {
