@@ -7,7 +7,6 @@ import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
 import { Modal } from "./components/Modal/Modal";
 import { ToastContainer } from "./components/Toast/ToastContainer";
-import { defaultPalette } from "./shared/palette";
 import "./App.css";
 
 function App() {
@@ -20,13 +19,21 @@ function App() {
   const setPluginStatus = useAppStore((s) => s.setPluginStatus);
   const logMessage = useAppStore((s) => s.logMessage);
   const activePluginId = useAppStore((s) => s.activePluginId);
+  const palette = useAppStore((s) => s.palette);
+  const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
+  const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
+
+  useEffect(() => {
+    hydrateHostSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (activePluginId) ensureLoaded(activePluginId);
   }, [activePluginId, ensureLoaded]);
 
   useEffect(() => {
-    setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle" })));
+    setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle", dir: e.dir })));
     for (const e of entries) {
       if (e.loadError) {
         setPluginStatus(e.manifest.id, "error");
@@ -43,10 +50,12 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discoveryErrors]);
 
+  if (!hostSettingsLoaded) return null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       {safeMode && (
-        <p style={{ color: defaultPalette.status.warning, padding: "4px 12px", margin: 0 }}>
+        <p style={{ color: palette.status.warning, padding: "4px 12px", margin: 0 }}>
           SAFE_MODE active - no plugins loaded. Delete the SAFE_MODE file in the app-data root directory (not the
           plugins subfolder) to resume normal loading.
         </p>

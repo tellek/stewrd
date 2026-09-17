@@ -50,6 +50,7 @@ pub fn run() {
             commands::fs::fs_write_text_file,
             commands::interval::start_interval,
             commands::interval::stop_interval,
+            commands::plugin_icons::get_plugin_icon,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

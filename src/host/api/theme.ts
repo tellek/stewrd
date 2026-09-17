@@ -6,9 +6,9 @@ export interface ThemeApi {
   subscribe(fn: (p: Palette) => void): () => void;
 }
 
-// Single default palette for now (no light/dark switching yet) - subscribe
-// still wired properly so plugins written against it keep working once
-// theme switching lands.
+// Palette is switchable via Settings > Themes (appStore.paletteId /
+// customPalettes) - reads/subscribes the store's derived `palette` field so
+// plugins see live theme changes without any extra wiring.
 export function createThemeApi(): ThemeApi {
   return {
     get palette() {

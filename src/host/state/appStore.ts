@@ -1,12 +1,17 @@
 import { create } from "zustand";
 import type { PluginManifest } from "../../shared/plugin-api.d.ts";
-import type { Palette, StatusColor } from "../../shared/palette";
-import { defaultPalette } from "../../shared/palette";
+import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
+import { premadePalettes } from "../../shared/palette";
+import type { CategoryDef } from "../../shared/category";
+import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
+import { loadHostSettings, saveHostSettings } from "./hostSettings";
 
 export interface PluginSidebarEntry {
   manifest: PluginManifest;
   status: StatusColor;
   statusTooltip?: string;
+  /** Discovery directory name - needed to fetch the plugin's icon.png/icon.gif. */
+  dir: string;
 }
 
 export interface StatusLogEntry {
@@ -45,6 +50,15 @@ interface AppState {
   activePluginId: string | null;
   statusLog: StatusLogEntry[];
   categoriesExpanded: Record<string, boolean>;
+  categories: CategoryDef[];
+  paletteId: string;
+  customPalettes: NamedPalette[];
+  hostSettingsLoaded: boolean;
+  /** Derived from paletteId/customPalettes - recomputed explicitly by every
+   * action that touches either, since zustand's default setState merge
+   * (Object.assign) would freeze a getter's value instead of keeping it
+   * live. Always resolves to a real Palette, never undefined - falls back
+   * to premadePalettes[0] (Dark) if paletteId matches nothing. */
   palette: Palette;
   modalQueue: ModalRequest[];
   toasts: ToastEntry[];
@@ -62,6 +76,20 @@ interface AppState {
   dismissToast(id: number): void;
   toggleSidebarCollapsed(): void;
   openSettings(): void;
+  hydrateHostSettings(): Promise<void>;
+  setCategories(categories: CategoryDef[]): void;
+  addCategory(category: CategoryDef): void;
+  updateCategory(id: string, updates: Partial<Pick<CategoryDef, "name" | "icon">>): void;
+  removeCategory(id: string): void;
+  setPaletteId(id: string): void;
+  saveCustomPalette(palette: NamedPalette): void;
+  deleteCustomPalette(id: string): void;
+}
+
+export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]): Palette {
+  const found =
+    customPalettes.find((p) => p.id === paletteId) ?? premadePalettes.find((p) => p.id === paletteId);
+  return (found ?? premadePalettes[0]).colors;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -69,7 +97,11 @@ export const useAppStore = create<AppState>((set) => ({
   activePluginId: null,
   statusLog: [],
   categoriesExpanded: {},
-  palette: defaultPalette,
+  categories: DEFAULT_CATEGORIES,
+  paletteId: premadePalettes[0].id,
+  customPalettes: [],
+  hostSettingsLoaded: false,
+  palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
   toasts: [],
   sidebarCollapsed: false,
@@ -79,7 +111,11 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => {
       const next: Record<string, PluginSidebarEntry> = {};
       for (const p of plugins) {
-        next[p.manifest.id] = { manifest: p.manifest, status: state.plugins[p.manifest.id]?.status ?? "idle" };
+        next[p.manifest.id] = {
+          manifest: p.manifest,
+          status: state.plugins[p.manifest.id]?.status ?? "idle",
+          dir: p.dir,
+        };
       }
       return { plugins: next };
     }),
@@ -114,4 +150,74 @@ export const useAppStore = create<AppState>((set) => ({
 
   toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   openSettings: () => set({ view: "settings" }),
+
+  hydrateHostSettings: async () => {
+    const loaded = await loadHostSettings();
+    set((state) => {
+      const categories = loaded.categories ?? state.categories;
+      const paletteId = loaded.paletteId ?? state.paletteId;
+      const customPalettes = loaded.customPalettes ?? state.customPalettes;
+      return {
+        categories,
+        paletteId,
+        customPalettes,
+        hostSettingsLoaded: true,
+        palette: resolvePalette(paletteId, customPalettes),
+      };
+    });
+  },
+
+  setCategories: (categories) => {
+    set({ categories });
+    saveHostSettings({ categories });
+  },
+
+  addCategory: (category) =>
+    set((state) => {
+      const categories = [...state.categories, category];
+      saveHostSettings({ categories });
+      return { categories };
+    }),
+
+  updateCategory: (id, updates) =>
+    set((state) => {
+      if (id === OTHER_CATEGORY_ID) return {};
+      const categories = state.categories.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      saveHostSettings({ categories });
+      return { categories };
+    }),
+
+  removeCategory: (id) =>
+    set((state) => {
+      if (id === OTHER_CATEGORY_ID) return {};
+      const categories = state.categories.filter((c) => c.id !== id);
+      saveHostSettings({ categories });
+      return { categories };
+    }),
+
+  setPaletteId: (id) =>
+    set((state) => {
+      const palette = resolvePalette(id, state.customPalettes);
+      saveHostSettings({ paletteId: id });
+      return { paletteId: id, palette };
+    }),
+
+  saveCustomPalette: (namedPalette) =>
+    set((state) => {
+      const existingIndex = state.customPalettes.findIndex((p) => p.id === namedPalette.id);
+      const customPalettes =
+        existingIndex >= 0
+          ? state.customPalettes.map((p, i) => (i === existingIndex ? namedPalette : p))
+          : [...state.customPalettes, namedPalette];
+      saveHostSettings({ customPalettes });
+      return { customPalettes, palette: resolvePalette(state.paletteId, customPalettes) };
+    }),
+
+  deleteCustomPalette: (id) =>
+    set((state) => {
+      const customPalettes = state.customPalettes.filter((p) => p.id !== id);
+      const paletteId = state.paletteId === id ? premadePalettes[0].id : state.paletteId;
+      saveHostSettings({ customPalettes, paletteId });
+      return { customPalettes, paletteId, palette: resolvePalette(paletteId, customPalettes) };
+    }),
 }));

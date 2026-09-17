@@ -36,13 +36,14 @@ stewrd/
       loader/                  pluginDiscovery.ts, pluginLoader.ts, usePluginRegistry.ts
       scheduler/               tickScheduler.ts (+ its own unit tests)
       api/                     one file per PluginApi sub-surface (theme/modals/toast/shell/storage/fs/logging/statusIcon) + createPluginApi.ts which assembles them
-      state/                   appStore.ts (zustand: plugins, activePluginId, statusLog, modals, toasts, palette, sidebarCollapsed, view)
+      state/                   appStore.ts (zustand: plugins, activePluginId, statusLog, modals, toasts, categories, paletteId, customPalettes, palette (derived), sidebarCollapsed, view), hostSettings.ts (persists categories/theme via storage_get/set under a reserved "__host__" id)
       errors/                  PluginErrorBoundary.tsx, globalErrorHandlers.ts
       vendor-entries/          facade files used only to produce import-map targets for react/react-dom/tauri-api (see §5)
     shared/
       plugin-api.d.ts          the canonical PluginApi/PluginManifest/PluginContext/PluginModule TypeScript shape
-      palette.ts               Palette + StatusColor type, defaultPalette
-    components/                Modal/, Toast/ — host-rendered singletons driven by api.modal/api.toast (not exposed as components); TextBox/, StatusDot/ — the actual `api.ui` components handed to plugins
+      palette.ts               Palette + StatusColor + NamedPalette types, defaultPalette, premadePalettes (Dark/Light)
+      category.ts              CategoryDef type, DEFAULT_CATEGORIES, resolveCategory (falls back to "Other")
+    components/                Modal/, Toast/ — host-rendered singletons driven by api.modal/api.toast (not exposed as components); TextBox/, StatusDot/ — the actual `api.ui` components handed to plugins; HoverIcon/ — shared PNG-with-GIF-hover-swap primitive used by category and plugin icons
   plugins/                   plugin source (dev-time location — see §3 "where plugins actually live at runtime")
     .stewrd/plugin-api.d.ts   hand-maintained flat copy of shared/plugin-api.d.ts as an ambient `declare module "stewrd-plugin-api"` for plugin-author editor type-checking only (not used at runtime)
     _template/                starter plugin — copy this folder to build a new plugin; demonstrates every API surface; has its own README.md (claude.md expects every plugin folder to have one — only _template does today)
@@ -87,8 +88,8 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 | `id` | Unique identifier; should match the folder name. Used for storage/fs namespacing, hot-reload matching, boot-safety marks. |
 | `name` | Sidebar display name. |
 | `version` | Author's own semver, informational only. |
-| `category` | Sidebar grouping, computed live from whatever plugins are discovered — a brand-new category name here creates a new collapsible group with **zero host changes**. |
-| `icon` | Reserved for a future icon picker; use `"default"`. |
+| `category` | Sidebar grouping. Must match a category id from the app-controlled list in Settings > Categories, or the plugin lands under "Other" until someone adds a matching category. |
+| `icon` | Unused - reserved. Drop `icon.png` (and optionally `icon.gif` for a hover animation) into the plugin's own folder to give it a sidebar icon instead. |
 | `entry` | Path to the **built** output the loader imports — always `dist/index.js`. You write `index.tsx`; esbuild produces this. |
 | `description` | Shown in discovery-error messages/tooling. |
 | `apiVersion` | Must equal the host's `SUPPORTED_API_VERSION` (currently `"1"`, see `src-tauri/src/commands/plugins.rs`) or discovery rejects the plugin with a clear error. |
@@ -200,7 +201,7 @@ interface PluginContext {
 
 | Surface | Shape | Implementation | Notes |
 |---|---|---|---|
-| `api.theme` | `{ palette: Palette; subscribe(fn): unsubscribe }` | `host/api/theme.ts` | Reads/subscribes to `appStore`'s palette. Only one palette exists today (`shared/palette.ts` `defaultPalette`) — no light/dark switching, and most host UI components (`App.tsx`, `MainContent.tsx`, `Modal.tsx`, etc.) import `defaultPalette` directly rather than reading it from the store, so landing real theme switching means updating those call sites too, not just this API. |
+| `api.theme` | `{ palette: Palette; subscribe(fn): unsubscribe }` | `host/api/theme.ts` | Reads/subscribes to `appStore`'s derived `palette`. Switchable in Settings > Themes between premade palettes (`shared/palette.ts` `premadePalettes` - Dark/Light) or custom ones the user creates and saves; all host UI components read `palette` from the store (not a static `defaultPalette` import), so switching restyles the whole app live, not just plugins. |
 | `api.statusIcon` | `{ set(color, tooltip?); get() }` | `host/api/statusIcon.ts` | Drives the colored dot next to the plugin's sidebar entry. `color` is a `StatusColor`: `"idle" \| "in-progress" \| "success" \| "warning" \| "error"`. Generation-guarded (throws if called after deactivation). **Silently does nothing** if called before the plugin's sidebar entry exists in `appStore` — relevant for `background: true` plugins calling this early in `activate()` (see §4). A throwing tick handler does **not** automatically set this to `"error"` — only a watchdog timeout sets `"warning"` (see §7); a plugin must set `"error"` itself in its own catch. |
 | `api.modal` | `{ error(), info(), question(), confirm() }`, all return Promises | `host/api/modals.ts` + `components/Modal/Modal.tsx` | Host-rendered blocking-style overlay, one at a time via a queue in `appStore`. `question` resolves with the chosen button label; `confirm` resolves `boolean` and defaults its button labels to `"Confirm"`/`"Cancel"` if not given. |
 | `api.toast` | `{ show({message, kind?, durationMs?}) }` | `host/api/toast.ts` + `components/Toast/ToastContainer.tsx` | Non-blocking, auto-dismisses after `durationMs` (default 3000ms). `kind` is a `StatusColor`, not free-form text — it's rendered by mapping straight to `palette.status[kind]`. Generation-guarded. |
@@ -247,7 +248,7 @@ Framework-agnostic singleton (no Tauri/React deps — independently unit-tested 
 ```
 App.tsx
  ├─ Sidebar.tsx (width 220, or 48 when collapsed)
- │   ├─ expanded: SidebarCategory.tsx[] (grouped live by manifest.category) → SidebarPluginItem.tsx[] (indented, name + StatusIcon; click → setActivePlugin)
+ │   ├─ expanded: SidebarCategory.tsx[] (grouped by manifest.category resolved against appStore's categories, falling back to "Other") → SidebarPluginItem.tsx[] (indented, name + StatusIcon + optional plugin icon; click → setActivePlugin)
  │   ├─ collapsed: SidebarCategoryCollapsed.tsx[] (category icon via categoryIcons.ts, or ▸/▾ fallback) → icon-only SidebarPluginItem row per plugin
  │   └─ SidebarFooter.tsx (expanded: "Settings" + "<<"; collapsed: just ">>") — pinned to the bottom of the sidebar, height-matched to StatusBar's summary row
  └─ content column (flex: 1)
@@ -257,9 +258,20 @@ Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore
 ```
 
 - `usePluginRegistry()` (`host/loader/usePluginRegistry.ts`) is the single source of truth for discovered/loaded plugins; `App.tsx` feeds its `entries` into `appStore.setPlugins` for the sidebar, and calls `ensureLoaded(activePluginId)` when the user selects a plugin for the first time.
-- `appStore` (`host/state/appStore.ts`, zustand) holds: `plugins` (sidebar entries + status), `activePluginId`, `statusLog`, `categoriesExpanded`, `palette`, `modalQueue`, `toasts`, `sidebarCollapsed`, `view` (`"plugin" | "settings"`). Plugins never touch this directly — only through the `PluginApi` surfaces in §6.
-- `categoryIcons.ts` looks up a bundled icon by category name from `src/assets/category-icons/` (drop in a `<Category>.svg`/`.png` to give a category a real icon); categories with no matching file fall back to the ▸/▾ disclosure glyph in the collapsed sidebar.
-- Categories require zero host changes to add — they're derived live from whatever `manifest.category` values are currently discovered.
+- `appStore` (`host/state/appStore.ts`, zustand) holds: `plugins` (sidebar entries + status + `dir`), `activePluginId`, `statusLog`, `categoriesExpanded`, `categories`, `paletteId`, `customPalettes`, `palette` (derived from the previous two, always resolves to a real `Palette`), `hostSettingsLoaded`, `modalQueue`, `toasts`, `sidebarCollapsed`, `view` (`"plugin" | "settings"`). Plugins never touch this directly — only through the `PluginApi` surfaces in §6.
+- `categoryIcons.ts` looks up bundled icons by base name from `src/assets/category-icons/` (drop in a `<name>.png`, optionally paired with a same-named `.gif` for a hover-swap animation). Which icon name a category uses is chosen in Settings > Categories, not inferred from the category name; categories with no icon assigned fall back to the ▸/▾ disclosure glyph in the collapsed sidebar.
+- Categories are app-controlled (Settings > Categories, persisted via `hostSettings.ts`), seeded with `Other`/`Utilities`/`Templates`. A plugin's `manifest.category` must match a category's `id` or it's grouped under "Other" — adding a brand-new category to match a new plugin now requires a Settings edit, not just a manifest change.
+- Plugin sidebar icons work the same way as category icons but per-plugin: drop `icon.png`/`icon.gif` into the plugin's own folder; `get_plugin_icon` (`commands/plugin_icons.rs`) reads them and returns data URLs (`usePluginIcon.ts` fetches/caches per plugin `dir`).
+
+### Settings (`SettingsPage.tsx` and siblings)
+
+Three tabs, all in `host/layout/`:
+
+- **General** (`SettingsGeneral.tsx`) — app name/version, the original Settings content.
+- **Categories** (`SettingsCategories.tsx`) — add/rename/delete categories and assign each one an icon (from `src/assets/category-icons/`). Renaming a category's display `name` is safe for existing plugins; its `id` (the value `manifest.category` must match) is fixed at creation. `Other` is built-in and can't be renamed or deleted.
+- **Themes** (`SettingsThemes.tsx`) — pick a premade palette (`shared/palette.ts`'s `premadePalettes`: Dark/Light) or build a custom one (one color picker per `Palette` field) and save it. Selection persists via `hostSettings.ts` and applies live across the whole app and every plugin (`api.theme`).
+
+Both tabs persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`.
 
 ---
 
@@ -331,8 +343,7 @@ Keep this list current — remove an item once it's actually implemented, add ne
 - `registerGlobalErrorHandlers()` only `console.error`s, no status-bar/log routing or plugin attribution yet — §4.
 - No frontend schema validation of `plugin.json` — only Rust's `serde` parse + `apiVersion` check — §3.
 - No third "read-only bundled examples" plugin tier — only `STEWRD_PLUGINS` and per-user app-data are implemented — §3.
-- No light/dark theme switching; most host UI reads `defaultPalette` directly rather than through `api.theme`/`appStore` — §6 (`api.theme` row).
-- No icon picker — `plugin.json`'s `icon` field is unused beyond accepting `"default"`.
+- `plugin.json`'s `icon` field is unused beyond accepting `"default"` — plugin sidebar icons come from an `icon.png`/`icon.gif` pair in the plugin's own folder instead — §6 (`api.theme` row).
 - Tick scheduler's watchdog only warns; it does not free up or recover a genuinely hung handler — §7.
 - No plugin resource is auto-killed on deactivate beyond the tick handle and abort signal — spawned child processes in particular outlive deactivate/hot-reload until full app exit unless the plugin kills them itself — §2, §4, §6 (`api.shell` row).
 - `deactivate()`'s return value isn't awaited during teardown, and `onDispose` callbacks run *before* `ctx.signal` is aborted, not after — §3 (Lifecycle step 5).

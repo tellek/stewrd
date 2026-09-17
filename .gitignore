@@ -15,6 +15,9 @@ dist-ssr
 # Plugin build output (each plugin's own esbuild dist/, not the host's)
 plugins/*/dist
 
+# Serena MCP local project cache
+.serena/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,11 +1,11 @@
 import { useAppStore } from "../../host/state/appStore";
 import { resolveModal } from "../../host/api/modals";
-import { defaultPalette } from "../../shared/palette";
 
 /** Host-rendered overlay, triggered via api.modal.* - not exposed to plugins
  * as a raw component (unlike StatusDot/TextBox). Rendered once at app root. */
 export function Modal() {
   const request = useAppStore((s) => s.modalQueue[0]);
+  const palette = useAppStore((s) => s.palette);
   if (!request) return null;
 
   return (
@@ -22,8 +22,8 @@ export function Modal() {
     >
       <div
         style={{
-          background: defaultPalette.surface,
-          color: defaultPalette.text,
+          background: palette.surface,
+          color: palette.text,
           padding: 20,
           borderRadius: 8,
           minWidth: 300,

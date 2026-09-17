@@ -1,29 +1,46 @@
-import { useEffect, useState } from "react";
-import { getName, getVersion } from "@tauri-apps/api/app";
-import { defaultPalette } from "../../shared/palette";
+import { useState } from "react";
+import { useAppStore } from "../state/appStore";
+import { SettingsGeneral } from "./SettingsGeneral";
+import { SettingsCategories } from "./SettingsCategories";
+import { SettingsThemes } from "./SettingsThemes";
+
+type SettingsTab = "general" | "categories" | "themes";
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "categories", label: "Categories" },
+  { id: "themes", label: "Themes" },
+];
 
 export function SettingsPage() {
-  const [name, setName] = useState<string | null>(null);
-  const [version, setVersion] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([getName(), getVersion()])
-      .then(([n, v]) => {
-        setName(n);
-        setVersion(v);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
-  }, []);
+  const palette = useAppStore((s) => s.palette);
+  const [tab, setTab] = useState<SettingsTab>("general");
 
   return (
     <div>
       <h2 style={{ marginTop: 0 }}>Settings</h2>
-      {name && <p style={{ color: defaultPalette.textMuted }}>{name}</p>}
-      {version && <p style={{ color: defaultPalette.textMuted }}>Version {version}</p>}
-      {error && (
-        <p style={{ color: defaultPalette.status.error }}>Couldn't read app info: {error}</p>
-      )}
+      <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${palette.border}`, marginBottom: 16 }}>
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              padding: "6px 14px",
+              border: "none",
+              borderBottom: tab === t.id ? `2px solid ${palette.accent}` : "2px solid transparent",
+              background: "transparent",
+              color: tab === t.id ? palette.text : palette.textMuted,
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === "general" && <SettingsGeneral />}
+      {tab === "categories" && <SettingsCategories />}
+      {tab === "themes" && <SettingsThemes />}
     </div>
   );
 }

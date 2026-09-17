@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useAppStore } from "../state/appStore";
-import { defaultPalette } from "../../shared/palette";
 
 export function StatusBar() {
   const statusLog = useAppStore((s) => s.statusLog);
+  const palette = useAppStore((s) => s.palette);
   const [expanded, setExpanded] = useState(false);
   const latest = statusLog[statusLog.length - 1];
 
@@ -11,9 +11,9 @@ export function StatusBar() {
     <footer
       style={{
         position: "relative",
-        borderTop: `1px solid ${defaultPalette.border}`,
-        background: defaultPalette.surface,
-        color: defaultPalette.textMuted,
+        borderTop: `1px solid ${palette.border}`,
+        background: palette.surface,
+        color: palette.textMuted,
         fontSize: 12,
       }}
     >
@@ -27,8 +27,8 @@ export function StatusBar() {
             maxHeight: 160,
             overflowY: "auto",
             padding: "8px 12px",
-            background: defaultPalette.surface,
-            borderTop: `1px solid ${defaultPalette.border}`,
+            background: palette.surface,
+            borderTop: `1px solid ${palette.border}`,
           }}
         >
           {statusLog.length === 0 && <p>No log entries yet.</p>}
@@ -36,7 +36,7 @@ export function StatusBar() {
             .slice()
             .reverse()
             .map((entry) => (
-              <p key={entry.id} style={{ color: defaultPalette.status[entry.level], margin: "2px 0" }}>
+              <p key={entry.id} style={{ color: palette.status[entry.level], margin: "2px 0" }}>
                 [{new Date(entry.timestamp).toLocaleTimeString()}]
                 {entry.pluginId ? ` (${entry.pluginId})` : ""} {entry.message}
               </p>
@@ -54,7 +54,7 @@ export function StatusBar() {
           padding: "0 12px",
           border: "none",
           background: "transparent",
-          color: latest ? defaultPalette.status[latest.level] : defaultPalette.textMuted,
+          color: latest ? palette.status[latest.level] : palette.textMuted,
           cursor: "pointer",
           textAlign: "left",
         }}

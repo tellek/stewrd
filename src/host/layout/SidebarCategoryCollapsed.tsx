@@ -1,20 +1,22 @@
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { getCategoryIcon } from "./categoryIcons";
-import { defaultPalette } from "../../shared/palette";
+import { HoverIcon } from "../../components/HoverIcon/HoverIcon";
+import type { CategoryDef } from "../../shared/category";
 
-export function SidebarCategoryCollapsed({ category, entries }: { category: string; entries: PluginSidebarEntry[] }) {
-  const expanded = useAppStore((s) => s.categoriesExpanded[category] ?? true);
+export function SidebarCategoryCollapsed({ category, entries }: { category: CategoryDef; entries: PluginSidebarEntry[] }) {
+  const expanded = useAppStore((s) => s.categoriesExpanded[category.id] ?? true);
   const toggleCategory = useAppStore((s) => s.toggleCategory);
   const activePluginId = useAppStore((s) => s.activePluginId);
   const setActivePlugin = useAppStore((s) => s.setActivePlugin);
-  const icon = getCategoryIcon(category);
+  const palette = useAppStore((s) => s.palette);
+  const icon = getCategoryIcon(category.icon);
 
   return (
     <div>
       <button
-        onClick={() => toggleCategory(category)}
-        title={category}
+        onClick={() => toggleCategory(category.id)}
+        title={category.name}
         style={{
           display: "flex",
           justifyContent: "center",
@@ -22,11 +24,15 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: stri
           padding: "8px 0",
           border: "none",
           background: "transparent",
-          color: defaultPalette.textMuted,
+          color: palette.textMuted,
           cursor: "pointer",
         }}
       >
-        {icon ? <img src={icon} alt={category} width={16} height={16} /> : <span>{expanded ? "▾" : "▸"}</span>}
+        {icon?.png ? (
+          <HoverIcon png={icon.png} gif={icon.gif} alt={category.name} />
+        ) : (
+          <span>{expanded ? "▾" : "▸"}</span>
+        )}
       </button>
       {expanded &&
         entries.map((entry) => {
@@ -42,7 +48,7 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: stri
                 width: "100%",
                 padding: "8px 0",
                 border: "none",
-                background: isActive ? defaultPalette.surfaceHover : "transparent",
+                background: isActive ? palette.surfaceHover : "transparent",
                 cursor: "pointer",
               }}
             >

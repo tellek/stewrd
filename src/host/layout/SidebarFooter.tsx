@@ -1,11 +1,11 @@
 import { useAppStore } from "../state/appStore";
-import { defaultPalette } from "../../shared/palette";
 
 // Height/padding here is kept in lockstep with StatusBar's collapsed summary
 // row so the two read as one split bottom row (sidebar footer | status bar).
 export function SidebarFooter() {
   const openSettings = useAppStore((s) => s.openSettings);
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
+  const palette = useAppStore((s) => s.palette);
 
   return (
     <div
@@ -13,8 +13,8 @@ export function SidebarFooter() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        borderTop: `1px solid ${defaultPalette.border}`,
-        background: defaultPalette.surface,
+        borderTop: `1px solid ${palette.border}`,
+        background: palette.surface,
         fontSize: 12,
       }}
     >
@@ -29,7 +29,7 @@ export function SidebarFooter() {
           padding: "0 12px",
           border: "none",
           background: "transparent",
-          color: defaultPalette.textMuted,
+          color: palette.textMuted,
           cursor: "pointer",
         }}
       >
@@ -45,7 +45,7 @@ export function SidebarFooter() {
           padding: "0 12px",
           border: "none",
           background: "transparent",
-          color: defaultPalette.textMuted,
+          color: palette.textMuted,
           cursor: "pointer",
         }}
       >

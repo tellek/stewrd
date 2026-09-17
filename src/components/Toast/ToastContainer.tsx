@@ -1,9 +1,9 @@
 import { useAppStore } from "../../host/state/appStore";
-import { defaultPalette } from "../../shared/palette";
 
 /** Host-rendered overlay, triggered via api.toast.show - rendered once at app root. */
 export function ToastContainer() {
   const toasts = useAppStore((s) => s.toasts);
+  const palette = useAppStore((s) => s.palette);
   if (toasts.length === 0) return null;
 
   return (
@@ -22,9 +22,9 @@ export function ToastContainer() {
         <div
           key={t.id}
           style={{
-            background: defaultPalette.surface,
-            color: defaultPalette.status[t.kind],
-            border: `1px solid ${defaultPalette.border}`,
+            background: palette.surface,
+            color: palette.status[t.kind],
+            border: `1px solid ${palette.border}`,
             borderRadius: 6,
             padding: "8px 12px",
             minWidth: 200,

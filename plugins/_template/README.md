@@ -10,8 +10,8 @@ and update `plugin.json`'s `id`/`name`/`category` to match.
 | `id` | Unique identifier. Should match the folder name. Used for storage/fs namespacing, hot-reload matching, and boot-safety marks. |
 | `name` | Display name shown in the sidebar. |
 | `version` | Your own semver, informational only. |
-| `category` | Sidebar grouping - a new category name here creates a new collapsible group with zero host changes. |
-| `icon` | Reserved for a future icon picker; `"default"` for now. |
+| `category` | Sidebar grouping. Must match a category id defined in Settings > Categories (host-controlled) or your plugin lands under "Other" until someone adds it there. |
+| `icon` | Unused - reserved. To give your plugin a sidebar icon, drop `icon.png` (and optionally `icon.gif` for a hover animation) into the plugin's own folder instead. |
 | `entry` | Path to the **built** output the loader actually imports, always `dist/index.js` - you write `index.tsx`, esbuild produces this. |
 | `description` | Shown in discovery-error messages and tooling; keep it short. |
 | `apiVersion` | Must match the host's supported version (currently `"1"`) or discovery rejects the plugin with a clear error. |
