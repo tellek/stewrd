@@ -2,12 +2,18 @@ import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { SidebarCategory } from "./SidebarCategory";
 import { SidebarCategoryCollapsed } from "./SidebarCategoryCollapsed";
 import { SidebarFooter } from "./SidebarFooter";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import { getCategoryIcon } from "./categoryIcons";
 import { resolveCategory, type CategoryDef } from "../../shared/category";
+
+const COLLAPSE_ICON_SIZE = 18;
 
 export function Sidebar() {
   const plugins = useAppStore((s) => s.plugins);
   const categories = useAppStore((s) => s.categories);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
+  const expandIcon = getCategoryIcon(categoryIconFiles, "fast-forward");
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const palette = useAppStore((s) => s.palette);
 
@@ -48,16 +54,20 @@ export function Sidebar() {
           onClick={toggleSidebarCollapsed}
           title="Expand sidebar"
           style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             padding: "4px 0",
             border: "none",
             borderTop: `1px solid ${palette.border}`,
             background: "transparent",
             color: palette.textMuted,
-            fontSize: 12,
             cursor: "pointer",
           }}
         >
-          {">>"}
+          {expandIcon && (
+            <MaskIcon png={expandIcon.png} alt="Expand sidebar" size={COLLAPSE_ICON_SIZE} color={palette.textMuted} />
+          )}
         </button>
       ) : (
         <SidebarFooter />
