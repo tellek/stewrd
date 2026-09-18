@@ -1,5 +1,6 @@
 {
   "category": "Templates",
+  "version": "0.1.0",
   "greeting": "Hello!",
   "refreshSeconds": 30
 }

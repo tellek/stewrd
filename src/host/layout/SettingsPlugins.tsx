@@ -160,13 +160,13 @@ export function SettingsPlugins() {
                 </tr>
               );
             }
-            const { manifest, disabled, dir, category } = entry;
+            const { manifest, disabled, dir, category, version } = entry;
             return (
               <Fragment key={manifest.id}>
                 <tr style={{ borderBottom: configuring === manifest.id ? "none" : `1px solid ${palette.border}` }}>
                   <td style={{ padding: "6px 8px" }}>
                     <div>
-                      {manifest.name} <span style={{ color: palette.textMuted, fontSize: 11 }}>v{manifest.version}</span>
+                      {manifest.name} <span style={{ color: palette.textMuted, fontSize: 11 }}>v{version || "?"}</span>
                     </div>
                     <div style={{ color: palette.textMuted, fontSize: 11 }}>
                       {manifest.description} · category: {category || "Other"}

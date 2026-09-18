@@ -17,7 +17,10 @@ import type { LogApi } from "../host/api/logging";
 export interface PluginManifest {
   id: string;
   name: string;
-  version: string;
+  /** Legacy fallback only - the effective version shown by the Settings >
+   * Plugins UI comes from `PluginDiscoveryEntry.version` (settings.json's
+   * "version" key, falling back to this field if settings.json has none). */
+  version?: string;
   /** Legacy fallback only - the effective category shown by the Settings >
    * Plugins UI comes from `PluginDiscoveryEntry.category` (settings.json's
    * "category" key, falling back to this field if settings.json has none). */

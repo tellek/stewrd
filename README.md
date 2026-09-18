@@ -73,7 +73,6 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 {
   "id": "notepad",
   "name": "Notepad",
-  "version": "1.0.0",
   "icon": "default",
   "entry": "dist/index.js",
   "description": "Autosaving scratch pad with Claude memory extraction",
@@ -86,7 +85,7 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 |---|---|
 | `id` | Unique identifier; should match the folder name. Used for storage/fs namespacing, hot-reload matching, boot-safety marks. |
 | `name` | Sidebar display name. |
-| `version` | Author's own semver, informational only. |
+| `version` | **Legacy fallback only** - see `settings.json` below, which is now the primary source. Kept optional on this struct for plugins that predate `settings.json`; a plugin with both wins on the `settings.json` value. |
 | `category` | **Legacy fallback only** - see `settings.json` below, which is now the primary source of a plugin's sidebar category. Kept optional on this struct for plugins that predate `settings.json`; a plugin with both wins on the `settings.json` value. |
 | `icon` | Unused - reserved. Drop `icon.png` into the plugin's own folder to give it a sidebar icon instead - it's rendered as a CSS mask, tinted to the current theme color. |
 | `entry` | Path to the **built** output the loader imports — always `dist/index.js`. You write `index.tsx`; esbuild produces this. |
@@ -96,7 +95,7 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 
 Validated with `serde` on the Rust side (parse + `apiVersion` equality only) — there is no frontend zod/schema validation in the code despite an earlier plan mentioning one.
 
-A plugin can optionally drop a `settings.json` next to `plugin.json` — a **plain JSON object**, not a schema. The host only reads one key out of it, `"category"` (sidebar grouping - falls back to the manifest's own `category` field above if absent, see `plugins.rs::read_plugin_category`); everything else in the file is entirely up to the plugin author and uninterpreted by the host. Users edit it directly via **Settings > Plugins > Configure** — a raw JSON text editor (validated before it's written, mirroring `plugins/claude-settings-editor/index.tsx`'s own settings-file-editing pattern), not a generated form. See `plugins/_template/README.md` for the convention and `plugins/_template/settings.json` for an example. Entirely optional; omit it if there's nothing to configure (Configure still works, offering a starter `{ "category": "" }` object).
+A plugin can optionally drop a `settings.json` next to `plugin.json` — a **plain JSON object**, not a schema. The host only reads two keys out of it, `"category"` (sidebar grouping - falls back to the manifest's own `category` field above if absent) and `"version"` (informational, shown in Settings > Plugins - falls back to the manifest's own `version` field above if absent), both resolved via `plugins.rs::resolve_settings_string`; everything else in the file is entirely up to the plugin author and uninterpreted by the host. Users edit it directly via **Settings > Plugins > Configure** — a raw JSON text editor (validated before it's written, mirroring `plugins/claude-settings-editor/index.tsx`'s own settings-file-editing pattern), not a generated form. See `plugins/_template/README.md` for the convention and `plugins/_template/settings.json` for an example. Entirely optional; omit it if there's nothing to configure (Configure still works, offering a starter `{ "category": "" }` object).
 
 ### Plugin module contract
 
@@ -149,7 +148,7 @@ This bundles `index.{tsx,ts,jsx,js}` (whichever exists) and everything it import
 
 ### Starting a new plugin
 
-Copy `plugins/_template/` wholesale, rename the folder, update `plugin.json`'s `id`/`name` and `settings.json`'s `category`. `plugins/_template/index.tsx` has a commented-out example of **every** API surface — uncomment what you need. `plugins/_template/README.md` covers the same manifest/lifecycle info as this section, kept in the template for a plugin author who never opens the main repo README — give your own new plugin folder a README too (`claude.md` expects one per plugin).
+Copy `plugins/_template/` wholesale, rename the folder, update `plugin.json`'s `id`/`name` and `settings.json`'s `category`/`version`. `plugins/_template/index.tsx` has a commented-out example of **every** API surface — uncomment what you need. `plugins/_template/README.md` covers the same manifest/lifecycle info as this section, kept in the template for a plugin author who never opens the main repo README — give your own new plugin folder a README too (`claude.md` expects one per plugin).
 
 ### Type-checking while authoring a plugin
 
@@ -288,7 +287,7 @@ All commands are plain `#[tauri::command]` functions registered directly on the 
 
 | Command(s) | File | Purpose |
 |---|---|---|
-| `list_plugins`, `is_safe_mode`, `reconcile_boot_marks`, `mark_plugin_attempt`, `clear_plugin_attempt`, `set_plugin_disabled`, `remove_plugin` | `commands/plugins.rs` | Discovery (including `read_plugin_category`'s settings.json→plugin.json fallback) + boot-safety/disabled-list bookkeeping + plugin folder deletion. Corrupt state files never brick boot — read failures log a warning and act as if empty. |
+| `list_plugins`, `is_safe_mode`, `reconcile_boot_marks`, `mark_plugin_attempt`, `clear_plugin_attempt`, `set_plugin_disabled`, `remove_plugin` | `commands/plugins.rs` | Discovery (including `resolve_settings_string`'s settings.json→plugin.json fallback for both `category` and `version`) + boot-safety/disabled-list bookkeeping + plugin folder deletion. Corrupt state files never brick boot — read failures log a warning and act as if empty. |
 | `install_plugin_from_archive` | `commands/plugin_install.rs` | Extracts an uploaded `.zip`/`.tar`/`.tar.gz`/`.tgz` (via the `zip`/`tar`/`flate2` crates, no external unzip/tar binary) into a fresh folder under the resolved plugins dir, with zip-slip protection and post-extract verification that `plugin.json`/its `entry` file actually landed. |
 | `read_plugin_settings_file`, `write_plugin_settings_file` | `commands/plugin_settings.rs` | Backs the Settings > Plugins "Configure" button — reads/writes a plugin's own `settings.json` as raw text (a missing file reads as a starter `{ "category": "" }` rather than erroring; a write is rejected server-side if it isn't valid JSON). No explicit `plugin-changed` emit needed — the write lands inside the already-watched plugins dir. |
 | `run_command`, `spawn_command`, `kill_command` | `commands/shell.rs` | Arbitrary process exec/spawn/kill. `spawn_command` tracks children in `AppState` for both normal kill and exit-time cleanup. |

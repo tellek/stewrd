@@ -10,8 +10,12 @@ export type PluginDiscoveryEntry =
       disabled: boolean;
       /** Resolved from the plugin's own settings.json "category" key,
        * falling back to plugin.json's legacy category field, falling back to
-       * "" (grouped under "Other") - see plugins.rs::read_plugin_category. */
+       * "" (grouped under "Other") - see plugins.rs::resolve_settings_string. */
       category: string;
+      /** Resolved from the plugin's own settings.json "version" key,
+       * falling back to plugin.json's legacy version field, falling back to
+       * "" - see plugins.rs::resolve_settings_string. */
+      version: string;
     }
   | { status: "error"; dir: string; message: string };
 

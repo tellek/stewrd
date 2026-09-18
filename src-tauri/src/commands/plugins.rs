@@ -16,7 +16,12 @@ const SAFE_MODE_FILE: &str = "SAFE_MODE";
 pub struct PluginManifest {
     pub id: String,
     pub name: String,
-    pub version: String,
+    /// Legacy version source, kept optional rather than removed - same
+    /// backward-compat reasoning as `category` below: a plugin installed
+    /// before `settings.json` became the primary source still has this in
+    /// its `plugin.json` and nothing else.
+    #[serde(default)]
+    pub version: Option<String>,
     /// Legacy category source, kept optional rather than removed: plugins
     /// installed before `settings.json` became the primary source (see
     /// `read_plugin_category` below) still have this in their `plugin.json`
@@ -43,6 +48,7 @@ pub enum PluginDiscoveryEntry {
         source: String,
         disabled: bool,
         category: String,
+        version: String,
     },
     #[serde(rename = "error")]
     Error { dir: String, message: String },
@@ -260,32 +266,39 @@ pub fn remove_plugin(app: AppHandle, dir: String) -> Result<(), String> {
     std::fs::remove_dir_all(&target).map_err(|e| format!("failed to remove {}: {e}", target.display()))
 }
 
-/// Reads the plugin's optional `settings.json` and returns its `"category"`
-/// key if present and a string. A missing `settings.json` (or one present but
-/// with no `"category"` key) falls back to the `plugin.json` manifest's own
-/// (now-optional) `category` field, for backward compatibility with plugins
-/// installed before `settings.json` became the primary source; only if
-/// neither exists does this resolve to `""` (the frontend's `resolveCategory`
-/// already treats any non-matching string as "Other" - no special-casing
-/// needed here). A malformed `settings.json` is logged and falls back to the
-/// manifest the same way a missing file does - matches this module's "never
-/// brick discovery over corrupt state" philosophy.
-fn read_plugin_category(plugin_dir: &Path, manifest_category: &Option<String>) -> String {
+/// Parses the plugin's optional `settings.json` once as a bare JSON value, so
+/// both `category` and `version` (and anything else added later) can be
+/// pulled from a single read/parse instead of duplicating it per field.
+/// Missing file -> `None`. Malformed file -> logs a warning and also `None` -
+/// callers fall back to their `plugin.json` manifest field in either case,
+/// matching this module's "never brick discovery over corrupt state"
+/// philosophy.
+fn read_plugin_settings_value(plugin_dir: &Path) -> Option<serde_json::Value> {
     let path = plugin_dir.join("settings.json");
-    let from_file = match std::fs::read_to_string(&path) {
+    match std::fs::read_to_string(&path) {
         Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
-            Ok(value) => value.get("category").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            Ok(value) => Some(value),
             Err(e) => {
                 eprintln!(
-                    "[stewrd] warning: {} is malformed ({e}); falling back to plugin.json's category if any",
+                    "[stewrd] warning: {} is malformed ({e}); falling back to plugin.json for category/version",
                     path.display()
                 );
                 None
             }
         },
         Err(_) => None,
-    };
-    from_file.or_else(|| manifest_category.clone()).unwrap_or_default()
+    }
+}
+
+/// Resolves one string field from `settings.json` (parsed once by
+/// `read_plugin_settings_value`), falling back to the equivalent legacy
+/// `plugin.json` manifest field, falling back to `""` if neither exists.
+/// Used for both `category` (the frontend's `resolveCategory` already treats
+/// any non-matching string as "Other", so `""` needs no special-casing) and
+/// `version` (purely informational, displayed as-is).
+fn resolve_settings_string(settings_value: &Option<serde_json::Value>, key: &str, manifest_fallback: &Option<String>) -> String {
+    let from_file = settings_value.as_ref().and_then(|v| v.get(key)).and_then(|v| v.as_str()).map(|s| s.to_string());
+    from_file.or_else(|| manifest_fallback.clone()).unwrap_or_default()
 }
 
 #[tauri::command]
@@ -362,13 +375,16 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
         };
 
         let disabled = disabled_ids.contains(&manifest.id);
-        let category = read_plugin_category(&path, &manifest.category);
+        let settings_value = read_plugin_settings_value(&path);
+        let category = resolve_settings_string(&settings_value, "category", &manifest.category);
+        let version = resolve_settings_string(&settings_value, "version", &manifest.version);
         entries.push(PluginDiscoveryEntry::Ok {
             dir: dir_name,
             manifest,
             source,
             disabled,
             category,
+            version,
         });
     }
 
