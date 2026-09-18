@@ -1,0 +1,6 @@
+[
+  { "key": "greeting", "label": "Greeting text", "type": "string", "default": "Hello!", "options": [] },
+  { "key": "refreshSeconds", "label": "Refresh interval (seconds)", "type": "number", "default": 30, "options": [] },
+  { "key": "notifyOnChange", "label": "Notify on change", "type": "boolean", "default": true, "options": [] },
+  { "key": "mode", "label": "Mode", "type": "select", "default": "fast", "options": ["fast", "accurate"] }
+]

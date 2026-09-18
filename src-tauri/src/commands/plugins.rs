@@ -1,10 +1,11 @@
 // Milestone 2b: real plugin discovery + boot-safety mark-before-run.
 // Full PluginApi surface (storage/shell/tick/etc.) lands in Milestone 4 - for
 // now the loader only needs discovery, source text, and crash-safety marks.
+use super::path_util::sanitize_dir_name;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 const SUPPORTED_API_VERSION: &str = "1";
 const DISABLED_PLUGINS_FILE: &str = "disabled-plugins.json";
@@ -26,6 +27,21 @@ pub struct PluginManifest {
     pub background: bool,
 }
 
+/// One configurable setting a plugin's optional `settings.json` declares.
+/// Values themselves live in the plugin's own storage file (see
+/// `commands/storage.rs`) under a key matching `key` - this struct is just
+/// the schema the Settings > Plugins UI renders a form from.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SettingsField {
+    pub key: String,
+    pub label: String,
+    #[serde(rename = "type")]
+    pub field_type: String, // "string" | "number" | "boolean" | "select"
+    pub default: serde_json::Value,
+    #[serde(default)]
+    pub options: Vec<String>, // only used when field_type == "select"
+}
+
 #[derive(Debug, Serialize)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum PluginDiscoveryEntry {
@@ -35,26 +51,97 @@ pub enum PluginDiscoveryEntry {
         manifest: PluginManifest,
         source: String,
         disabled: bool,
+        #[serde(rename = "settingsSchema")]
+        settings_schema: Vec<SettingsField>,
     },
     #[serde(rename = "error")]
     Error { dir: String, message: String },
 }
 
-/// Resolution order: `STEWRD_PLUGINS` env var (dev convenience) -> per-user
-/// app-data plugins directory. The read-only bundled-plugins tier is a
-/// packaging concern deferred to Milestone 7.
+/// Resolution order: `STEWRD_PLUGINS` env var (dev convenience) -> a
+/// `plugins` folder next to the running executable (portable install) -> the
+/// per-user app-data plugins directory, only as a last-resort fallback if the
+/// exe's own folder isn't writable (e.g. a Program Files install). The
+/// read-only bundled-plugins tier is a packaging concern deferred to
+/// Milestone 7.
 pub fn resolve_plugins_dir(app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(dir) = std::env::var("STEWRD_PLUGINS") {
         return Ok(PathBuf::from(dir));
     }
-    let app_data = app
+    let exe_dir = std::env::current_exe()
+        .map_err(|e| format!("could not resolve current exe path: {e}"))?
+        .parent()
+        .ok_or_else(|| "exe path has no parent directory".to_string())?
+        .to_path_buf();
+    let plugins_dir = exe_dir.join("plugins");
+    // A hard error here would propagate out of `setup()` via `?` and the app
+    // would never open a window at all - so treat an unwritable exe dir
+    // (Program Files, etc.) as a fallback to the old AppData location instead
+    // of a fatal error.
+    if std::fs::create_dir_all(&plugins_dir).is_ok() {
+        return Ok(plugins_dir);
+    }
+    let fallback = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?;
-    let plugins_dir = app_data.join("plugins");
-    std::fs::create_dir_all(&plugins_dir)
-        .map_err(|e| format!("could not create {}: {e}", plugins_dir.display()))?;
-    Ok(plugins_dir)
+        .map_err(|e| format!("could not resolve app data dir: {e}"))?
+        .join("plugins");
+    std::fs::create_dir_all(&fallback)
+        .map_err(|e| format!("could not create {} or {}: {e}", plugins_dir.display(), fallback.display()))?;
+    Ok(fallback)
+}
+
+/// One-time best-effort copy of any plugins already installed under the old
+/// AppData plugins location into the new portable `<exe-dir>/plugins`
+/// location, so an existing install doesn't silently lose its plugins the
+/// first time it launches after this change. Never moves/deletes the old
+/// copy, and never errors the app out - failures are logged only.
+pub fn migrate_legacy_appdata_plugins(app: &AppHandle, plugins_dir: &Path) {
+    let has_entries = std::fs::read_dir(plugins_dir).map(|mut rd| rd.next().is_some()).unwrap_or(false);
+    if has_entries {
+        return; // new location already has something - nothing to do
+    }
+    let Ok(app_data) = app.path().app_data_dir() else { return };
+    let legacy_dir = app_data.join("plugins");
+    if legacy_dir == *plugins_dir {
+        return; // fallback tier resolved to the same folder - no migration needed
+    }
+    let Ok(read_dir) = std::fs::read_dir(&legacy_dir) else { return };
+    let mut migrated = 0;
+    for entry in read_dir.flatten() {
+        let src = entry.path();
+        if !src.is_dir() {
+            continue;
+        }
+        let Some(name) = src.file_name() else { continue };
+        let dest = plugins_dir.join(name);
+        if copy_dir_recursive(&src, &dest).is_ok() {
+            migrated += 1;
+        } else {
+            eprintln!("[stewrd] warning: failed to migrate plugin folder {}", src.display());
+        }
+    }
+    if migrated > 0 {
+        eprintln!(
+            "[stewrd] migrated {migrated} plugin folder(s) from {} to {}",
+            legacy_dir.display(),
+            plugins_dir.display()
+        );
+    }
+}
+
+fn copy_dir_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dest)?;
+    for entry in std::fs::read_dir(src)?.flatten() {
+        let entry_path = entry.path();
+        let dest_path = dest.join(entry.file_name());
+        if entry_path.is_dir() {
+            copy_dir_recursive(&entry_path, &dest_path)?;
+        } else {
+            std::fs::copy(&entry_path, &dest_path)?;
+        }
+    }
+    Ok(())
 }
 
 fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -139,17 +226,66 @@ pub fn clear_plugin_attempt(app: AppHandle, plugin_id: String) -> Result<(), Str
     write_id_set(&marks_path, &marks)
 }
 
+/// `dir` is only used to notify the watcher-driven hot-reload path below -
+/// the actual enabled/disabled state is still keyed by `plugin_id`, same as
+/// before. Without the emit, toggling this from the UI updated
+/// `disabled-plugins.json` (under `app_data_dir()`, which nothing watches)
+/// but left the already-loaded plugin instance running untouched until the
+/// next full app restart.
 #[tauri::command]
-pub fn set_plugin_disabled(app: AppHandle, plugin_id: String, disabled: bool) -> Result<(), String> {
-    let dir = app_data_dir(&app)?;
-    let disabled_path = dir.join(DISABLED_PLUGINS_FILE);
+pub fn set_plugin_disabled(app: AppHandle, plugin_id: String, dir: String, disabled: bool) -> Result<(), String> {
+    let app_data = app_data_dir(&app)?;
+    let disabled_path = app_data.join(DISABLED_PLUGINS_FILE);
     let mut ids = read_id_set(&disabled_path);
     if disabled {
         ids.insert(plugin_id);
     } else {
         ids.remove(&plugin_id);
     }
-    write_id_set(&disabled_path, &ids)
+    write_id_set(&disabled_path, &ids)?;
+    let _ = app.emit("plugin-changed", dir);
+    Ok(())
+}
+
+/// Deletes an installed plugin's folder entirely. `dir` is validated through
+/// the strict sanitizer (not just `is_valid_dir_segment`) and the resolved
+/// path's parent is asserted to be the plugins dir itself before deleting
+/// anything, since this drives a recursive delete off webview-supplied input.
+/// The existing recursive plugin-folder watcher picks up the removal and
+/// `usePluginRegistry`'s hot-remove path unloads it - no explicit event
+/// needed here.
+#[tauri::command]
+pub fn remove_plugin(app: AppHandle, dir: String) -> Result<(), String> {
+    let Some(safe_dir) = sanitize_dir_name(&dir) else {
+        return Err(format!("invalid plugin directory name '{dir}'"));
+    };
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    let target = plugins_dir.join(&safe_dir);
+    if target.parent() != Some(plugins_dir.as_path()) {
+        return Err(format!("invalid plugin directory name '{dir}'"));
+    }
+    if !target.exists() {
+        return Err(format!("plugin folder '{safe_dir}' does not exist"));
+    }
+    std::fs::remove_dir_all(&target).map_err(|e| format!("failed to remove {}: {e}", target.display()))
+}
+
+/// Reads the plugin's optional `settings.json` schema file, if present.
+/// Missing file = no settings (empty schema), not an error. A malformed file
+/// logs a warning and also falls back to an empty schema - matches this
+/// module's "never brick discovery over corrupt state" philosophy.
+fn read_settings_schema(plugin_dir: &Path) -> Vec<SettingsField> {
+    let path = plugin_dir.join("settings.json");
+    match std::fs::read_to_string(&path) {
+        Ok(text) => match serde_json::from_str::<Vec<SettingsField>>(&text) {
+            Ok(fields) => fields,
+            Err(e) => {
+                eprintln!("[stewrd] warning: {} is malformed ({e}); no settings for this plugin", path.display());
+                Vec::new()
+            }
+        },
+        Err(_) => Vec::new(),
+    }
 }
 
 #[tauri::command]
@@ -226,11 +362,13 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
         };
 
         let disabled = disabled_ids.contains(&manifest.id);
+        let settings_schema = read_settings_schema(&path);
         entries.push(PluginDiscoveryEntry::Ok {
             dir: dir_name,
             manifest,
             source,
             disabled,
+            settings_schema,
         });
     }
 

@@ -3,13 +3,15 @@ import { useAppStore } from "../state/appStore";
 import { SettingsGeneral } from "./SettingsGeneral";
 import { SettingsCategories } from "./SettingsCategories";
 import { SettingsThemes } from "./SettingsThemes";
+import { SettingsPlugins } from "./SettingsPlugins";
 
-type SettingsTab = "general" | "categories" | "themes";
+type SettingsTab = "general" | "categories" | "themes" | "plugins";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "categories", label: "Categories" },
   { id: "themes", label: "Themes" },
+  { id: "plugins", label: "Plugins" },
 ];
 
 export function SettingsPage() {
@@ -41,6 +43,7 @@ export function SettingsPage() {
       {tab === "general" && <SettingsGeneral />}
       {tab === "categories" && <SettingsCategories />}
       {tab === "themes" && <SettingsThemes />}
+      {tab === "plugins" && <SettingsPlugins />}
     </div>
   );
 }

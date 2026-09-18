@@ -17,6 +17,28 @@ and update `plugin.json`'s `id`/`name`/`category` to match.
 | `apiVersion` | Must match the host's supported version (currently `"1"`) or discovery rejects the plugin with a clear error. |
 | `background` | `true` = activate eagerly at app startup for off-screen work (e.g. a poller). `false` (default) = activate lazily on first sidebar selection. Only set this if you actually need to run before the user opens the plugin. |
 
+## `settings.json` (optional)
+
+Drop a `settings.json` array next to `plugin.json` to have your plugin show up
+with a configurable form in **Settings > Plugins** - the host reads it during
+discovery and renders one input per entry, no plugin UI code required. It's
+entirely optional - omit the file if your plugin has nothing to configure.
+Each entry:
+
+```json
+{ "key": "refreshSeconds", "label": "Refresh interval (seconds)", "type": "number", "default": 30, "options": [] }
+```
+
+| Field | Meaning |
+|---|---|
+| `key` | Storage key the value is saved under - read it yourself via `ctx.api.storage.get(key)`, same as any other storage key. |
+| `label` | Shown next to the input in the Settings tab. |
+| `type` | `"string"` \| `"number"` \| `"boolean"` \| `"select"`. |
+| `default` | Used until the user changes it (nothing is written to storage until they do). |
+| `options` | Only used for `type: "select"` - the list of choices. |
+
+This template's own `settings.json` has one example of each type.
+
 ## Building
 
 ```sh

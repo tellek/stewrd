@@ -97,6 +97,8 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 
 Validated with `serde` on the Rust side (parse + `apiVersion` equality only) — there is no frontend zod/schema validation in the code despite an earlier plan mentioning one.
 
+A plugin can optionally drop a `settings.json` next to `plugin.json` — an array of `{ key, label, type, default, options }` fields — to get a configurable form for free in **Settings > Plugins**, backed by the plugin's own `ctx.api.storage` under those same keys. See `plugins/_template/README.md` for the schema and `plugins/_template/settings.json` for an example. Entirely optional; omit it if there's nothing to configure.
+
 ### Plugin module contract
 
 A plugin's `dist/index.js` must export:
@@ -125,7 +127,10 @@ The host renders `<mod.Component api={...} />` directly inside its own tree — 
 The `plugins/` folder at the repo root is the **dev-time source location** — each subfolder has source + its own `esbuild --watch`. Resolution order (`resolve_plugins_dir` in `commands/plugins.rs`):
 
 1. `STEWRD_PLUGINS` env var (dev convenience — point this at the repo's `plugins/` folder while developing).
-2. Per-user app-data plugins dir, keyed by the app identifier in `src-tauri/tauri.conf.json` (currently `com.topher.stewrd`): `%APPDATA%\com.topher.stewrd\plugins` (Windows) / `~/Library/Application Support/com.topher.stewrd/plugins` (macOS) / `~/.local/share/com.topher.stewrd/plugins` (Linux). **If the identifier in `tauri.conf.json` ever changes, every app-data path in this doc moves with it** — `storage/`, `plugin-fs/`, `stewrd.log`, `boot-marks.json`, `disabled-plugins.json`, and the `SAFE_MODE` file (§4) all live under the same app-data root.
+2. A `plugins` folder next to the running executable — this is the **portable, normal-use default** (e.g. `C:\Utilities\stewrd\plugins`). Created automatically if missing.
+3. Per-user app-data plugins dir — **fallback only**, used if the exe's own folder isn't writable (e.g. a Program Files-style install without admin rights): `%APPDATA%\com.topher.stewrd\plugins` (Windows) / `~/Library/Application Support/com.topher.stewrd/plugins` (macOS) / `~/.local/share/com.topher.stewrd/plugins` (Linux). Everything else — `storage/`, `plugin-fs/`, `stewrd.log`, `boot-marks.json`, `disabled-plugins.json`, and the `SAFE_MODE` file (§4) — always lives under this app-data root regardless of which tier the plugins dir itself resolved to; only the plugin *code* location is affected by tier 2 vs 3. **If the identifier in `tauri.conf.json` ever changes, every app-data path in this doc moves with it.**
+
+**Migration:** on startup, if the resolved plugins dir is empty and the old app-data plugins dir (tier 3) has folders in it, they're copied (not moved) into the new location once — see `migrate_legacy_appdata_plugins` in `commands/plugins.rs`. This only matters for installs that predate the portable-by-default change.
 
 There is currently no third "read-only bundled examples" tier implemented — that was a stated possibility in the architecture doc but the code only implements the two tiers above.
 
@@ -267,13 +272,14 @@ Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore
 
 ### Settings (`SettingsPage.tsx` and siblings)
 
-Three tabs, all in `host/layout/`:
+Four tabs, all in `host/layout/`:
 
 - **General** (`SettingsGeneral.tsx`) — app name/version, plus the taskbar status badge threshold (see §8 above).
 - **Categories** (`SettingsCategories.tsx`) — add/rename/delete categories and assign each one an icon (from `<exe-dir>/assets/category-icons/` - see §8). Renaming a category's display `name` is safe for existing plugins; its `id` (the value `manifest.category` must match) is fixed at creation. `Other` is built-in and can't be renamed or deleted.
 - **Themes** (`SettingsThemes.tsx`) — pick a premade palette (`shared/palette.ts`'s `premadePalettes`: Dark/Light) or build a custom one (one color picker per `Palette` field) and save it. Selection persists via `hostSettings.ts` and applies live across the whole app and every plugin (`api.theme`).
+- **Plugins** (`SettingsPlugins.tsx`) — lists every discovered plugin (including disabled/errored ones, via a direct `listPlugins()` call rather than `usePluginRegistry`, which filters disabled plugins out). Per plugin: activate/deactivate (`set_plugin_disabled`, now also emits `plugin-changed` so the toggle takes effect immediately instead of only on next restart), an inline settings form when the plugin ships a `settings.json` (values read/written through the plugin's own `ctx.api.storage`), and remove (`remove_plugin`, confirmed via `createModalApi()`, deletes the folder). An "Add plugin" file picker installs a `.zip`/`.tar`/`.tar.gz`/`.tgz` via `install_plugin_from_archive` (`commands/plugin_install.rs`) — no Tauri dialog plugin, the webview reads the picked file itself and hands the bytes over.
 
-Both tabs persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`.
+`General`/`Categories`/`Themes` persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`. `Plugins` is different — it doesn't go through `hostSettings.ts` at all; it manages real plugin folders/state directly via the discovery/install/remove commands above, and per-plugin settings values are read/written through that plugin's own storage namespace, not the host's.
 
 ---
 

@@ -4,6 +4,7 @@
 // entirely; readTextFile/writeTextFile are implemented now since they're a
 // near-zero-marginal-cost mirror of storage.rs, but watchFile needs genuinely
 // new per-file watcher lifecycle infrastructure with no consumer yet).
+use super::path_util::path_clean;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
@@ -28,20 +29,6 @@ fn resolve_scoped_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
         return Err(format!("path '{relative}' escapes the plugin's storage scope"));
     }
     Ok(normalized)
-}
-
-fn path_clean(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        match component {
-            std::path::Component::ParentDir => {
-                out.pop();
-            }
-            std::path::Component::CurDir => {}
-            other => out.push(other),
-        }
-    }
-    out
 }
 
 #[tauri::command]
