@@ -9,8 +9,8 @@ import {
   GenerationCancelled,
   type PaletteGeneration,
 } from "../api/paletteGenerator";
-import warningIcon from "../../assets/category-icons/warning.png";
-import settingsIcon from "../../assets/category-icons/settings.png";
+import binIcon from "../../assets/category-icons/bin.png";
+import paletteIcon from "../../assets/category-icons/palette.png";
 
 const modal = createModalApi();
 
@@ -28,9 +28,16 @@ const STATUS_KEYS: StatusColor[] = ["idle", "in-progress", "success", "warning",
 
 function Swatches({ colors }: { colors: Palette }) {
   return (
-    <div style={{ display: "flex", gap: 2 }}>
-      {[colors.background, colors.surface, colors.accent, colors.status.error].map((c, i) => (
-        <span key={i} style={{ width: 14, height: 14, background: c, display: "inline-block" }} />
+    <div style={{ display: "flex", gap: 4, flex: 1 }}>
+      {[
+        colors.background,
+        colors.surface,
+        colors.accent,
+        colors.status.success,
+        colors.status.warning,
+        colors.status.error,
+      ].map((c, i) => (
+        <span key={i} style={{ flex: 1, height: 24, borderRadius: 3, background: c, display: "inline-block" }} />
       ))}
     </div>
   );
@@ -163,11 +170,10 @@ export function SettingsThemes() {
             <div
               key={p.id}
               style={{
-                position: "relative",
                 border: `2px solid ${paletteId === p.id ? palette.accent : palette.border}`,
-                borderRadius: 6,
-                padding: 10,
-                minWidth: 120,
+                borderRadius: 8,
+                padding: 12,
+                minWidth: 220,
               }}
             >
               <button
@@ -180,51 +186,57 @@ export function SettingsThemes() {
                   cursor: "pointer",
                   textAlign: "left",
                   width: "100%",
+                  padding: 0,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  marginBottom: 10,
                 }}
               >
-                <Swatches colors={p.colors} />
-                <span>{p.name}</span>
+                {p.name}
               </button>
-              {!immutable && (
-                <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {immutable ? (
+                  <span style={{ width: 20, flexShrink: 0 }} />
+                ) : (
                   <button
                     onClick={() => startEdit(p)}
                     aria-label={`Edit ${p.name}`}
                     title={`Edit ${p.name}`}
                     style={{
-                      position: "absolute",
-                      bottom: 4,
-                      left: 4,
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
+                      flexShrink: 0,
                       padding: 0,
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                     }}
                   >
-                    <MaskIcon png={settingsIcon} alt={`Edit ${p.name}`} size={16} color={palette.textMuted} />
+                    <MaskIcon png={paletteIcon} alt={`Edit ${p.name}`} size={20} color={palette.textMuted} />
                   </button>
+                )}
+                <Swatches colors={p.colors} />
+                {immutable ? (
+                  <span style={{ width: 20, flexShrink: 0 }} />
+                ) : (
                   <button
                     onClick={() => handleDelete(p)}
                     aria-label={`Delete ${p.name}`}
                     title={`Delete ${p.name}`}
                     style={{
-                      position: "absolute",
-                      bottom: 4,
-                      right: 4,
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
+                      flexShrink: 0,
                       padding: 0,
                       border: "none",
                       background: "transparent",
                       cursor: "pointer",
                     }}
                   >
-                    <MaskIcon png={warningIcon} alt={`Delete ${p.name}`} size={16} color={palette.status.warning} />
+                    <MaskIcon png={binIcon} alt={`Delete ${p.name}`} size={20} color={palette.status.warning} />
                   </button>
-                </>
-              )}
+                )}
+              </div>
             </div>
           );
         })}
