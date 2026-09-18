@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../state/appStore";
 import {
@@ -21,7 +21,7 @@ const toast = createToastApi();
 // JSON.parse validated client-side before it ever touches disk) but at host
 // level, editing a plugin's own settings.json directly rather than a form
 // generated from a schema - settings.json IS the plugin's config now.
-function ConfigurePanel({ dir }: { dir: string }) {
+function ConfigurePanel({ dir, onCancel }: { dir: string; onCancel: () => void }) {
   const palette = useAppStore((s) => s.palette);
   const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -77,8 +77,8 @@ function ConfigurePanel({ dir }: { dir: string }) {
             <button onClick={save} disabled={saving} style={{ cursor: "pointer", marginRight: 6 }}>
               {saving ? "Saving..." : "Save"}
             </button>
-            <button onClick={load} disabled={saving} style={{ cursor: "pointer" }}>
-              Reload
+            <button onClick={onCancel} disabled={saving} style={{ cursor: "pointer" }}>
+              Cancel
             </button>
           </div>
         </>
@@ -162,40 +162,48 @@ export function SettingsPlugins() {
             }
             const { manifest, disabled, dir, category } = entry;
             return (
-              <tr key={manifest.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
-                <td style={{ padding: "6px 8px" }}>
-                  <div>
-                    {manifest.name} <span style={{ color: palette.textMuted, fontSize: 11 }}>v{manifest.version}</span>
-                  </div>
-                  <div style={{ color: palette.textMuted, fontSize: 11 }}>
-                    {manifest.description} · category: {category || "Other"}
-                  </div>
-                  {configuring === manifest.id && <ConfigurePanel dir={dir} />}
-                </td>
-                <td
-                  style={{
-                    padding: "6px 8px",
-                    color: disabled ? palette.textMuted : palette.status.success,
-                    fontSize: 12,
-                  }}
-                >
-                  {disabled ? "Disabled" : "Enabled"}
-                </td>
-                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
-                  <button
-                    onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
-                    style={{ cursor: "pointer", marginRight: 6 }}
+              <Fragment key={manifest.id}>
+                <tr style={{ borderBottom: configuring === manifest.id ? "none" : `1px solid ${palette.border}` }}>
+                  <td style={{ padding: "6px 8px" }}>
+                    <div>
+                      {manifest.name} <span style={{ color: palette.textMuted, fontSize: 11 }}>v{manifest.version}</span>
+                    </div>
+                    <div style={{ color: palette.textMuted, fontSize: 11 }}>
+                      {manifest.description} · category: {category || "Other"}
+                    </div>
+                  </td>
+                  <td
+                    style={{
+                      padding: "6px 8px",
+                      color: disabled ? palette.textMuted : palette.status.success,
+                      fontSize: 12,
+                    }}
                   >
-                    Configure
-                  </button>
-                  <button onClick={() => onToggleDisabled(entry)} style={{ cursor: "pointer", marginRight: 6 }}>
-                    {disabled ? "Activate" : "Deactivate"}
-                  </button>
-                  <button onClick={() => onRemove(dir, manifest.name)} style={{ cursor: "pointer" }}>
-                    Remove
-                  </button>
-                </td>
-              </tr>
+                    {disabled ? "Disabled" : "Enabled"}
+                  </td>
+                  <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                    <button
+                      onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
+                      style={{ cursor: "pointer", marginRight: 6 }}
+                    >
+                      Configure
+                    </button>
+                    <button onClick={() => onToggleDisabled(entry)} style={{ cursor: "pointer", marginRight: 6 }}>
+                      {disabled ? "Activate" : "Deactivate"}
+                    </button>
+                    <button onClick={() => onRemove(dir, manifest.name)} style={{ cursor: "pointer" }}>
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+                {configuring === manifest.id && (
+                  <tr style={{ borderBottom: `1px solid ${palette.border}` }}>
+                    <td style={{ padding: "0 8px 8px" }} colSpan={3}>
+                      <ConfigurePanel dir={dir} onCancel={() => setConfiguring(null)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
