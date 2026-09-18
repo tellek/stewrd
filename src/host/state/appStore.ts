@@ -56,6 +56,7 @@ interface AppState {
   categoriesExpanded: Record<string, boolean>;
   categories: CategoryDef[];
   categoryIconFiles: CategoryIconFile[];
+  hiddenPaletteIds: string[];
   paletteId: string;
   customPalettes: NamedPalette[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
@@ -91,6 +92,7 @@ interface AppState {
   setPaletteId(id: string): void;
   saveCustomPalette(palette: NamedPalette): void;
   deleteCustomPalette(id: string): void;
+  hidePalette(id: string): void;
   setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
 }
 
@@ -109,6 +111,7 @@ export const useAppStore = create<AppState>((set) => ({
   categoryIconFiles: [],
   paletteId: premadePalettes[0].id,
   customPalettes: [],
+  hiddenPaletteIds: [],
   taskbarBadgeThreshold: "warning",
   hostSettingsLoaded: false,
   palette: resolvePalette(premadePalettes[0].id, []),
@@ -168,11 +171,13 @@ export const useAppStore = create<AppState>((set) => ({
       const categories = loaded.categories ?? state.categories;
       const paletteId = loaded.paletteId ?? state.paletteId;
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
+      const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       return {
         categories,
         paletteId,
         customPalettes,
+        hiddenPaletteIds,
         taskbarBadgeThreshold,
         hostSettingsLoaded: true,
         palette: resolvePalette(paletteId, customPalettes),
@@ -231,8 +236,9 @@ export const useAppStore = create<AppState>((set) => ({
         existingIndex >= 0
           ? state.customPalettes.map((p, i) => (i === existingIndex ? namedPalette : p))
           : [...state.customPalettes, namedPalette];
-      saveHostSettings({ customPalettes });
-      return { customPalettes, palette: resolvePalette(state.paletteId, customPalettes) };
+      const hiddenPaletteIds = state.hiddenPaletteIds.filter((id) => id !== namedPalette.id);
+      saveHostSettings({ customPalettes, hiddenPaletteIds });
+      return { customPalettes, hiddenPaletteIds, palette: resolvePalette(state.paletteId, customPalettes) };
     }),
 
   deleteCustomPalette: (id) =>
@@ -241,6 +247,15 @@ export const useAppStore = create<AppState>((set) => ({
       const paletteId = state.paletteId === id ? premadePalettes[0].id : state.paletteId;
       saveHostSettings({ customPalettes, paletteId });
       return { customPalettes, paletteId, palette: resolvePalette(paletteId, customPalettes) };
+    }),
+
+  hidePalette: (id) =>
+    set((state) => {
+      if (state.hiddenPaletteIds.includes(id)) return {};
+      const hiddenPaletteIds = [...state.hiddenPaletteIds, id];
+      const paletteId = state.paletteId === id ? premadePalettes[0].id : state.paletteId;
+      saveHostSettings({ hiddenPaletteIds, paletteId });
+      return { hiddenPaletteIds, paletteId, palette: resolvePalette(paletteId, state.customPalettes) };
     }),
 
   setTaskbarBadgeThreshold: (threshold) => {

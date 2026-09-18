@@ -13,6 +13,7 @@ export interface HostSettings {
   categories: CategoryDef[];
   paletteId: string;
   customPalettes: NamedPalette[];
+  hiddenPaletteIds: string[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
 }
 

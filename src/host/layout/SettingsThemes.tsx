@@ -1,6 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
-import { premadePalettes, type Palette, type StatusColor } from "../../shared/palette";
+import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
+import { createModalApi } from "../api/modals";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import {
+  RESERVED_IDS,
+  generatePaletteFromMedia,
+  GenerationCancelled,
+  type PaletteGeneration,
+} from "../api/paletteGenerator";
+import warningIcon from "../../assets/category-icons/warning.png";
+import settingsIcon from "../../assets/category-icons/settings.png";
+
+const modal = createModalApi();
 
 const PALETTE_KEYS: (keyof Omit<Palette, "status">)[] = [
   "background",
@@ -28,37 +40,130 @@ export function SettingsThemes() {
   const palette = useAppStore((s) => s.palette);
   const paletteId = useAppStore((s) => s.paletteId);
   const customPalettes = useAppStore((s) => s.customPalettes);
+  const hiddenPaletteIds = useAppStore((s) => s.hiddenPaletteIds);
   const setPaletteId = useAppStore((s) => s.setPaletteId);
   const saveCustomPalette = useAppStore((s) => s.saveCustomPalette);
   const deleteCustomPalette = useAppStore((s) => s.deleteCustomPalette);
+  const hidePalette = useAppStore((s) => s.hidePalette);
 
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
   const [draft, setDraft] = useState<Palette>(palette);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const allPalettes = [...premadePalettes, ...customPalettes];
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [mediaName, setMediaName] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const generationRef = useRef<PaletteGeneration | null>(null);
+
+  const overrideMap = new Map(customPalettes.map((c) => [c.id, c] as const));
+  const mergedPremade = premadePalettes
+    .filter((pp) => overrideMap.has(pp.id) || !hiddenPaletteIds.includes(pp.id))
+    .map((pp) => overrideMap.get(pp.id) ?? pp);
+  const pureCustom = customPalettes.filter((c) => !premadePalettes.some((pp) => pp.id === c.id));
+  const allPalettes = [...mergedPremade, ...pureCustom];
 
   function startCreate() {
     setDraftName("");
     setDraft(palette);
+    setEditingId(null);
+    setSaveError(null);
     setCreating(true);
   }
 
-  function save() {
-    if (!draftName.trim()) return;
-    saveCustomPalette({ id: draftName.trim(), name: draftName.trim(), colors: draft });
+  function startEdit(p: NamedPalette) {
+    setEditingId(p.id);
+    setDraftName(p.name);
+    setDraft(p.colors);
+    setSaveError(null);
+    setCreating(true);
+  }
+
+  function cancelEdit() {
     setCreating(false);
+    setEditingId(null);
+    setSaveError(null);
+  }
+
+  function save() {
+    const name = draftName.trim();
+    if (!name) return;
+    const id = editingId ?? name;
+    if (!editingId && RESERVED_IDS.has(id.toLowerCase())) {
+      setSaveError(`"${name}" is a reserved name — choose a different one.`);
+      return;
+    }
+    saveCustomPalette({ id, name, colors: draft });
+    setCreating(false);
+    setEditingId(null);
+    setSaveError(null);
+  }
+
+  async function handleDelete(p: NamedPalette) {
+    const confirmed = await modal.confirm({
+      title: "Delete palette",
+      message: `Delete the "${p.name}" theme? This can't be undone.`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+    if (customPalettes.some((c) => c.id === p.id)) deleteCustomPalette(p.id);
+    if (premadePalettes.some((pp) => pp.id === p.id)) hidePalette(p.id);
+  }
+
+  function startGenerate() {
+    setMediaName("");
+    setGenerateOpen(true);
+  }
+
+  function cancelGenerate() {
+    if (generating) {
+      generationRef.current?.cancel();
+      return;
+    }
+    setGenerateOpen(false);
+    setMediaName("");
+  }
+
+  async function handleGenerate() {
+    setGenerating(true);
+    const gen = generatePaletteFromMedia(mediaName.trim());
+    generationRef.current = gen;
+    try {
+      const p = await gen.promise;
+      if (customPalettes.some((c) => c.id === p.id)) {
+        const overwrite = await modal.confirm({
+          title: "Palette already exists",
+          message: `A theme named "${p.name}" already exists. Overwrite it?`,
+          confirmLabel: "Overwrite",
+          cancelLabel: "Cancel",
+        });
+        if (!overwrite) return;
+      }
+      saveCustomPalette(p);
+      setGenerateOpen(false);
+      setMediaName("");
+    } catch (err) {
+      if (!(err instanceof GenerationCancelled)) {
+        await modal.error({ title: "Generate failed", message: String(err) });
+      }
+    } finally {
+      setGenerating(false);
+      generationRef.current = null;
+    }
   }
 
   return (
     <div>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {allPalettes.map((p) => {
-          const isCustom = customPalettes.some((c) => c.id === p.id);
+          const immutable = RESERVED_IDS.has(p.id);
           return (
             <div
               key={p.id}
               style={{
+                position: "relative",
                 border: `2px solid ${paletteId === p.id ? palette.accent : palette.border}`,
                 borderRadius: 6,
                 padding: 10,
@@ -80,22 +185,67 @@ export function SettingsThemes() {
                 <Swatches colors={p.colors} />
                 <span>{p.name}</span>
               </button>
-              {isCustom && (
-                <button onClick={() => deleteCustomPalette(p.id)} style={{ fontSize: 11, cursor: "pointer" }}>
-                  Delete
-                </button>
+              {!immutable && (
+                <>
+                  <button
+                    onClick={() => startEdit(p)}
+                    aria-label={`Edit ${p.name}`}
+                    title={`Edit ${p.name}`}
+                    style={{
+                      position: "absolute",
+                      bottom: 4,
+                      left: 4,
+                      width: 16,
+                      height: 16,
+                      padding: 0,
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <MaskIcon png={settingsIcon} alt={`Edit ${p.name}`} size={16} color={palette.textMuted} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(p)}
+                    aria-label={`Delete ${p.name}`}
+                    title={`Delete ${p.name}`}
+                    style={{
+                      position: "absolute",
+                      bottom: 4,
+                      right: 4,
+                      width: 16,
+                      height: 16,
+                      padding: 0,
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <MaskIcon png={warningIcon} alt={`Delete ${p.name}`} size={16} color={palette.status.warning} />
+                  </button>
+                </>
               )}
             </div>
           );
         })}
       </div>
 
-      {!creating ? (
-        <button onClick={startCreate} style={{ marginTop: 16, cursor: "pointer" }}>
-          Create new palette
-        </button>
-      ) : (
+      {!creating && !generateOpen && (
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button onClick={startCreate} style={{ cursor: "pointer" }}>
+            Create New Palette
+          </button>
+          <button onClick={startGenerate} style={{ cursor: "pointer" }}>
+            Generate New Palette
+          </button>
+        </div>
+      )}
+
+      {creating && (
         <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12, color: palette.textMuted, marginBottom: 6 }}>
+            {editingId ? "Edit palette" : "New palette"}
+          </div>
           <input
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
@@ -132,11 +282,42 @@ export function SettingsThemes() {
               />
             </label>
           ))}
+          {saveError && <div style={{ fontSize: 12, color: palette.status.error, marginBottom: 8 }}>{saveError}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={save} disabled={!draftName.trim()} style={{ cursor: "pointer" }}>
               Save
             </button>
-            <button onClick={() => setCreating(false)} style={{ cursor: "pointer" }}>
+            <button onClick={cancelEdit} style={{ cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {generateOpen && (
+        <div style={{ marginTop: 16 }}>
+          <input
+            value={mediaName}
+            onChange={(e) => setMediaName(e.target.value)}
+            placeholder="Movie, show, or game title"
+            disabled={generating}
+            style={{
+              background: palette.surface,
+              color: palette.text,
+              border: `1px solid ${palette.border}`,
+              borderRadius: 4,
+              padding: "4px 6px",
+              display: "block",
+            }}
+          />
+          <div style={{ fontSize: 11, color: palette.textMuted, marginTop: 4, marginBottom: 8 }}>
+            Enter the name of any movie, show, or game (IP) to generate a theme from its color palette.
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleGenerate} disabled={!mediaName.trim() || generating} style={{ cursor: "pointer" }}>
+              {generating ? "Generating…" : "Generate"}
+            </button>
+            <button onClick={cancelGenerate} style={{ cursor: "pointer" }}>
               Cancel
             </button>
           </div>
