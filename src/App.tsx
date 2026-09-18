@@ -25,7 +25,14 @@ function App() {
   const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
   const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
   const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
-  const plugins = useAppStore((s) => s.plugins);
+  // Selecting just the derived status string (not the whole `plugins`
+  // object) matters here: zustand's default equality check then skips
+  // re-rendering App when plugin metadata changes without the worst status
+  // actually changing. Selecting the raw `plugins` object previously caused
+  // an infinite loop - App re-rendering on every setPlugins call recomputed
+  // usePluginRegistry's `entries` array (a fresh Object.values() each time),
+  // which re-fired the entries effect below, which called setPlugins again.
+  const worstPluginStatus = useAppStore((s) => worstStatus(Object.values(s.plugins)));
   const taskbarBadgeThreshold = useAppStore((s) => s.taskbarBadgeThreshold);
 
   useEffect(() => {
@@ -59,14 +66,13 @@ function App() {
   const badgeRequestRef = useRef(0);
   useEffect(() => {
     const requestId = ++badgeRequestRef.current;
-    const worst = worstStatus(Object.values(plugins));
-    computeBadgeIcon(worst, taskbarBadgeThreshold, palette).then((bytes) => {
+    computeBadgeIcon(worstPluginStatus, taskbarBadgeThreshold, palette).then((bytes) => {
       // Discard if a newer status change has already superseded this one -
       // the async canvas rendering can let calls resolve out of order.
       if (requestId !== badgeRequestRef.current) return;
       applyOverlayIcon(bytes);
     });
-  }, [plugins, taskbarBadgeThreshold, palette]);
+  }, [worstPluginStatus, taskbarBadgeThreshold, palette]);
 
   if (!hostSettingsLoaded) return null;
 
