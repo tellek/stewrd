@@ -41,17 +41,22 @@ const PALETTE_KEYS: (keyof Omit<Palette, "status">)[] = [
 const STATUS_KEYS: StatusColor[] = ["idle", "in-progress", "success", "warning", "error"];
 
 function Swatches({ colors }: { colors: Palette }) {
+  const swatches: [string, string][] = [
+    ["background", colors.background],
+    ["text", colors.text],
+    ["accent", colors.accent],
+    ["border", colors.border],
+    ["in-progress", colors.status["in-progress"]],
+    ["surface", colors.surface],
+  ];
   return (
     <div style={{ display: "flex", gap: 4, flex: 1 }}>
-      {[
-        colors.background,
-        colors.surface,
-        colors.accent,
-        colors.status.success,
-        colors.status.warning,
-        colors.status.error,
-      ].map((c, i) => (
-        <span key={i} style={{ flex: 1, height: 24, borderRadius: 3, background: c, display: "inline-block" }} />
+      {swatches.map(([label, c]) => (
+        <span
+          key={label}
+          title={label}
+          style={{ flex: 1, height: 24, borderRadius: 3, background: c, display: "inline-block" }}
+        />
       ))}
     </div>
   );
