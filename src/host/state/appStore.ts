@@ -4,7 +4,7 @@ import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 import { premadePalettes } from "../../shared/palette";
 import type { CategoryDef } from "../../shared/category";
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
-import { loadHostSettings, saveHostSettings } from "./hostSettings";
+import { loadHostSettings, saveHostSettings, type TaskbarBadgeThreshold } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 
 export interface PluginSidebarEntry {
@@ -55,6 +55,7 @@ interface AppState {
   categoryIconFiles: CategoryIconFile[];
   paletteId: string;
   customPalettes: NamedPalette[];
+  taskbarBadgeThreshold: TaskbarBadgeThreshold;
   hostSettingsLoaded: boolean;
   /** Derived from paletteId/customPalettes - recomputed explicitly by every
    * action that touches either, since zustand's default setState merge
@@ -87,6 +88,7 @@ interface AppState {
   setPaletteId(id: string): void;
   saveCustomPalette(palette: NamedPalette): void;
   deleteCustomPalette(id: string): void;
+  setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
 }
 
 export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]): Palette {
@@ -104,6 +106,7 @@ export const useAppStore = create<AppState>((set) => ({
   categoryIconFiles: [],
   paletteId: premadePalettes[0].id,
   customPalettes: [],
+  taskbarBadgeThreshold: "warning",
   hostSettingsLoaded: false,
   palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
@@ -161,10 +164,12 @@ export const useAppStore = create<AppState>((set) => ({
       const categories = loaded.categories ?? state.categories;
       const paletteId = loaded.paletteId ?? state.paletteId;
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
+      const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       return {
         categories,
         paletteId,
         customPalettes,
+        taskbarBadgeThreshold,
         hostSettingsLoaded: true,
         palette: resolvePalette(paletteId, customPalettes),
       };
@@ -233,4 +238,9 @@ export const useAppStore = create<AppState>((set) => ({
       saveHostSettings({ customPalettes, paletteId });
       return { customPalettes, paletteId, palette: resolvePalette(paletteId, customPalettes) };
     }),
+
+  setTaskbarBadgeThreshold: (threshold) => {
+    set({ taskbarBadgeThreshold: threshold });
+    saveHostSettings({ taskbarBadgeThreshold: threshold });
+  },
 }));

@@ -7,10 +7,13 @@ import type { NamedPalette } from "../../shared/palette";
 // real plugin can collide with.
 const storage = createStorageApi("__host__");
 
+export type TaskbarBadgeThreshold = "off" | "success" | "warning" | "error";
+
 export interface HostSettings {
   categories: CategoryDef[];
   paletteId: string;
   customPalettes: NamedPalette[];
+  taskbarBadgeThreshold: TaskbarBadgeThreshold;
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import { useAppStore } from "./host/state/appStore";
@@ -7,6 +7,8 @@ import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
 import { Modal } from "./components/Modal/Modal";
 import { ToastContainer } from "./components/Toast/ToastContainer";
+import { worstStatus } from "./host/layout/categoryStatus";
+import { computeBadgeIcon, applyOverlayIcon } from "./host/taskbarBadge";
 import "./App.css";
 
 function App() {
@@ -23,6 +25,8 @@ function App() {
   const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
   const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
   const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
+  const plugins = useAppStore((s) => s.plugins);
+  const taskbarBadgeThreshold = useAppStore((s) => s.taskbarBadgeThreshold);
 
   useEffect(() => {
     hydrateHostSettings();
@@ -51,6 +55,18 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discoveryErrors]);
+
+  const badgeRequestRef = useRef(0);
+  useEffect(() => {
+    const requestId = ++badgeRequestRef.current;
+    const worst = worstStatus(Object.values(plugins));
+    computeBadgeIcon(worst, taskbarBadgeThreshold, palette).then((bytes) => {
+      // Discard if a newer status change has already superseded this one -
+      // the async canvas rendering can let calls resolve out of order.
+      if (requestId !== badgeRequestRef.current) return;
+      applyOverlayIcon(bytes);
+    });
+  }, [plugins, taskbarBadgeThreshold, palette]);
 
   if (!hostSettingsLoaded) return null;
 
