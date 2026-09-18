@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
 import { createModalApi } from "../api/modals";
@@ -13,6 +13,20 @@ import binIcon from "../../assets/category-icons/bin.png";
 import paletteIcon from "../../assets/category-icons/palette.png";
 
 const modal = createModalApi();
+
+const BRAILLE_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/** Cycles through braille spinner frames while `active`, for showing next to
+ * a button during a long-running async action. */
+function useBrailleSpinner(active: boolean): string {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => setFrame((f) => (f + 1) % BRAILLE_FRAMES.length), 80);
+    return () => clearInterval(id);
+  }, [active]);
+  return BRAILLE_FRAMES[frame];
+}
 
 const PALETTE_KEYS: (keyof Omit<Palette, "status">)[] = [
   "background",
@@ -62,6 +76,7 @@ export function SettingsThemes() {
   const [generateOpen, setGenerateOpen] = useState(false);
   const [mediaName, setMediaName] = useState("");
   const [generating, setGenerating] = useState(false);
+  const spinnerFrame = useBrailleSpinner(generating);
   const generationRef = useRef<PaletteGeneration | null>(null);
 
   const overrideMap = new Map(customPalettes.map((c) => [c.id, c] as const));
@@ -329,6 +344,11 @@ export function SettingsThemes() {
             <button onClick={handleGenerate} disabled={!mediaName.trim() || generating} style={{ cursor: "pointer" }}>
               {generating ? "Generating…" : "Generate"}
             </button>
+            {generating && (
+              <span aria-hidden="true" style={{ fontSize: 18, color: palette.accent, alignSelf: "center" }}>
+                {spinnerFrame}
+              </span>
+            )}
             <button onClick={cancelGenerate} style={{ cursor: "pointer" }}>
               Cancel
             </button>

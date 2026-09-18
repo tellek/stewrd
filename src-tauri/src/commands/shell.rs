@@ -32,6 +32,12 @@ fn build_command(program: &str, args: &[String], cwd: &Option<String>, env: &Opt
             cmd.env(k, v);
         }
     }
+    // Spawned processes should never flash a console window on Windows.
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
     cmd
 }
 
