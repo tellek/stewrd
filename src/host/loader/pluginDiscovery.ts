@@ -1,18 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PluginManifest } from "../../shared/plugin-api.d.ts";
 
-/** One configurable setting a plugin's optional `settings.json` declares.
- * Values live in the plugin's own storage file (see `host/api/storage.ts`)
- * under a key matching `key` - this is just the schema the Settings >
- * Plugins UI renders a form from. */
-export interface SettingsField {
-  key: string;
-  label: string;
-  type: "string" | "number" | "boolean" | "select";
-  default: unknown;
-  options: string[]; // only used when type === "select"
-}
-
 export type PluginDiscoveryEntry =
   | {
       status: "ok";
@@ -20,7 +8,10 @@ export type PluginDiscoveryEntry =
       manifest: PluginManifest;
       source: string;
       disabled: boolean;
-      settingsSchema: SettingsField[];
+      /** Resolved from the plugin's own settings.json "category" key,
+       * falling back to plugin.json's legacy category field, falling back to
+       * "" (grouped under "Other") - see plugins.rs::read_plugin_category. */
+      category: string;
     }
   | { status: "error"; dir: string; message: string };
 
@@ -56,4 +47,12 @@ export async function removePlugin(dir: string): Promise<void> {
 
 export async function installPluginFromArchive(bytes: Uint8Array, fileName: string): Promise<string> {
   return invoke<string>("install_plugin_from_archive", { bytes: Array.from(bytes), fileName });
+}
+
+export async function readPluginSettingsFile(dir: string): Promise<string> {
+  return invoke<string>("read_plugin_settings_file", { dir });
+}
+
+export async function writePluginSettingsFile(dir: string, contents: string): Promise<void> {
+  return invoke("write_plugin_settings_file", { dir, contents });
 }

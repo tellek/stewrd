@@ -19,13 +19,14 @@ export function Sidebar() {
   const palette = useAppStore((s) => s.palette);
   const [expandHovered, setExpandHovered] = useState(false);
 
-  // Plugins are grouped by resolving each manifest.category against the
-  // app-controlled category list (Settings > Categories) - anything that
-  // doesn't match a known category id falls into Other. Categories with no
-  // matching plugins aren't rendered (no empty headers).
+  // Plugins are grouped by resolving each entry's resolved category (from
+  // settings.json, falling back to plugin.json) against the app-controlled
+  // category list (Settings > Categories) - anything that doesn't match a
+  // known category id falls into Other. Categories with no matching plugins
+  // aren't rendered (no empty headers).
   const byCategory = new Map<string, { def: CategoryDef; entries: PluginSidebarEntry[] }>();
   for (const entry of Object.values(plugins)) {
-    const def = resolveCategory(categories, entry.manifest.category);
+    const def = resolveCategory(categories, entry.category);
     const bucket = byCategory.get(def.id) ?? { def, entries: [] };
     bucket.entries.push(entry);
     byCategory.set(def.id, bucket);

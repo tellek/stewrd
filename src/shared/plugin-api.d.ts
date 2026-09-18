@@ -18,7 +18,10 @@ export interface PluginManifest {
   id: string;
   name: string;
   version: string;
-  category: string;
+  /** Legacy fallback only - the effective category shown by the Settings >
+   * Plugins UI comes from `PluginDiscoveryEntry.category` (settings.json's
+   * "category" key, falling back to this field if settings.json has none). */
+  category?: string;
   icon: string;
   entry: string;
   description: string;

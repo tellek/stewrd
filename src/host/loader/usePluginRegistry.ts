@@ -16,6 +16,9 @@ export interface PluginRegistryEntry {
   /** Discovery directory name - needed to reverse-lookup an entry on
    * hot-remove even if it was never actually loaded (lazy). */
   dir: string;
+  /** Resolved category from discovery (settings.json, falling back to
+   * plugin.json) - see pluginDiscovery.ts's PluginDiscoveryEntry. */
+  category: string;
 }
 
 export interface DiscoveryError {
@@ -30,14 +33,14 @@ export function usePluginRegistry() {
   const loadedByDir = useRef<Map<string, LoadedPlugin>>(new Map());
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
-  const loadOneRef = useRef<((dir: string, manifest: PluginManifest, source: string) => Promise<void>) | undefined>(
-    undefined,
-  );
+  const loadOneRef = useRef<
+    ((dir: string, manifest: PluginManifest, source: string, category: string) => Promise<void>) | undefined
+  >(undefined);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadOne(dir: string, manifest: PluginManifest, source: string) {
+    async function loadOne(dir: string, manifest: PluginManifest, source: string, category: string) {
       try {
         const loaded = await loadPlugin(manifest, source);
         if (cancelled) {
@@ -56,6 +59,7 @@ export function usePluginRegistry() {
             generation: loaded.generation,
             loaded: true,
             dir,
+            category,
           },
         }));
       } catch (err) {
@@ -70,6 +74,7 @@ export function usePluginRegistry() {
             loadError: err instanceof Error ? err.message : String(err),
             loaded: false,
             dir,
+            category,
           },
         }));
       }
@@ -109,13 +114,14 @@ export function usePluginRegistry() {
               generation: -1,
               loaded: false,
               dir: d.dir,
+              category: d.category,
             };
           }
         }
         return next;
       });
 
-      await Promise.all(eager.map((d) => loadOne(d.dir, d.manifest, d.source)));
+      await Promise.all(eager.map((d) => loadOne(d.dir, d.manifest, d.source, d.category)));
     }
 
     (async () => {
@@ -155,11 +161,11 @@ export function usePluginRegistry() {
       const known = entriesRef.current[match.manifest.id];
       if (known?.loaded) {
         // Already loaded (eager, or a previously-selected lazy one) - hot-reload it.
-        await loadOne(match.dir, match.manifest, match.source);
+        await loadOne(match.dir, match.manifest, match.source, match.category);
       } else if (!known) {
         // Hot-add: a brand-new plugin folder appeared while running.
         if (match.manifest.background) {
-          await loadOne(match.dir, match.manifest, match.source);
+          await loadOne(match.dir, match.manifest, match.source, match.category);
         } else {
           setEntries((e) => ({
             ...e,
@@ -170,11 +176,24 @@ export function usePluginRegistry() {
               generation: -1,
               loaded: false,
               dir: match.dir,
+              category: match.category,
             },
           }));
         }
+      } else {
+        // Known but not loaded (untouched lazy plugin) - the plugin itself
+        // isn't being (re)activated, but a settings.json edit (e.g. category)
+        // still needs to reach this entry so the sidebar doesn't show stale
+        // grouping until the plugin is eventually selected or the app restarts.
+        setEntries((e) => ({
+          ...e,
+          [match.manifest.id]: {
+            ...e[match.manifest.id],
+            manifest: match.manifest,
+            category: match.category,
+          },
+        }));
       }
-      // else: known but not loaded (untouched lazy plugin) - stays lazy, no-op.
     });
 
     return () => {
@@ -190,7 +209,7 @@ export function usePluginRegistry() {
     const match = discovered.find(
       (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.manifest.id === pluginId,
     );
-    if (match) await loadOneRef.current?.(match.dir, match.manifest, match.source);
+    if (match) await loadOneRef.current?.(match.dir, match.manifest, match.source, match.category);
   }, []);
 
   /** Call when a plugin is selected in the sidebar for the first time - a

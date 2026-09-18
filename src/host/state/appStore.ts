@@ -13,6 +13,9 @@ export interface PluginSidebarEntry {
   statusTooltip?: string;
   /** Discovery directory name - needed to fetch the plugin's icon.png. */
   dir: string;
+  /** Resolved category (settings.json, falling back to plugin.json) - see
+   * pluginDiscovery.ts's PluginDiscoveryEntry. Used by Sidebar.tsx grouping. */
+  category: string;
 }
 
 export interface StatusLogEntry {
@@ -122,6 +125,7 @@ export const useAppStore = create<AppState>((set) => ({
           manifest: p.manifest,
           status: state.plugins[p.manifest.id]?.status ?? "idle",
           dir: p.dir,
+          category: p.category,
         };
       }
       return { plugins: next };

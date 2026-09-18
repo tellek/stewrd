@@ -1,7 +1,8 @@
 # Template plugin
 
 Copy this whole `_template/` folder to start a new plugin. Rename the folder
-and update `plugin.json`'s `id`/`name`/`category` to match.
+and update `plugin.json`'s `id`/`name` and `settings.json`'s `category` to
+match.
 
 ## `plugin.json` fields
 
@@ -10,34 +11,51 @@ and update `plugin.json`'s `id`/`name`/`category` to match.
 | `id` | Unique identifier. Should match the folder name. Used for storage/fs namespacing, hot-reload matching, and boot-safety marks. |
 | `name` | Display name shown in the sidebar. |
 | `version` | Your own semver, informational only. |
-| `category` | Sidebar grouping. Must match a category id defined in Settings > Categories (host-controlled) or your plugin lands under "Other" until someone adds it there. |
 | `icon` | Unused - reserved. To give your plugin a sidebar icon, drop `icon.png` into the plugin's own folder instead - it's rendered as a CSS mask, tinted to the current theme color. |
 | `entry` | Path to the **built** output the loader actually imports, always `dist/index.js` - you write `index.tsx`, esbuild produces this. |
 | `description` | Shown in discovery-error messages and tooling; keep it short. |
 | `apiVersion` | Must match the host's supported version (currently `"1"`) or discovery rejects the plugin with a clear error. |
 | `background` | `true` = activate eagerly at app startup for off-screen work (e.g. a poller). `false` (default) = activate lazily on first sidebar selection. Only set this if you actually need to run before the user opens the plugin. |
 
-## `settings.json` (optional)
+## `settings.json` (optional, but this is where `category` lives)
 
-Drop a `settings.json` array next to `plugin.json` to have your plugin show up
-with a configurable form in **Settings > Plugins** - the host reads it during
-discovery and renders one input per entry, no plugin UI code required. It's
-entirely optional - omit the file if your plugin has nothing to configure.
-Each entry:
+Drop a `settings.json` next to `plugin.json` - it's a **plain JSON object**,
+not a schema. The host only ever reads one key out of it, `"category"`
+(sidebar grouping - must match a category id from Settings > Categories, or
+the plugin lands under "Other"); everything else in the object is entirely up
+to you as the plugin author. There's no built-in type system, form generation,
+or validation beyond "is it valid JSON."
 
 ```json
-{ "key": "refreshSeconds", "label": "Refresh interval (seconds)", "type": "number", "default": 30, "options": [] }
+{
+  "category": "Templates",
+  "greeting": "Hello!",
+  "refreshSeconds": 30
+}
 ```
 
-| Field | Meaning |
-|---|---|
-| `key` | Storage key the value is saved under - read it yourself via `ctx.api.storage.get(key)`, same as any other storage key. |
-| `label` | Shown next to the input in the Settings tab. |
-| `type` | `"string"` \| `"number"` \| `"boolean"` \| `"select"`. |
-| `default` | Used until the user changes it (nothing is written to storage until they do). |
-| `options` | Only used for `type: "select"` - the list of choices. |
+Users edit this file directly from **Settings > Plugins > Configure** - a raw
+JSON text editor (JSON-validated before it's ever written to disk), not a
+generated form. Saving there writes straight back to this file, and since it
+lives inside the already-watched `plugins/` tree, the host picks up the change
+(including a `category` edit re-grouping the sidebar) without a restart.
 
-This template's own `settings.json` has one example of each type.
+Omit the file entirely if your plugin has nothing to configure and doesn't
+need to set `category` - Configure will still work, offering a starter
+`{ "category": "" }` object to fill in.
+
+**No built-in way for a plugin to read its own custom keys back at runtime
+today** - `ctx.api.fs` is sandboxed to the plugin's app-data folder, not its
+own install folder where `settings.json` actually lives. A plugin wanting to
+consume its own custom values (anything besides `category`, which is purely a
+host-side concern) would need the same `ctx.api.shell.exec`-based workaround
+`plugins/claude-settings-editor/index.tsx` uses to reach a file outside its
+sandbox. This is a known limitation, not something this convention solves.
+
+For backward compatibility, a `plugin.json` with an old-style `category` field
+and no `settings.json` still works (the manifest value is used as a fallback)
+- but `settings.json` is the recommended place for new plugins, and wins if
+both are present.
 
 ## Building
 

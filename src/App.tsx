@@ -46,7 +46,7 @@ function App() {
   }, [activePluginId, ensureLoaded]);
 
   useEffect(() => {
-    setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle", dir: e.dir })));
+    setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle", dir: e.dir, category: e.category })));
     for (const e of entries) {
       if (e.loadError) {
         setPluginStatus(e.manifest.id, "error");

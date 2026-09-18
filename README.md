@@ -74,7 +74,6 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
   "id": "notepad",
   "name": "Notepad",
   "version": "1.0.0",
-  "category": "Utilities",
   "icon": "default",
   "entry": "dist/index.js",
   "description": "Autosaving scratch pad with Claude memory extraction",
@@ -88,7 +87,7 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 | `id` | Unique identifier; should match the folder name. Used for storage/fs namespacing, hot-reload matching, boot-safety marks. |
 | `name` | Sidebar display name. |
 | `version` | Author's own semver, informational only. |
-| `category` | Sidebar grouping. Must match a category id from the app-controlled list in Settings > Categories, or the plugin lands under "Other" until someone adds a matching category. |
+| `category` | **Legacy fallback only** - see `settings.json` below, which is now the primary source of a plugin's sidebar category. Kept optional on this struct for plugins that predate `settings.json`; a plugin with both wins on the `settings.json` value. |
 | `icon` | Unused - reserved. Drop `icon.png` into the plugin's own folder to give it a sidebar icon instead - it's rendered as a CSS mask, tinted to the current theme color. |
 | `entry` | Path to the **built** output the loader imports — always `dist/index.js`. You write `index.tsx`; esbuild produces this. |
 | `description` | Shown in discovery-error messages/tooling. |
@@ -97,7 +96,7 @@ The host discovers plugin folders (each with a `plugin.json` + a prebuilt `dist/
 
 Validated with `serde` on the Rust side (parse + `apiVersion` equality only) — there is no frontend zod/schema validation in the code despite an earlier plan mentioning one.
 
-A plugin can optionally drop a `settings.json` next to `plugin.json` — an array of `{ key, label, type, default, options }` fields — to get a configurable form for free in **Settings > Plugins**, backed by the plugin's own `ctx.api.storage` under those same keys. See `plugins/_template/README.md` for the schema and `plugins/_template/settings.json` for an example. Entirely optional; omit it if there's nothing to configure.
+A plugin can optionally drop a `settings.json` next to `plugin.json` — a **plain JSON object**, not a schema. The host only reads one key out of it, `"category"` (sidebar grouping - falls back to the manifest's own `category` field above if absent, see `plugins.rs::read_plugin_category`); everything else in the file is entirely up to the plugin author and uninterpreted by the host. Users edit it directly via **Settings > Plugins > Configure** — a raw JSON text editor (validated before it's written, mirroring `plugins/claude-settings-editor/index.tsx`'s own settings-file-editing pattern), not a generated form. See `plugins/_template/README.md` for the convention and `plugins/_template/settings.json` for an example. Entirely optional; omit it if there's nothing to configure (Configure still works, offering a starter `{ "category": "" }` object).
 
 ### Plugin module contract
 
@@ -150,7 +149,7 @@ This bundles `index.{tsx,ts,jsx,js}` (whichever exists) and everything it import
 
 ### Starting a new plugin
 
-Copy `plugins/_template/` wholesale, rename the folder, update `plugin.json`'s `id`/`name`/`category`. `plugins/_template/index.tsx` has a commented-out example of **every** API surface — uncomment what you need. `plugins/_template/README.md` covers the same manifest/lifecycle info as this section, kept in the template for a plugin author who never opens the main repo README — give your own new plugin folder a README too (`claude.md` expects one per plugin).
+Copy `plugins/_template/` wholesale, rename the folder, update `plugin.json`'s `id`/`name` and `settings.json`'s `category`. `plugins/_template/index.tsx` has a commented-out example of **every** API surface — uncomment what you need. `plugins/_template/README.md` covers the same manifest/lifecycle info as this section, kept in the template for a plugin author who never opens the main repo README — give your own new plugin folder a README too (`claude.md` expects one per plugin).
 
 ### Type-checking while authoring a plugin
 
@@ -253,7 +252,7 @@ Framework-agnostic singleton (no Tauri/React deps — independently unit-tested 
 ```
 App.tsx
  ├─ Sidebar.tsx (width 220, or 48 when collapsed)
- │   ├─ expanded: SidebarCategory.tsx[] (grouped by manifest.category resolved against appStore's categories, falling back to "Other") → SidebarPluginItem.tsx[] (indented, name + StatusIcon + optional plugin icon; click → setActivePlugin)
+ │   ├─ expanded: SidebarCategory.tsx[] (grouped by each entry's resolved `category` - settings.json, falling back to plugin.json - resolved against appStore's categories, falling back to "Other") → SidebarPluginItem.tsx[] (indented, name + StatusIcon + optional plugin icon; click → setActivePlugin)
  │   ├─ collapsed: SidebarCategoryCollapsed.tsx[] (category icon via categoryIcons.ts, or ▸/▾ fallback) → icon-only SidebarPluginItem row per plugin
  │   └─ SidebarFooter.tsx (expanded: "Settings" + "<<"; collapsed: just ">>") — pinned to the bottom of the sidebar, height-matched to StatusBar's summary row
  └─ content column (flex: 1)
@@ -266,7 +265,7 @@ Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore
 - `appStore` (`host/state/appStore.ts`, zustand) holds: `plugins` (sidebar entries + status + `dir`), `activePluginId`, `statusLog`, `categoriesExpanded`, `categories`, `paletteId`, `customPalettes`, `palette` (derived from the previous two, always resolves to a real `Palette`), `taskbarBadgeThreshold`, `hostSettingsLoaded`, `modalQueue`, `toasts`, `sidebarCollapsed`, `view` (`"plugin" | "settings"`). Plugins never touch this directly — only through the `PluginApi` surfaces in §6.
 - The taskbar icon gets a small overlay "badge" dot (Windows only) when the worst status across every plugin (`host/layout/categoryStatus.ts`'s `worstStatus`, same error > warning > in-progress > success priority used for sidebar category tinting) reaches the user's configured threshold. `host/taskbarBadge.ts` renders the dot onto an off-screen canvas using the active palette's `status` color (so it stays theme-correct, never a hardcoded color) and calls Tauri's `Window.setOverlayIcon`; `App.tsx` recomputes it on every `plugins`/`taskbarBadgeThreshold`/`palette` change, guarded with a request-token ref so an in-flight async render can't clobber a newer one. Threshold is set in Settings > General (`off` / `success`-or-worse / `warning`-or-worse (default) / `error`-or-worse) and persists via `hostSettings.ts`.
 - Category icons are **not** Vite-bundled - they're read at runtime from `<exe-dir>/assets/category-icons/` (a `<name>.png`) via the `list_category_icons` command (`commands/category_icons.rs`), so a user can drop in more icons after install without a rebuild. `src/assets/category-icons/` is only the dev-time source: `build.rs` copies it into `target/<profile>/assets/category-icons/` for `cargo run`/`tauri dev`, and `tauri.conf.json`'s `bundle.resources` copies it next to the exe for a packaged build - both land in the same exe-relative layout `category_icons.rs` reads from. `appStore.loadCategoryIcons()` fetches the list once at startup (and on demand via the "Refresh icon list" button in Settings > Categories); `host/layout/categoryIcons.ts` is just a pure `find`/`map` helper over that list. Which icon name a category uses is chosen in Settings > Categories, not inferred from the category name; categories with no icon assigned fall back to the ▸/▾ disclosure glyph in the collapsed sidebar.
-- Categories are app-controlled (Settings > Categories, persisted via `hostSettings.ts`), seeded with `Other`/`Utilities`/`Templates`. A plugin's `manifest.category` must match a category's `id` or it's grouped under "Other" — adding a brand-new category to match a new plugin now requires a Settings edit, not just a manifest change.
+- Categories are app-controlled (Settings > Categories, persisted via `hostSettings.ts`), seeded with `Other`/`Utilities`/`Templates`. A plugin's resolved category (its `settings.json`'s `"category"` key, falling back to `plugin.json`'s legacy `category` field) must match a category's `id` or it's grouped under "Other" — adding a brand-new category to match a new plugin now requires a Settings edit, not just a manifest change.
 - Plugin sidebar icons follow the same PNG convention as category icons, but scoped per-plugin and resolved differently: drop `icon.png` into the plugin's own folder (under the resolved plugins dir, not exe-relative); `get_plugin_icon` (`commands/plugin_icons.rs`) reads it by discovery `dir` and returns a data URL (`usePluginIcon.ts` fetches/caches per plugin `dir`).
 - Both category and plugin icons render via `components/MaskIcon/MaskIcon.tsx`: a CSS `mask-image` (not `<img>`) tinted with `color` (default `currentColor`, i.e. whatever palette color the surrounding text already uses), so icons recolor live with the theme instead of keeping the source PNG's own baked-in colors. Trade-off: a mask flattens multi-color source art to one solid color, and only respects transparency the source PNG actually encodes.
 
@@ -275,11 +274,11 @@ Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore
 Four tabs, all in `host/layout/`:
 
 - **General** (`SettingsGeneral.tsx`) — app name/version, plus the taskbar status badge threshold (see §8 above).
-- **Categories** (`SettingsCategories.tsx`) — add/rename/delete categories and assign each one an icon (from `<exe-dir>/assets/category-icons/` - see §8). Renaming a category's display `name` is safe for existing plugins; its `id` (the value `manifest.category` must match) is fixed at creation. `Other` is built-in and can't be renamed or deleted.
+- **Categories** (`SettingsCategories.tsx`) — add/rename/delete categories and assign each one an icon (from `<exe-dir>/assets/category-icons/` - see §8). Renaming a category's display `name` is safe for existing plugins; its `id` (the value a plugin's resolved `category` must match) is fixed at creation. `Other` is built-in and can't be renamed or deleted.
 - **Themes** (`SettingsThemes.tsx`) — pick a premade palette (`shared/palette.ts`'s `premadePalettes`: Dark/Light) or build a custom one (one color picker per `Palette` field) and save it. Selection persists via `hostSettings.ts` and applies live across the whole app and every plugin (`api.theme`).
-- **Plugins** (`SettingsPlugins.tsx`) — lists every discovered plugin (including disabled/errored ones, via a direct `listPlugins()` call rather than `usePluginRegistry`, which filters disabled plugins out). Per plugin: activate/deactivate (`set_plugin_disabled`, now also emits `plugin-changed` so the toggle takes effect immediately instead of only on next restart), an inline settings form when the plugin ships a `settings.json` (values read/written through the plugin's own `ctx.api.storage`), and remove (`remove_plugin`, confirmed via `createModalApi()`, deletes the folder). An "Add plugin" file picker installs a `.zip`/`.tar`/`.tar.gz`/`.tgz` via `install_plugin_from_archive` (`commands/plugin_install.rs`) — no Tauri dialog plugin, the webview reads the picked file itself and hands the bytes over.
+- **Plugins** (`SettingsPlugins.tsx`) — lists every discovered plugin (including disabled/errored ones, via a direct `listPlugins()` call rather than `usePluginRegistry`, which filters disabled plugins out). Every row shows exactly three buttons, in this order: **Configure** — opens the plugin's own `settings.json` as raw JSON text (`read_plugin_settings_file`/`write_plugin_settings_file` in `commands/plugin_settings.rs`, JSON-validated client- and server-side before it's written, mirroring `plugins/claude-settings-editor/index.tsx`'s own file-editing pattern) unconditionally, even for a plugin with no `settings.json` yet (a starter `{ "category": "" }` is shown); **Activate/Deactivate** (`set_plugin_disabled`, emits `plugin-changed` so the toggle takes effect immediately instead of only on next restart); **Remove** (`remove_plugin`, confirmed via `createModalApi()`, deletes the folder). An "Add plugin" file picker installs a `.zip`/`.tar`/`.tar.gz`/`.tgz` via `install_plugin_from_archive` (`commands/plugin_install.rs`) — no Tauri dialog plugin, the webview reads the picked file itself and hands the bytes over.
 
-`General`/`Categories`/`Themes` persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`. `Plugins` is different — it doesn't go through `hostSettings.ts` at all; it manages real plugin folders/state directly via the discovery/install/remove commands above, and per-plugin settings values are read/written through that plugin's own storage namespace, not the host's.
+`General`/`Categories`/`Themes` persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`. `Plugins` is different — it doesn't go through `hostSettings.ts` at all; it manages real plugin folders/files directly via the discovery/install/remove/configure commands above, including each plugin's own `settings.json`, not host-namespaced storage.
 
 ---
 
@@ -289,7 +288,9 @@ All commands are plain `#[tauri::command]` functions registered directly on the 
 
 | Command(s) | File | Purpose |
 |---|---|---|
-| `list_plugins`, `is_safe_mode`, `reconcile_boot_marks`, `mark_plugin_attempt`, `clear_plugin_attempt`, `set_plugin_disabled` | `commands/plugins.rs` | Discovery + boot-safety/disabled-list bookkeeping. Corrupt state files never brick boot — read failures log a warning and act as if empty. |
+| `list_plugins`, `is_safe_mode`, `reconcile_boot_marks`, `mark_plugin_attempt`, `clear_plugin_attempt`, `set_plugin_disabled`, `remove_plugin` | `commands/plugins.rs` | Discovery (including `read_plugin_category`'s settings.json→plugin.json fallback) + boot-safety/disabled-list bookkeeping + plugin folder deletion. Corrupt state files never brick boot — read failures log a warning and act as if empty. |
+| `install_plugin_from_archive` | `commands/plugin_install.rs` | Extracts an uploaded `.zip`/`.tar`/`.tar.gz`/`.tgz` (via the `zip`/`tar`/`flate2` crates, no external unzip/tar binary) into a fresh folder under the resolved plugins dir, with zip-slip protection and post-extract verification that `plugin.json`/its `entry` file actually landed. |
+| `read_plugin_settings_file`, `write_plugin_settings_file` | `commands/plugin_settings.rs` | Backs the Settings > Plugins "Configure" button — reads/writes a plugin's own `settings.json` as raw text (a missing file reads as a starter `{ "category": "" }` rather than erroring; a write is rejected server-side if it isn't valid JSON). No explicit `plugin-changed` emit needed — the write lands inside the already-watched plugins dir. |
 | `run_command`, `spawn_command`, `kill_command` | `commands/shell.rs` | Arbitrary process exec/spawn/kill. `spawn_command` tracks children in `AppState` for both normal kill and exit-time cleanup. |
 | `storage_get`, `storage_set`, `storage_get_all` | `commands/storage.rs` | Per-plugin JSON KV store, atomic writes. |
 | `fs_read_text_file`, `fs_write_text_file` | `commands/fs.rs` | Per-plugin scoped raw file access, atomic writes, path-escape rejection. |

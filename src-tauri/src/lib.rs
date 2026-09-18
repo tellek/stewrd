@@ -42,6 +42,8 @@ pub fn run() {
             commands::plugins::set_plugin_disabled,
             commands::plugins::remove_plugin,
             commands::plugin_install::install_plugin_from_archive,
+            commands::plugin_settings::read_plugin_settings_file,
+            commands::plugin_settings::write_plugin_settings_file,
             commands::storage::storage_get,
             commands::storage::storage_set,
             commands::storage::storage_get_all,

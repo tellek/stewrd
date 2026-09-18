@@ -2,7 +2,6 @@
   "id": "_template",
   "name": "Template",
   "version": "0.1.0",
-  "category": "Templates",
   "icon": "default",
   "entry": "dist/index.js",
   "description": "Starter plugin demonstrating every host API hookup - copy this folder to start a new plugin.",

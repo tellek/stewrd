@@ -1,117 +1,88 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../state/appStore";
-import type { Palette } from "../../shared/palette";
 import {
   installPluginFromArchive,
   listPlugins,
+  readPluginSettingsFile,
   removePlugin,
   setPluginDisabled,
+  writePluginSettingsFile,
   type PluginDiscoveryEntry,
-  type SettingsField,
 } from "../loader/pluginDiscovery";
-import { createStorageApi } from "../api/storage";
 import { createModalApi } from "../api/modals";
 import { createToastApi } from "../api/toast";
+import { TextBox } from "../../components/TextBox/TextBox";
 
 const modal = createModalApi();
 const toast = createToastApi();
 
-function fieldInputStyle(palette: Palette) {
-  return {
-    background: palette.surface,
-    color: palette.text,
-    border: `1px solid ${palette.border}`,
-    borderRadius: 4,
-    padding: "4px 6px",
-  };
-}
-
-function SettingsPanel({ pluginId, schema }: { pluginId: string; schema: SettingsField[] }) {
+// Mirrors plugins/claude-settings-editor/index.tsx's pattern (raw text,
+// JSON.parse validated client-side before it ever touches disk) but at host
+// level, editing a plugin's own settings.json directly rather than a form
+// generated from a schema - settings.json IS the plugin's config now.
+function ConfigurePanel({ dir }: { dir: string }) {
   const palette = useAppStore((s) => s.palette);
-  const storage = useRef(createStorageApi(pluginId)).current;
-  const [values, setValues] = useState<Record<string, unknown>>({});
+  const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoaded(false);
+    setLoadError(null);
+    setSaveError(null);
+    try {
+      setText(await readPluginSettingsFile(dir));
+    } catch (err) {
+      setLoadError(String(err));
+    } finally {
+      setLoaded(true);
+    }
+  }, [dir]);
 
   useEffect(() => {
-    let cancelled = false;
-    storage.getAll<Record<string, unknown>>().then((stored) => {
-      if (cancelled) return;
-      const next: Record<string, unknown> = {};
-      for (const field of schema) {
-        next[field.key] = field.key in stored ? stored[field.key] : field.default;
-      }
-      setValues(next);
-      setLoaded(true);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [storage, schema]);
+    load();
+  }, [load]);
 
-  if (!loaded) return null;
-
-  // HTML inputs always hand back strings/booleans off `e.target` - saving a
-  // raw event value for a "number" field would silently persist a string
-  // (e.g. "14") that a plugin's own `ctx.api.storage.get<number>(key)` would
-  // receive as-is with no error, so each field type is coerced before save.
-  function save(field: SettingsField, raw: string | boolean) {
-    let coerced: unknown;
-    if (field.type === "number") {
-      const n = typeof raw === "string" ? Number(raw) : NaN;
-      coerced = raw === "" || Number.isNaN(n) ? field.default : n;
-    } else if (field.type === "boolean") {
-      coerced = Boolean(raw);
-    } else {
-      coerced = raw;
+  async function save() {
+    setSaveError(null);
+    try {
+      JSON.parse(text); // blocks invalid JSON before it ever touches disk
+    } catch (err) {
+      setSaveError(`Invalid JSON, not saved: ${err instanceof Error ? err.message : String(err)}`);
+      return;
     }
-    setValues((v) => ({ ...v, [field.key]: coerced }));
-    storage.set(field.key, coerced);
+    setSaving(true);
+    try {
+      await writePluginSettingsFile(dir, text);
+      toast.show({ message: "settings.json saved", kind: "success" });
+    } catch (err) {
+      setSaveError(String(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div style={{ padding: "8px 12px", background: palette.surface, borderRadius: 4, marginTop: 4 }}>
-      {schema.map((field) => (
-        <div key={field.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-          <label style={{ minWidth: 160, fontSize: 12, color: palette.textMuted }}>{field.label}</label>
-          {field.type === "boolean" && (
-            <input
-              type="checkbox"
-              checked={Boolean(values[field.key])}
-              onChange={(e) => save(field, e.target.checked)}
-            />
-          )}
-          {field.type === "select" && (
-            <select
-              value={String(values[field.key] ?? "")}
-              onChange={(e) => save(field, e.target.value)}
-              style={fieldInputStyle(palette)}
-            >
-              {field.options.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          )}
-          {field.type === "number" && (
-            <input
-              type="number"
-              value={String(values[field.key] ?? "")}
-              onChange={(e) => save(field, e.target.value)}
-              style={fieldInputStyle(palette)}
-            />
-          )}
-          {field.type === "string" && (
-            <input
-              type="text"
-              value={String(values[field.key] ?? "")}
-              onChange={(e) => save(field, e.target.value)}
-              style={fieldInputStyle(palette)}
-            />
-          )}
-        </div>
-      ))}
+      {!loaded && <p style={{ color: palette.textMuted, fontSize: 12 }}>Loading...</p>}
+      {loadError && <p style={{ color: palette.status.error, fontSize: 12 }}>Failed to read settings.json: {loadError}</p>}
+      {loaded && !loadError && (
+        <>
+          <TextBox value={text} onChange={setText} rows={10} />
+          {saveError && <p style={{ color: palette.status.error, fontSize: 12 }}>{saveError}</p>}
+          <div style={{ marginTop: 6 }}>
+            <button onClick={save} disabled={saving} style={{ cursor: "pointer", marginRight: 6 }}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button onClick={load} disabled={saving} style={{ cursor: "pointer" }}>
+              Reload
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -119,7 +90,7 @@ function SettingsPanel({ pluginId, schema }: { pluginId: string; schema: Setting
 export function SettingsPlugins() {
   const palette = useAppStore((s) => s.palette);
   const [entries, setEntries] = useState<PluginDiscoveryEntry[]>([]);
-  const [expandedSettings, setExpandedSettings] = useState<string | null>(null);
+  const [configuring, setConfiguring] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -172,7 +143,9 @@ export function SettingsPlugins() {
     <div>
       <p style={{ color: palette.textMuted, fontSize: 13 }}>
         Installed plugins live in this app's own <code>plugins/</code> folder. Deactivating a plugin here unloads it
-        immediately; removing one deletes its folder from disk.
+        immediately; removing one deletes its folder from disk. Configure opens the plugin's own{" "}
+        <code>settings.json</code> for direct editing - the reserved <code>"category"</code> key controls sidebar
+        grouping.
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
@@ -187,17 +160,17 @@ export function SettingsPlugins() {
                 </tr>
               );
             }
-            const { manifest, disabled, dir, settingsSchema } = entry;
+            const { manifest, disabled, dir, category } = entry;
             return (
               <tr key={manifest.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
                 <td style={{ padding: "6px 8px" }}>
                   <div>
                     {manifest.name} <span style={{ color: palette.textMuted, fontSize: 11 }}>v{manifest.version}</span>
                   </div>
-                  <div style={{ color: palette.textMuted, fontSize: 11 }}>{manifest.description}</div>
-                  {expandedSettings === manifest.id && (
-                    <SettingsPanel pluginId={manifest.id} schema={settingsSchema} />
-                  )}
+                  <div style={{ color: palette.textMuted, fontSize: 11 }}>
+                    {manifest.description} · category: {category || "Other"}
+                  </div>
+                  {configuring === manifest.id && <ConfigurePanel dir={dir} />}
                 </td>
                 <td
                   style={{
@@ -209,17 +182,15 @@ export function SettingsPlugins() {
                   {disabled ? "Disabled" : "Enabled"}
                 </td>
                 <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                  <button
+                    onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
+                    style={{ cursor: "pointer", marginRight: 6 }}
+                  >
+                    Configure
+                  </button>
                   <button onClick={() => onToggleDisabled(entry)} style={{ cursor: "pointer", marginRight: 6 }}>
                     {disabled ? "Activate" : "Deactivate"}
                   </button>
-                  {settingsSchema.length > 0 && (
-                    <button
-                      onClick={() => setExpandedSettings(expandedSettings === manifest.id ? null : manifest.id)}
-                      style={{ cursor: "pointer", marginRight: 6 }}
-                    >
-                      Settings
-                    </button>
-                  )}
                   <button onClick={() => onRemove(dir, manifest.name)} style={{ cursor: "pointer" }}>
                     Remove
                   </button>

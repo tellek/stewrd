@@ -17,7 +17,13 @@ pub struct PluginManifest {
     pub id: String,
     pub name: String,
     pub version: String,
-    pub category: String,
+    /// Legacy category source, kept optional rather than removed: plugins
+    /// installed before `settings.json` became the primary source (see
+    /// `read_plugin_category` below) still have this in their `plugin.json`
+    /// and nothing else - dropping it here would silently regroup every
+    /// already-installed plugin into "Other" the moment this ships.
+    #[serde(default)]
+    pub category: Option<String>,
     pub icon: String,
     pub entry: String,
     pub description: String,
@@ -25,21 +31,6 @@ pub struct PluginManifest {
     pub api_version: String,
     #[serde(default)]
     pub background: bool,
-}
-
-/// One configurable setting a plugin's optional `settings.json` declares.
-/// Values themselves live in the plugin's own storage file (see
-/// `commands/storage.rs`) under a key matching `key` - this struct is just
-/// the schema the Settings > Plugins UI renders a form from.
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct SettingsField {
-    pub key: String,
-    pub label: String,
-    #[serde(rename = "type")]
-    pub field_type: String, // "string" | "number" | "boolean" | "select"
-    pub default: serde_json::Value,
-    #[serde(default)]
-    pub options: Vec<String>, // only used when field_type == "select"
 }
 
 #[derive(Debug, Serialize)]
@@ -51,8 +42,7 @@ pub enum PluginDiscoveryEntry {
         manifest: PluginManifest,
         source: String,
         disabled: bool,
-        #[serde(rename = "settingsSchema")]
-        settings_schema: Vec<SettingsField>,
+        category: String,
     },
     #[serde(rename = "error")]
     Error { dir: String, message: String },
@@ -270,22 +260,32 @@ pub fn remove_plugin(app: AppHandle, dir: String) -> Result<(), String> {
     std::fs::remove_dir_all(&target).map_err(|e| format!("failed to remove {}: {e}", target.display()))
 }
 
-/// Reads the plugin's optional `settings.json` schema file, if present.
-/// Missing file = no settings (empty schema), not an error. A malformed file
-/// logs a warning and also falls back to an empty schema - matches this
-/// module's "never brick discovery over corrupt state" philosophy.
-fn read_settings_schema(plugin_dir: &Path) -> Vec<SettingsField> {
+/// Reads the plugin's optional `settings.json` and returns its `"category"`
+/// key if present and a string. A missing `settings.json` (or one present but
+/// with no `"category"` key) falls back to the `plugin.json` manifest's own
+/// (now-optional) `category` field, for backward compatibility with plugins
+/// installed before `settings.json` became the primary source; only if
+/// neither exists does this resolve to `""` (the frontend's `resolveCategory`
+/// already treats any non-matching string as "Other" - no special-casing
+/// needed here). A malformed `settings.json` is logged and falls back to the
+/// manifest the same way a missing file does - matches this module's "never
+/// brick discovery over corrupt state" philosophy.
+fn read_plugin_category(plugin_dir: &Path, manifest_category: &Option<String>) -> String {
     let path = plugin_dir.join("settings.json");
-    match std::fs::read_to_string(&path) {
-        Ok(text) => match serde_json::from_str::<Vec<SettingsField>>(&text) {
-            Ok(fields) => fields,
+    let from_file = match std::fs::read_to_string(&path) {
+        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+            Ok(value) => value.get("category").and_then(|v| v.as_str()).map(|s| s.to_string()),
             Err(e) => {
-                eprintln!("[stewrd] warning: {} is malformed ({e}); no settings for this plugin", path.display());
-                Vec::new()
+                eprintln!(
+                    "[stewrd] warning: {} is malformed ({e}); falling back to plugin.json's category if any",
+                    path.display()
+                );
+                None
             }
         },
-        Err(_) => Vec::new(),
-    }
+        Err(_) => None,
+    };
+    from_file.or_else(|| manifest_category.clone()).unwrap_or_default()
 }
 
 #[tauri::command]
@@ -362,13 +362,13 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
         };
 
         let disabled = disabled_ids.contains(&manifest.id);
-        let settings_schema = read_settings_schema(&path);
+        let category = read_plugin_category(&path, &manifest.category);
         entries.push(PluginDiscoveryEntry::Ok {
             dir: dir_name,
             manifest,
             source,
             disabled,
-            settings_schema,
+            category,
         });
     }
 
