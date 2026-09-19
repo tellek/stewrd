@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { setPluginCategoryFile } from "../loader/pluginDiscovery";
 import { SidebarPluginItem } from "./SidebarPluginItem";
+import { SidebarSubItems } from "./SidebarSubItems";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { Skeleton } from "../../components/Skeleton/Skeleton";
 import { getCategoryIcon } from "./categoryIcons";
@@ -107,6 +108,7 @@ export function SidebarCategory({ category, entries }: { category: CategoryDef; 
                 onDropItem={(draggedId) => applyMove(draggedId, entry.manifest.id)}
                 onDragEndItem={() => setDropTarget(null)}
               />
+              <SidebarSubItems pluginId={entry.manifest.id} />
             </div>
           ))}
           <div

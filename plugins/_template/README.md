@@ -136,6 +136,22 @@ A raw file path or an import without the dataurl loader will not work -
 plugin bundles load from a Blob URL at runtime, so relative paths never
 resolve.
 
+## `ctx.api.sidebar` - sidebar sub-items
+
+A plugin can register sub-items that render indented under its own sidebar
+row via `api.sidebar.setItems([{ id, label, icon?, onClick }, ...])` - see
+`index.tsx`'s `Component` for a live example (two pages, "Overview" and
+"Second Page", switched via local `useState` in each item's `onClick`). The
+plugin owns the full list: it decides its contents, when it's shown (a
+non-empty list) vs. hidden (`setItems([])`), and what happens on click. Call
+`api.sidebar.setSelected(id)` to change the highlighted sub-item
+programmatically - the host already highlights the clicked item itself, so
+this is only needed for other navigation paths (e.g. deep-linking).
+
+Caveat: non-`background` plugins only activate on first sidebar selection, so
+a lazy plugin's sub-items don't exist until the user has clicked its row once
+- there's no way to show sub-items before that first activation.
+
 ## Type checking while authoring
 
 `../.stewrd/plugin-api.d.ts` is an ambient module (`stewrd-plugin-api`) your

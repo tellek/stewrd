@@ -14,9 +14,11 @@ import { createLogApi, logToHost } from "./logging";
 import { createModalApi } from "./modals";
 import { createShellApi } from "./shell";
 import { createStatusIconApi } from "./statusIcon";
+import { createSidebarApi } from "./sidebar";
 import { createStorageApi } from "./storage";
 import { createThemeApi } from "./theme";
 import { createToastApi } from "./toast";
+import { useAppStore } from "../state/appStore";
 import { StatusDot } from "../../components/StatusDot/StatusDot";
 import { TextBox } from "../../components/TextBox/TextBox";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
@@ -98,6 +100,7 @@ export function createPluginContext(pluginId: string, generation: number): Creat
       set: guardVoid(pluginId, generation, statusIconBase.set),
       get: statusIconBase.get,
     },
+    sidebar: createSidebarApi(pluginId, () => isCurrent(pluginId, generation)),
     modal: createModalApi(),
     toast: { show: guardVoid(pluginId, generation, toastBase.show) },
     ui: {
@@ -170,5 +173,6 @@ export function destroyPluginContext(created: CreatedPluginContext): void {
   // creates the new context before the old one is torn down in some paths).
   if (currentGeneration.get(created.pluginId) === created.generation) {
     currentGeneration.delete(created.pluginId);
+    useAppStore.getState().clearSidebarItems(created.pluginId);
   }
 }

@@ -7,6 +7,7 @@ import type { StatusColor } from "./palette";
 import type { TickHandle } from "../host/scheduler/tickScheduler";
 import type { ThemeApi } from "../host/api/theme";
 import type { StatusIconApi } from "../host/api/statusIcon";
+import type { SidebarApi } from "../host/api/sidebar";
 import type { ModalApi } from "../host/api/modals";
 import type { ToastApi } from "../host/api/toast";
 import type { ShellApi } from "../host/api/shell";
@@ -294,9 +295,19 @@ export interface CodeTextAreaProps {
   readOnly?: boolean;
 }
 
+// --- Sidebar sub-items ---
+export interface SidebarItem {
+  id: string;
+  label: string;
+  /** Data URL from api.fs.readDataUrl, or other MaskIcon-compatible source. */
+  icon?: string;
+  onClick: () => void;
+}
+
 export interface PluginApi {
   theme: ThemeApi;
   statusIcon: StatusIconApi;
+  sidebar: SidebarApi;
   modal: ModalApi;
   toast: ToastApi;
   ui: {

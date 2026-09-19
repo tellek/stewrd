@@ -6,6 +6,13 @@ import type { CategoryDef } from "../../shared/category";
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
 import { loadHostSettings, saveHostSettings, type TaskbarBadgeThreshold } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
+import type { SidebarItem } from "../../shared/plugin-api.d.ts";
+
+// Stable empty-array reference for the common case (a plugin with no
+// registered sidebar items) - a fresh `[]` literal returned from a selector
+// on every read would break zustand/useSyncExternalStore's reference-equality
+// snapshot check.
+const EMPTY_SIDEBAR_ITEMS: SidebarItem[] = [];
 
 export interface PluginSidebarEntry {
   manifest: PluginManifest;
@@ -80,6 +87,11 @@ interface AppState {
   fadingToastIds: number[];
   sidebarCollapsed: boolean;
   view: "plugin" | "settings";
+  /** Sub-items a plugin has registered via api.sidebar.setItems, keyed by
+   * plugin id - see host/api/sidebar.ts. Not persisted; rebuilt each
+   * activation, same as `plugins[id].status`. */
+  sidebarItemsByPlugin: Record<string, SidebarItem[]>;
+  sidebarSelectedByPlugin: Record<string, string | null>;
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setActivePlugin(id: string | null): void;
@@ -115,6 +127,9 @@ interface AppState {
   deleteCustomPalette(id: string): void;
   hidePalette(id: string): void;
   setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
+  setSidebarItems(pluginId: string, items: SidebarItem[]): void;
+  setSidebarSelected(pluginId: string, id: string | null): void;
+  clearSidebarItems(pluginId: string): void;
 }
 
 export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]): Palette {
@@ -142,6 +157,8 @@ export const useAppStore = create<AppState>((set) => ({
   fadingToastIds: [],
   sidebarCollapsed: false,
   view: "plugin",
+  sidebarItemsByPlugin: {},
+  sidebarSelectedByPlugin: {},
 
   setPlugins: (plugins) =>
     set((state) => {
@@ -317,4 +334,22 @@ export const useAppStore = create<AppState>((set) => ({
     set({ taskbarBadgeThreshold: threshold });
     saveHostSettings({ taskbarBadgeThreshold: threshold });
   },
+
+  setSidebarItems: (pluginId, items) =>
+    set((state) => ({
+      sidebarItemsByPlugin: { ...state.sidebarItemsByPlugin, [pluginId]: items.length ? items : EMPTY_SIDEBAR_ITEMS },
+    })),
+
+  setSidebarSelected: (pluginId, id) =>
+    set((state) => ({ sidebarSelectedByPlugin: { ...state.sidebarSelectedByPlugin, [pluginId]: id } })),
+
+  clearSidebarItems: (pluginId) =>
+    set((state) => {
+      if (!(pluginId in state.sidebarItemsByPlugin) && !(pluginId in state.sidebarSelectedByPlugin)) return {};
+      const sidebarItemsByPlugin = { ...state.sidebarItemsByPlugin };
+      const sidebarSelectedByPlugin = { ...state.sidebarSelectedByPlugin };
+      delete sidebarItemsByPlugin[pluginId];
+      delete sidebarSelectedByPlugin[pluginId];
+      return { sidebarItemsByPlugin, sidebarSelectedByPlugin };
+    }),
 }));

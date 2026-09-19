@@ -4,7 +4,7 @@
 // starting from the minimal activate()/Component below. Every commented-out
 // block demonstrates one host API surface - uncomment what you need, delete
 // the rest. See README.md for manifest fields + lifecycle order.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PluginContext, PluginApi } from "stewrd-plugin-api";
 import { ButtonsDemo } from "./demos/ButtonsDemo";
 import { FormControlsDemo } from "./demos/FormControlsDemo";
@@ -103,6 +103,31 @@ const demoTabs = [
 export function Component({ api }: { api: PluginApi }) {
   const [count, setCount] = useState(0);
   const [demoTab, setDemoTab] = useState("buttons");
+  const [page, setPage] = useState<"main" | "second-page">("main");
+
+  // --- sidebar: register sub-items that render indented under this plugin's
+  //     sidebar row. The plugin owns the full list, when it's non-empty
+  //     (shown) vs. empty (hidden), and what each click does - here, flowing
+  //     into one of the two example "pages" below by setting local state.
+  //     Registered from Component (not activate()) since the items need to
+  //     reach this component's own setPage - no cleanup call on unmount is
+  //     needed, the host clears stale items itself on deactivate. ---
+  useEffect(() => {
+    api.sidebar.setItems([
+      { id: "main", label: "Overview", onClick: () => setPage("main") },
+      { id: "second-page", label: "Second Page", onClick: () => setPage("second-page") },
+    ]);
+  }, [api]);
+
+  if (page === "second-page") {
+    return (
+      <div>
+        <h2>Second Page</h2>
+        <p>This is a second page reached via a sidebar sub-item, not a tab.</p>
+        <api.ui.Link label="Back to Overview" onClick={() => setPage("main")} />
+      </div>
+    );
+  }
 
   return (
     <div>

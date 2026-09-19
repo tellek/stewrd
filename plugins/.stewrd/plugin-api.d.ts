@@ -260,9 +260,17 @@ declare module "stewrd-plugin-api" {
     readOnly?: boolean;
   }
 
+  export interface SidebarItem {
+    id: string;
+    label: string;
+    icon?: string;
+    onClick: () => void;
+  }
+
   export interface PluginApi {
     theme: { readonly palette: Palette; subscribe(fn: (p: Palette) => void): () => void };
     statusIcon: { set(color: StatusColor, tooltip?: string): void; get(): StatusColor };
+    sidebar: { setItems(items: SidebarItem[]): void; setSelected(id: string | null): void };
     modal: {
       error(opts: { title: string; message: string }): Promise<void>;
       info(opts: { title: string; message: string }): Promise<void>;
