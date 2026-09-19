@@ -22,12 +22,18 @@ function App() {
   // fire-and-forget from synchronous zustand actions - without this, a save
   // triggered right before quitting can be lost if the webview tears down
   // before its storage_set IPC round-trip finishes. destroy() (not close())
-  // bypasses close-requested, so this doesn't re-trigger itself.
+  // bypasses close-requested, so this doesn't re-trigger itself. Bounded by a
+  // timeout - and wrapped so any rejection still reaches destroy() - since a
+  // hung/failed write must never leave the window impossible to close.
   useEffect(() => {
     const appWindow = getCurrentWindow();
     const unlistenPromise = appWindow.onCloseRequested(async (event) => {
       event.preventDefault();
-      await flushHostSettings();
+      try {
+        await Promise.race([flushHostSettings(), new Promise((resolve) => setTimeout(resolve, 1500))]);
+      } catch (err) {
+        console.error("[App] flushHostSettings failed on close", err);
+      }
       await appWindow.destroy();
     });
     return () => {
