@@ -61,7 +61,12 @@ export function Drawer({
   const horizontal = activeSide === "left" || activeSide === "right";
 
   return (
-    <>
+    // Clips the panel's off-screen transform to this container's own bounds
+    // instead of letting it bleed into the host's `<main>` (position:
+    // relative, overflow: auto) - without this, translating the panel fully
+    // off-screen still counts toward that ancestor's scrollable overflow,
+    // flashing a scrollbar for the duration of the slide.
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <Blanket onClick={onClose} durationMs={durationMs} />
       <div
         style={{
@@ -82,6 +87,6 @@ export function Drawer({
         {title && <h3 style={{ marginTop: 0 }}>{title}</h3>}
         {children}
       </div>
-    </>
+    </div>
   );
 }
