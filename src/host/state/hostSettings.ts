@@ -19,6 +19,12 @@ export interface HostSettings {
    * see appStore.ts's movePlugin. Ids missing from this list (new plugins)
    * sort after everything listed here. */
   pluginOrder: string[];
+  /** Plugin ids that have registered sidebar sub-items at least once (via
+   * api.sidebar.setItems) - lets the sidebar show a lazy (background: false)
+   * plugin's disclosure triangle at startup, before it's been activated this
+   * session and the real item list is known. See appStore.ts's
+   * setSidebarItems. */
+  pluginsWithSidebarItems: string[];
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

@@ -27,6 +27,10 @@ export function SidebarPluginItem({
   const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
   const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id] ?? EMPTY_ITEMS);
   const expanded = useAppStore((s) => s.sidebarSubItemsExpanded[entry.manifest.id] ?? true);
+  // Also recognize a plugin known (from a past setItems call, persisted via
+  // hostSettings) to have sub-items, so a lazy plugin's disclosure triangle
+  // shows at startup even before it's activated this session.
+  const knownExpandable = useAppStore((s) => s.pluginsWithSidebarItems.includes(entry.manifest.id));
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
@@ -77,7 +81,9 @@ export function SidebarPluginItem({
         />
         <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
       </span>
-      {items.length > 0 && <span style={{ color: palette.textMuted }}>{expanded ? "▾" : "▸"}</span>}
+      {(items.length > 0 || knownExpandable) && (
+        <span style={{ color: palette.textMuted }}>{expanded ? "▾" : "▸"}</span>
+      )}
     </button>
   );
 }

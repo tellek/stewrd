@@ -95,6 +95,11 @@ interface AppState {
   /** Whether a plugin's sub-items are expanded - toggled only by clicking the
    * plugin's own row while it's already the active selection; missing = expanded. */
   sidebarSubItemsExpanded: Record<string, boolean>;
+  /** Persisted (hostSettings) - plugin ids known (from a previous session, or
+   * earlier this session) to register sidebar sub-items, so a lazy plugin's
+   * disclosure triangle can show before it's activated this session. See
+   * hostSettings.ts. */
+  pluginsWithSidebarItems: string[];
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setActivePlugin(id: string | null): void;
@@ -164,6 +169,7 @@ export const useAppStore = create<AppState>((set) => ({
   sidebarItemsByPlugin: {},
   sidebarSelectedByPlugin: {},
   sidebarSubItemsExpanded: {},
+  pluginsWithSidebarItems: [],
 
   setPlugins: (plugins) =>
     set((state) => {
@@ -225,6 +231,7 @@ export const useAppStore = create<AppState>((set) => ({
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
+      const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       return {
         categories,
         pluginOrder,
@@ -232,6 +239,7 @@ export const useAppStore = create<AppState>((set) => ({
         customPalettes,
         hiddenPaletteIds,
         taskbarBadgeThreshold,
+        pluginsWithSidebarItems,
         hostSettingsLoaded: true,
         palette: resolvePalette(paletteId, customPalettes),
       };
@@ -341,9 +349,18 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   setSidebarItems: (pluginId, items) =>
-    set((state) => ({
-      sidebarItemsByPlugin: { ...state.sidebarItemsByPlugin, [pluginId]: items.length ? items : EMPTY_SIDEBAR_ITEMS },
-    })),
+    set((state) => {
+      const sidebarItemsByPlugin = {
+        ...state.sidebarItemsByPlugin,
+        [pluginId]: items.length ? items : EMPTY_SIDEBAR_ITEMS,
+      };
+      if (items.length === 0 || state.pluginsWithSidebarItems.includes(pluginId)) {
+        return { sidebarItemsByPlugin };
+      }
+      const pluginsWithSidebarItems = [...state.pluginsWithSidebarItems, pluginId];
+      saveHostSettings({ pluginsWithSidebarItems });
+      return { sidebarItemsByPlugin, pluginsWithSidebarItems };
+    }),
 
   setSidebarSelected: (pluginId, id) =>
     set((state) => ({ sidebarSelectedByPlugin: { ...state.sidebarSelectedByPlugin, [pluginId]: id } })),

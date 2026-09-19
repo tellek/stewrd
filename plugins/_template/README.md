@@ -158,8 +158,11 @@ row of a plugin that *isn't* currently active just selects it (as before)
 without touching its collapse state.
 
 Caveat: non-`background` plugins only activate on first sidebar selection, so
-a lazy plugin's sub-items don't exist until the user has clicked its row once
-- there's no way to show sub-items before that first activation.
+a lazy plugin's actual sub-items don't exist until the user has clicked its
+row once. The disclosure triangle itself, though, shows from app startup once
+a plugin has registered sub-items at least once in any past session (a
+`pluginId` remembered in `hostSettings`'s `pluginsWithSidebarItems`) - so
+returning users see it's expandable without needing to reactivate first.
 
 ## Type checking while authoring
 
