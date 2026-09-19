@@ -1,9 +1,7 @@
 import { useEffect, useRef } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import { useAppStore } from "./host/state/appStore";
-import { flushHostSettings } from "./host/state/hostSettings";
 import { Sidebar } from "./host/layout/Sidebar";
 import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
@@ -18,29 +16,12 @@ function App() {
     registerGlobalErrorHandlers();
   }, []);
 
-  // hostSettings saves (category/palette/pluginOrder/sidebar state, etc.) are
-  // fire-and-forget from synchronous zustand actions - without this, a save
-  // triggered right before quitting can be lost if the webview tears down
-  // before its storage_set IPC round-trip finishes. destroy() (not close())
-  // bypasses close-requested, so this doesn't re-trigger itself. Bounded by a
-  // timeout - and wrapped so any rejection still reaches destroy() - since a
-  // hung/failed write must never leave the window impossible to close.
-  useEffect(() => {
-    const appWindow = getCurrentWindow();
-    const unlistenPromise = appWindow.onCloseRequested(async (event) => {
-      event.preventDefault();
-      try {
-        await Promise.race([flushHostSettings(), new Promise((resolve) => setTimeout(resolve, 1500))]);
-      } catch (err) {
-        console.error("[App] flushHostSettings failed on close", err);
-      }
-      await appWindow.destroy();
-    });
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, []);
-
+  // NOTE: do not intercept the window's close-requested event here. A previous
+  // attempt preventDefault()'d it to flush pending hostSettings writes and then
+  // called window.destroy() - but `core:window:allow-destroy` is not part of
+  // Tauri's default window permission set, so destroy() was rejected by the ACL
+  // and the window became impossible to close. Losing a hostSettings write made
+  // microseconds before quit is a far smaller problem than an unclosable app.
   const { entries, discoveryErrors, safeMode, reloadPlugin, ensureLoaded } = usePluginRegistry();
   const setPlugins = useAppStore((s) => s.setPlugins);
   const setPluginStatus = useAppStore((s) => s.setPluginStatus);
