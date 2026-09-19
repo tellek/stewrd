@@ -19,6 +19,25 @@ import { createThemeApi } from "./theme";
 import { createToastApi } from "./toast";
 import { StatusDot } from "../../components/StatusDot/StatusDot";
 import { TextBox } from "../../components/TextBox/TextBox";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import { TextButton } from "../../components/TextButton/TextButton";
+import { IconButton } from "../../components/IconButton/IconButton";
+import { IconTextButton } from "../../components/IconTextButton/IconTextButton";
+import { Checkbox } from "../../components/Checkbox/Checkbox";
+import { RadioGroup } from "../../components/RadioGroup/RadioGroup";
+import { Toggle } from "../../components/Toggle/Toggle";
+import { Spinner } from "../../components/Spinner/Spinner";
+import { ProgressBar } from "../../components/ProgressBar/ProgressBar";
+import { Skeleton } from "../../components/Skeleton/Skeleton";
+import { Dropdown } from "../../components/Dropdown/Dropdown";
+import { DropdownCheckboxes } from "../../components/DropdownCheckboxes/DropdownCheckboxes";
+import { DropdownRadio } from "../../components/DropdownRadio/DropdownRadio";
+import { DropdownImageText } from "../../components/DropdownImageText/DropdownImageText";
+import { DropdownImageGrid } from "../../components/DropdownImageGrid/DropdownImageGrid";
+import { Tabs } from "../../components/Tabs/Tabs";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Menu } from "../../components/Menu/Menu";
+import { Link } from "../../components/Link/Link";
 import { tickScheduler, type TickHandle } from "../scheduler/tickScheduler";
 import type { PluginApi, PluginContext } from "../../shared/plugin-api.d.ts";
 
@@ -71,7 +90,29 @@ export function createPluginContext(pluginId: string, generation: number): Creat
     },
     modal: createModalApi(),
     toast: { show: guardVoid(pluginId, generation, toastBase.show) },
-    ui: { TextBox, StatusDot },
+    ui: {
+      TextBox,
+      StatusDot,
+      MaskIcon,
+      TextButton,
+      IconButton,
+      IconTextButton,
+      Checkbox,
+      RadioGroup,
+      Toggle,
+      Spinner,
+      ProgressBar,
+      Skeleton,
+      Dropdown,
+      DropdownCheckboxes,
+      DropdownRadio,
+      DropdownImageText,
+      DropdownImageGrid,
+      Tabs,
+      Pagination,
+      Menu,
+      Link,
+    },
     shell: createShellApi(),
     storage: createStorageApi(pluginId),
     fs: createFsApi(pluginId),

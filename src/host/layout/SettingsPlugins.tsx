@@ -13,6 +13,7 @@ import {
 import { createModalApi } from "../api/modals";
 import { createToastApi } from "../api/toast";
 import { TextBox } from "../../components/TextBox/TextBox";
+import { TextButton } from "../../components/TextButton/TextButton";
 
 const modal = createModalApi();
 const toast = createToastApi();
@@ -73,13 +74,9 @@ function ConfigurePanel({ dir, onCancel }: { dir: string; onCancel: () => void }
         <>
           <TextBox value={text} onChange={setText} rows={10} />
           {saveError && <p style={{ color: palette.status.error, fontSize: 12 }}>{saveError}</p>}
-          <div style={{ marginTop: 6 }}>
-            <button onClick={save} disabled={saving} style={{ cursor: "pointer", marginRight: 6 }}>
-              {saving ? "Saving..." : "Save"}
-            </button>
-            <button onClick={onCancel} disabled={saving} style={{ cursor: "pointer" }}>
-              Cancel
-            </button>
+          <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+            <TextButton label={saving ? "Saving..." : "Save"} onClick={save} disabled={saving} variant="primary" />
+            <TextButton label="Cancel" onClick={onCancel} disabled={saving} />
           </div>
         </>
       )}
@@ -182,18 +179,14 @@ export function SettingsPlugins() {
                     {disabled ? "Disabled" : "Enabled"}
                   </td>
                   <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
-                    <button
-                      onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
-                      style={{ cursor: "pointer", marginRight: 6 }}
-                    >
-                      Configure
-                    </button>
-                    <button onClick={() => onToggleDisabled(entry)} style={{ cursor: "pointer", marginRight: 6 }}>
-                      {disabled ? "Activate" : "Deactivate"}
-                    </button>
-                    <button onClick={() => onRemove(dir, manifest.name)} style={{ cursor: "pointer" }}>
-                      Remove
-                    </button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <TextButton
+                        label="Configure"
+                        onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
+                      />
+                      <TextButton label={disabled ? "Activate" : "Deactivate"} onClick={() => onToggleDisabled(entry)} />
+                      <TextButton label="Remove" onClick={() => onRemove(dir, manifest.name)} />
+                    </div>
                   </td>
                 </tr>
                 {configuring === manifest.id && (

@@ -38,6 +38,30 @@ pub fn fs_read_text_file(app: AppHandle, plugin_id: String, path: String) -> Res
     std::fs::read_to_string(&full_path).map_err(|e| format!("failed to read {}: {e}", full_path.display()))
 }
 
+/// Reads a binary file from the plugin's namespaced folder and returns it as
+/// a `data:` URL, so plugin UI (IconButton/Banner/DropdownImageGrid icons)
+/// can reference images without any raw filesystem path leaking into the
+/// bundled JS - the plugin build has no loader for image imports, and plugin
+/// bundles load from a Blob URL so relative asset paths don't resolve anyway.
+#[tauri::command]
+pub fn fs_read_data_url(app: AppHandle, plugin_id: String, path: String) -> Result<String, String> {
+    let root = plugin_fs_root(&app, &plugin_id)?;
+    let full_path = resolve_scoped_path(&root, &path)?;
+    let bytes =
+        std::fs::read(&full_path).map_err(|e| format!("failed to read {}: {e}", full_path.display()))?;
+    let mime = match full_path.extension().and_then(|e| e.to_str()) {
+        Some("png") => "image/png",
+        Some("jpg") | Some("jpeg") => "image/jpeg",
+        Some("svg") => "image/svg+xml",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => "application/octet-stream",
+    };
+    use base64::Engine;
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{mime};base64,{encoded}"))
+}
+
 #[tauri::command]
 pub fn fs_write_text_file(app: AppHandle, plugin_id: String, path: String, contents: String) -> Result<(), String> {
     let root = plugin_fs_root(&app, &plugin_id)?;

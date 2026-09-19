@@ -3,6 +3,7 @@ import { useAppStore } from "../state/appStore";
 import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
 import { createModalApi } from "../api/modals";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import { TextButton } from "../../components/TextButton/TextButton";
 import {
   RESERVED_IDS,
   generatePaletteFromMedia,
@@ -264,12 +265,8 @@ export function SettingsThemes() {
 
       {!creating && !generateOpen && (
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          <button onClick={startCreate} style={{ cursor: "pointer" }}>
-            Create New Palette
-          </button>
-          <button onClick={startGenerate} style={{ cursor: "pointer" }}>
-            Generate New Palette
-          </button>
+          <TextButton label="Create New Palette" onClick={startCreate} />
+          <TextButton label="Generate New Palette" onClick={startGenerate} />
         </div>
       )}
 
@@ -316,12 +313,8 @@ export function SettingsThemes() {
           ))}
           {saveError && <div style={{ fontSize: 12, color: palette.status.error, marginBottom: 8 }}>{saveError}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button onClick={save} disabled={!draftName.trim()} style={{ cursor: "pointer" }}>
-              Save
-            </button>
-            <button onClick={cancelEdit} style={{ cursor: "pointer" }}>
-              Cancel
-            </button>
+            <TextButton label="Save" onClick={save} disabled={!draftName.trim()} variant="primary" />
+            <TextButton label="Cancel" onClick={cancelEdit} />
           </div>
         </div>
       )}
@@ -346,17 +339,18 @@ export function SettingsThemes() {
             Enter the name of any movie, show, or game (IP) to generate a theme from its color palette.
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleGenerate} disabled={!mediaName.trim() || generating} style={{ cursor: "pointer" }}>
-              {generating ? "Generating…" : "Generate"}
-            </button>
+            <TextButton
+              label={generating ? "Generating…" : "Generate"}
+              onClick={handleGenerate}
+              disabled={!mediaName.trim() || generating}
+              variant="primary"
+            />
             {generating && (
               <span aria-hidden="true" style={{ fontSize: 18, color: palette.accent, alignSelf: "center" }}>
                 {spinnerFrame}
               </span>
             )}
-            <button onClick={cancelGenerate} style={{ cursor: "pointer" }}>
-              Cancel
-            </button>
+            <TextButton label="Cancel" onClick={cancelGenerate} />
           </div>
         </div>
       )}

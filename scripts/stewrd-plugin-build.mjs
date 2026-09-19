@@ -46,6 +46,10 @@ const buildOptions = {
   // invoke()/listen() beyond the standard PluginApi surface (e.g. Git
   // Tracker's Rust-interval-driven background poll) - shared the same way.
   external: ["react", "react-dom", "react-dom/*", "react/*", "@tauri-apps/api/*"],
+  // Image imports (e.g. `import icon from "./assets/foo.png"`) inline as
+  // base64 data URLs at build time - plugin bundles load from a Blob URL at
+  // runtime, so relative asset paths would never resolve otherwise.
+  loader: { ".png": "dataurl", ".jpg": "dataurl", ".jpeg": "dataurl", ".svg": "dataurl", ".gif": "dataurl" },
   logLevel: "info",
 };
 

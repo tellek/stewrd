@@ -6,7 +6,7 @@
 // keep it in sync by hand if the host's PluginApi shape changes; there is
 // exactly one author (Topher) so a generator isn't worth the complexity yet.
 declare module "stewrd-plugin-api" {
-  import type { ComponentType } from "react";
+  import type { ComponentType, ReactNode } from "react";
 
   export type StatusColor = "idle" | "in-progress" | "success" | "warning" | "error";
 
@@ -36,6 +36,152 @@ declare module "stewrd-plugin-api" {
     rows?: number;
   }
 
+  export interface MaskIconProps {
+    png?: string;
+    alt: string;
+    size?: number;
+    color?: string;
+  }
+
+  // --- Buttons ---
+  export interface TextButtonProps {
+    label: string;
+    onClick: () => void;
+    variant?: "primary" | "secondary";
+    disabled?: boolean;
+  }
+
+  export interface IconButtonProps {
+    icon?: string;
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }
+
+  export interface IconTextButtonProps {
+    icon?: string;
+    label: string;
+    onClick: () => void;
+    variant?: "primary" | "secondary";
+    disabled?: boolean;
+  }
+
+  // --- Selection ---
+  export interface CheckboxProps {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    label?: string;
+    disabled?: boolean;
+  }
+
+  export interface RadioGroupProps {
+    options: { label: string; value: string }[];
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+  }
+
+  export interface ToggleProps {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    label?: string;
+    disabled?: boolean;
+  }
+
+  // --- Loading ---
+  export interface SpinnerProps {
+    size?: number;
+  }
+
+  export interface ProgressBarProps {
+    value?: number;
+  }
+
+  export interface SkeletonProps {
+    width?: number | string;
+    height?: number | string;
+  }
+
+  // --- Dropdowns ---
+  export interface DropdownOption {
+    label: string;
+    value: string;
+  }
+
+  export interface DropdownProps {
+    options: DropdownOption[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  export interface DropdownCheckboxesProps {
+    options: DropdownOption[];
+    values: string[];
+    onChange: (values: string[]) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  export interface DropdownRadioProps {
+    options: DropdownOption[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  export interface DropdownImageOption extends DropdownOption {
+    image?: string;
+  }
+
+  export interface DropdownImageTextProps {
+    options: DropdownImageOption[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  export interface DropdownImageGridProps {
+    options: DropdownImageOption[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  // --- Navigation ---
+  export interface TabsProps {
+    tabs: { label: string; value: string }[];
+    value: string;
+    onChange: (value: string) => void;
+  }
+
+  export interface PaginationProps {
+    page: number;
+    pageCount: number;
+    onChange: (page: number) => void;
+  }
+
+  export interface MenuItem {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }
+
+  export interface MenuProps {
+    trigger: ReactNode;
+    items: MenuItem[];
+  }
+
+  export interface LinkProps {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+  }
+
   export interface PluginApi {
     theme: { readonly palette: Palette; subscribe(fn: (p: Palette) => void): () => void };
     statusIcon: { set(color: StatusColor, tooltip?: string): void; get(): StatusColor };
@@ -46,7 +192,29 @@ declare module "stewrd-plugin-api" {
       confirm(opts: { title: string; message: string; confirmLabel?: string; cancelLabel?: string }): Promise<boolean>;
     };
     toast: { show(opts: { message: string; kind?: StatusColor; durationMs?: number }): void };
-    ui: { TextBox: ComponentType<TextBoxProps>; StatusDot: ComponentType<{ color: StatusColor }> };
+    ui: {
+      TextBox: ComponentType<TextBoxProps>;
+      StatusDot: ComponentType<{ color: StatusColor }>;
+      MaskIcon: ComponentType<MaskIconProps>;
+      TextButton: ComponentType<TextButtonProps>;
+      IconButton: ComponentType<IconButtonProps>;
+      IconTextButton: ComponentType<IconTextButtonProps>;
+      Checkbox: ComponentType<CheckboxProps>;
+      RadioGroup: ComponentType<RadioGroupProps>;
+      Toggle: ComponentType<ToggleProps>;
+      Spinner: ComponentType<SpinnerProps>;
+      ProgressBar: ComponentType<ProgressBarProps>;
+      Skeleton: ComponentType<SkeletonProps>;
+      Dropdown: ComponentType<DropdownProps>;
+      DropdownCheckboxes: ComponentType<DropdownCheckboxesProps>;
+      DropdownRadio: ComponentType<DropdownRadioProps>;
+      DropdownImageText: ComponentType<DropdownImageTextProps>;
+      DropdownImageGrid: ComponentType<DropdownImageGridProps>;
+      Tabs: ComponentType<TabsProps>;
+      Pagination: ComponentType<PaginationProps>;
+      Menu: ComponentType<MenuProps>;
+      Link: ComponentType<LinkProps>;
+    };
     shell: {
       exec(
         cmd: string,
@@ -72,6 +240,7 @@ declare module "stewrd-plugin-api" {
     fs: {
       readTextFile(path: string): Promise<string>;
       writeTextFile(path: string, contents: string): Promise<void>;
+      readDataUrl(path: string): Promise<string>;
       watchFile(path: string, onChange: () => void): () => void;
     };
     log: { info(msg: string): void; warn(msg: string): void; error(msg: string): void };

@@ -6,6 +6,11 @@
 // the rest. See README.md for manifest fields + lifecycle order.
 import { useState } from "react";
 import type { PluginContext, PluginApi } from "stewrd-plugin-api";
+import { ButtonsDemo } from "./demos/ButtonsDemo";
+import { FormControlsDemo } from "./demos/FormControlsDemo";
+import { LoadingDemo } from "./demos/LoadingDemo";
+import { DropdownsDemo } from "./demos/DropdownsDemo";
+import { NavigationDemo } from "./demos/NavigationDemo";
 
 export function activate(ctx: PluginContext) {
   ctx.api.log.info("template plugin activated");
@@ -75,8 +80,17 @@ export function deactivate() {
   // auto-revokes tick registrations and aborts ctx.signal for you already).
 }
 
+const demoTabs = [
+  { label: "Buttons", value: "buttons" },
+  { label: "Form Controls", value: "form-controls" },
+  { label: "Loading", value: "loading" },
+  { label: "Dropdowns", value: "dropdowns" },
+  { label: "Navigation", value: "navigation" },
+];
+
 export function Component({ api }: { api: PluginApi }) {
   const [count, setCount] = useState(0);
+  const [demoTab, setDemoTab] = useState("buttons");
 
   return (
     <div>
@@ -90,6 +104,18 @@ export function Component({ api }: { api: PluginApi }) {
       {/* --- ui.TextBox: a shared controlled textarea primitive --- */}
       {/* const [text, setText] = useState("");
       <api.ui.TextBox value={text} onChange={setText} placeholder="type here" /> */}
+
+      {/* --- Component Library showcase: see plugins/_template/demos/ ---
+          One tab per category, added here every time a new host component
+          ships (see CLAUDE.md's "Component Library" rule). --- */}
+      <api.ui.Tabs tabs={demoTabs} value={demoTab} onChange={setDemoTab} />
+      <div style={{ marginTop: 12 }}>
+        {demoTab === "buttons" && <ButtonsDemo api={api} />}
+        {demoTab === "form-controls" && <FormControlsDemo api={api} />}
+        {demoTab === "loading" && <LoadingDemo api={api} />}
+        {demoTab === "dropdowns" && <DropdownsDemo api={api} />}
+        {demoTab === "navigation" && <NavigationDemo api={api} />}
+      </div>
     </div>
   );
 }

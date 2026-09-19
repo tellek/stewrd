@@ -53,6 +53,7 @@ pub fn run() {
             commands::shell::kill_command,
             commands::fs::fs_read_text_file,
             commands::fs::fs_write_text_file,
+            commands::fs::fs_read_data_url,
             commands::interval::start_interval,
             commands::interval::stop_interval,
             commands::plugin_icons::get_plugin_icon,

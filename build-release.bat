@@ -34,5 +34,12 @@ if %errorlevel% geq 8 (
     exit /b 1
 )
 
+rem plugins: mirror source into deploy, excluding .stewrd, replacing everything else
+robocopy "%REPO%plugins" "%DEPLOY%\plugins" /MIR /XD .stewrd /NFL /NDL /NJH /NJS
+if %errorlevel% geq 8 (
+    echo Plugin deploy failed.
+    exit /b 1
+)
+
 echo Done.
 endlocal

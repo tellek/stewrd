@@ -3,6 +3,8 @@ import { useAppStore } from "../state/appStore";
 import { OTHER_CATEGORY_ID } from "../../shared/category";
 import { getCategoryIcon, listCategoryIconNames } from "./categoryIcons";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import { TextButton } from "../../components/TextButton/TextButton";
+import { Dropdown } from "../../components/Dropdown/Dropdown";
 
 export function SettingsCategories() {
   const palette = useAppStore((s) => s.palette);
@@ -25,9 +27,7 @@ export function SettingsCategories() {
         A plugin's <code>category</code> field must match a category name below or it lands in "Other". Icons
         come from <code>&lt;name&gt;.png</code> dropped into the <code>assets/category-icons</code> folder next
         to the running app, and are tinted to match the current theme.{" "}
-        <button onClick={() => loadCategoryIcons()} style={{ cursor: "pointer" }}>
-          Refresh icon list
-        </button>
+        <TextButton label="Refresh Icon List" onClick={() => loadCategoryIcons()} />
       </p>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
@@ -54,32 +54,15 @@ export function SettingsCategories() {
                   />
                 </td>
                 <td style={{ padding: "6px 8px" }}>
-                  <select
+                  <Dropdown
+                    options={[{ label: "(none)", value: "" }, ...iconNames.map((n) => ({ label: n, value: n }))]}
                     value={category.icon}
                     disabled={isOther}
-                    onChange={(e) => updateCategory(category.id, { icon: e.target.value })}
-                    style={{
-                      background: palette.surface,
-                      color: palette.text,
-                      border: `1px solid ${palette.border}`,
-                      borderRadius: 4,
-                      padding: "4px 6px",
-                    }}
-                  >
-                    <option value="">(none)</option>
-                    {iconNames.map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(icon) => updateCategory(category.id, { icon })}
+                  />
                 </td>
                 <td style={{ padding: "6px 8px" }}>
-                  {!isOther && (
-                    <button onClick={() => removeCategory(category.id)} style={{ cursor: "pointer" }}>
-                      Delete
-                    </button>
-                  )}
+                  {!isOther && <TextButton label="Delete" onClick={() => removeCategory(category.id)} />}
                 </td>
               </tr>
             );
@@ -101,36 +84,27 @@ export function SettingsCategories() {
             padding: "4px 6px",
           }}
         />
-        <select
+        <Dropdown
+          options={[{ label: "(none)", value: "" }, ...iconNames.map((n) => ({ label: n, value: n }))]}
           value={newIcon}
-          onChange={(e) => setNewIcon(e.target.value)}
-          style={{
-            background: palette.surface,
-            color: palette.text,
-            border: `1px solid ${palette.border}`,
-            borderRadius: 4,
-            padding: "4px 6px",
-          }}
-        >
-          <option value="">(none)</option>
-          {iconNames.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        <button
+          onChange={setNewIcon}
+        />
+        <TextButton
+          label="Add"
           disabled={!canAdd}
           onClick={() => {
             addCategory({ id: newName.trim(), name: newName.trim(), icon: newIcon });
             setNewName("");
             setNewIcon("");
           }}
-          style={{ cursor: canAdd ? "pointer" : "default" }}
-        >
-          Add
-        </button>
+        />
       </div>
+
+      <p style={{ color: palette.textMuted, fontSize: 11, marginTop: 20 }}>
+        <a href="https://www.flaticon.com/free-animated-icons/technology" title="technology animated icons">
+          Technology animated icons created by Magnific - Flaticon
+        </a>
+      </p>
     </div>
   );
 }

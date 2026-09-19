@@ -1,5 +1,7 @@
 import { useAppStore } from "../../host/state/appStore";
 import { resolveModal } from "../../host/api/modals";
+import { TextButton } from "../TextButton/TextButton";
+import { scrimColor } from "../shared/styles";
 
 /** Host-rendered overlay, triggered via api.modal.* - not exposed to plugins
  * as a raw component (unlike StatusDot/TextBox). Rendered once at app root. */
@@ -13,7 +15,7 @@ export function Modal() {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.5)",
+        background: scrimColor(palette),
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -34,19 +36,21 @@ export function Modal() {
         <p>{request.message}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           {(request.kind === "error" || request.kind === "info") && (
-            <button onClick={() => resolveModal(request.id, undefined)}>OK</button>
+            <TextButton label="OK" variant="primary" onClick={() => resolveModal(request.id, undefined)} />
           )}
           {request.kind === "confirm" && (
             <>
-              <button onClick={() => resolveModal(request.id, false)}>{request.cancelLabel}</button>
-              <button onClick={() => resolveModal(request.id, true)}>{request.confirmLabel}</button>
+              <TextButton label={request.cancelLabel ?? "Cancel"} onClick={() => resolveModal(request.id, false)} />
+              <TextButton
+                label={request.confirmLabel ?? "Confirm"}
+                variant="primary"
+                onClick={() => resolveModal(request.id, true)}
+              />
             </>
           )}
           {request.kind === "question" &&
             request.buttons?.map((label) => (
-              <button key={label} onClick={() => resolveModal(request.id, label)}>
-                {label}
-              </button>
+              <TextButton key={label} label={label} onClick={() => resolveModal(request.id, label)} />
             ))}
         </div>
       </div>

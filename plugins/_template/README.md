@@ -81,6 +81,51 @@ one React instance instead of bundling a second copy.
 5. **Deactivate** - runs on hot-reload-replace or app shutdown. Your `deactivate()` export runs first (its return value isn't awaited), then the host runs anything you registered via `ctx.onDispose(fn)`, then aborts `ctx.signal`, then unregisters your tick handler - so an `onDispose` callback can't assume `ctx.signal` is already aborted.
 6. **Uninstall** - delete the folder; the next discovery pass removes it and deactivates it if it was active.
 
+## Component Library Coverage
+
+`api.ui.*` is the full set of host-provided, palette-driven components plugins
+should use instead of rolling their own `<button>`/`<input>`/etc. Every entry
+here has a live usage in `demos/` — copy from there. Adding a new `api.ui`
+component requires adding its demo here too (see root `CLAUDE.md`'s
+"Component Library" rule).
+
+| Component | Description | Demo |
+| --- | --- | --- |
+| `TextBox` | Controlled multi-line textarea | `index.tsx` (commented) |
+| `StatusDot` | Small status-color indicator dot | `index.tsx` |
+| `MaskIcon` | Palette-tinted icon from a PNG data URL | `demos/ButtonsDemo.tsx` |
+| `TextButton` | Text-only button, `primary`/`secondary` variants | `demos/ButtonsDemo.tsx` |
+| `IconButton` | Icon-only button | `demos/ButtonsDemo.tsx` |
+| `IconTextButton` | Icon + label button | `demos/ButtonsDemo.tsx` |
+| `Checkbox` | Single checkbox with label | `demos/FormControlsDemo.tsx` |
+| `RadioGroup` | Mutually-exclusive option list | `demos/FormControlsDemo.tsx` |
+| `Toggle` | On/off switch | `demos/FormControlsDemo.tsx` |
+| `Spinner` | Indeterminate loading spinner | `demos/LoadingDemo.tsx` |
+| `ProgressBar` | Determinate/indeterminate progress bar | `demos/LoadingDemo.tsx` |
+| `Skeleton` | Loading placeholder block | `demos/LoadingDemo.tsx` |
+| `Dropdown` | Single-select dropdown | `demos/DropdownsDemo.tsx` |
+| `DropdownCheckboxes` | Multi-select dropdown | `demos/DropdownsDemo.tsx` |
+| `DropdownRadio` | Single-select dropdown, radio-style items | `demos/DropdownsDemo.tsx` |
+| `DropdownImageText` | Single-select dropdown with item images | `demos/DropdownsDemo.tsx` |
+| `DropdownImageGrid` | Single-select image grid popover | `demos/DropdownsDemo.tsx` |
+| `Tabs` | Tabbed section switcher | `demos/NavigationDemo.tsx` (also used by `index.tsx` for this README's own demo sections) |
+| `Pagination` | Prev/next page control | `demos/NavigationDemo.tsx` |
+| `Menu` | Click-to-open action list | `demos/NavigationDemo.tsx` |
+| `Link` | Styled clickable label | `demos/NavigationDemo.tsx` |
+
+Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
+`Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`
+URL string. Two ways to get one, depending on where the image lives:
+- **Bundled with your plugin** (an icon you ship): `import icon from "./assets/foo.png"` -
+  esbuild's `dataurl` loader inlines it as a base64 string at build time (see
+  `demos/ButtonsDemo.tsx`).
+- **User/runtime-supplied file**: `await api.fs.readDataUrl(path)`, which reads
+  from this plugin's own namespaced storage folder and returns a data URL.
+
+A raw file path or an import without the dataurl loader will not work -
+plugin bundles load from a Blob URL at runtime, so relative paths never
+resolve.
+
 ## Type checking while authoring
 
 `../.stewrd/plugin-api.d.ts` is an ambient module (`stewrd-plugin-api`) your
