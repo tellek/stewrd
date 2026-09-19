@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { OTHER_CATEGORY_ID } from "../../shared/category";
 import { getCategoryIcon, listCategoryIconNames } from "./categoryIcons";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { TextButton } from "../../components/TextButton/TextButton";
 import { Dropdown } from "../../components/Dropdown/Dropdown";
+import { Skeleton } from "../../components/Skeleton/Skeleton";
 
 export function SettingsCategories() {
   const palette = useAppStore((s) => s.palette);
@@ -20,18 +21,26 @@ export function SettingsCategories() {
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  function clearDrag() {
+    setDraggedId(null);
+    setDropTargetId(null);
+  }
 
   function handleDrop(targetId: string) {
     return () => {
-      if (!draggedId || draggedId === targetId) return;
-      const from = categories.findIndex((c) => c.id === draggedId);
-      const to = categories.findIndex((c) => c.id === targetId);
-      if (from < 0 || to < 0) return;
-      const next = [...categories];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      setCategories(next);
-      setDraggedId(null);
+      if (draggedId && draggedId !== targetId) {
+        const from = categories.findIndex((c) => c.id === draggedId);
+        const to = categories.findIndex((c) => c.id === targetId);
+        if (from >= 0 && to >= 0) {
+          const next = [...categories];
+          const [moved] = next.splice(from, 1);
+          next.splice(to, 0, moved);
+          setCategories(next);
+        }
+      }
+      clearDrag();
     };
   }
 
@@ -50,22 +59,35 @@ export function SettingsCategories() {
           {categories.map((category) => {
             const icon = getCategoryIcon(categoryIconFiles, category.icon);
             const isOther = category.id === OTHER_CATEGORY_ID;
+            const rowProps = {
+              onDragOver: (e: React.DragEvent) => {
+                e.preventDefault();
+                if (draggedId && draggedId !== category.id) setDropTargetId(category.id);
+              },
+              onDrop: handleDrop(category.id),
+            };
             return (
-              <tr
-                key={category.id}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop(category.id)}
-                style={{ borderBottom: `1px solid ${palette.border}`, opacity: draggedId === category.id ? 0.5 : 1 }}
-              >
-                <td
-                  draggable
-                  onDragStart={() => setDraggedId(category.id)}
-                  onDragEnd={() => setDraggedId(null)}
-                  title="Drag to reorder"
-                  style={{ padding: "6px 4px", width: 16, color: palette.textMuted, cursor: "grab" }}
+              <Fragment key={category.id}>
+                {dropTargetId === category.id && draggedId !== category.id && (
+                  <tr {...rowProps}>
+                    <td colSpan={5} style={{ padding: "6px 8px" }}>
+                      <Skeleton height={32} />
+                    </td>
+                  </tr>
+                )}
+                <tr
+                  {...rowProps}
+                  style={{ borderBottom: `1px solid ${palette.border}`, opacity: draggedId === category.id ? 0.5 : 1 }}
                 >
-                  ⠿
-                </td>
+                  <td
+                    draggable
+                    onDragStart={() => setDraggedId(category.id)}
+                    onDragEnd={clearDrag}
+                    title="Drag to reorder"
+                    style={{ padding: "6px 4px", width: 16, color: palette.textMuted, cursor: "grab" }}
+                  >
+                    ⠿
+                  </td>
                 <td style={{ padding: "6px 8px", width: 40 }}>
                   {icon?.png && <MaskIcon png={icon.png} alt={category.name} size={24} color={palette.text} />}
                 </td>
@@ -94,7 +116,8 @@ export function SettingsCategories() {
                 <td style={{ padding: "6px 8px" }}>
                   {!isOther && <TextButton label="Delete" onClick={() => removeCategory(category.id)} />}
                 </td>
-              </tr>
+                </tr>
+              </Fragment>
             );
           })}
         </tbody>

@@ -1,39 +1,47 @@
 import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
-import { setPluginCategoryFile } from "../loader/pluginDiscovery";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
 
-export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
+export function SidebarPluginItem({
+  entry,
+  onDragOverItem,
+  onDropItem,
+  onDragEndItem,
+}: {
+  entry: PluginSidebarEntry;
+  /** Called with (preventDefault already applied) whenever a drag hovers this item -
+   * parent (SidebarCategory) uses this to track which item to preview a drop before. */
+  onDragOverItem: () => void;
+  /** Called with the dragged plugin id from dataTransfer - parent applies the move. */
+  onDropItem: (draggedId: string) => void;
+  /** Fires on the dragged item itself when the drag ends (dropped or cancelled) -
+   * parent uses this to clear its drop-target preview even on a cancelled drag. */
+  onDragEndItem: () => void;
+}) {
   const activePluginId = useAppStore((s) => s.activePluginId);
   const setActivePlugin = useAppStore((s) => s.setActivePlugin);
-  const movePlugin = useAppStore((s) => s.movePlugin);
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
   const [hovered, setHovered] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-    const draggedId = e.dataTransfer.getData("text/plain");
-    if (!draggedId || draggedId === entry.manifest.id) return;
-    const { categoryChanged, dir } = movePlugin(draggedId, entry.category, entry.manifest.id);
-    if (categoryChanged) setPluginCategoryFile(dir, entry.category).catch(console.error);
-  }
 
   return (
     <button
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", entry.manifest.id)}
+      onDragEnd={onDragEndItem}
       onDragOver={(e) => {
         e.preventDefault();
-        setDragOver(true);
+        e.stopPropagation();
+        onDragOverItem();
       }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (draggedId) onDropItem(draggedId);
+      }}
       onClick={() => setActivePlugin(entry.manifest.id)}
       style={{
         display: "flex",
@@ -43,7 +51,6 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         textAlign: "left",
         padding: "6px 12px 6px 22px",
         border: "none",
-        borderTop: dragOver ? `2px solid ${palette.accent}` : "2px solid transparent",
         background: isActive ? palette.surfaceHover : "transparent",
         color: palette.text,
         cursor: "pointer",
