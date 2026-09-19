@@ -58,8 +58,11 @@ export function Component({ api }: { api: PluginApi }) {
   function flushSave(value: string) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = undefined;
+    // Autosave is routine/frequent - leave the sidebar status dot uncolored
+    // ("idle") on a normal save instead of pinning it green forever; only a
+    // real failure is worth calling out with color.
     saveNote(api, value)
-      .then(() => api.statusIcon.set("success", "saved"))
+      .then(() => api.statusIcon.set("idle"))
       .catch(() => api.statusIcon.set("error", "save failed"));
   }
 
@@ -122,7 +125,7 @@ export function Component({ api }: { api: PluginApi }) {
       </div>
       <div style={{ flex: 1, minHeight: 0, display: "flex", marginTop: 8 }}>
         {mode === "reading" ? (
-          <ReadingView content={content} onChecklistToggle={handleChecklistToggle} />
+          <ReadingView content={content} palette={palette} onChecklistToggle={handleChecklistToggle} />
         ) : (
           <Editor value={content} onChange={onChange} mode={mode === "live-preview" ? "live-preview" : "source"} palette={palette} />
         )}

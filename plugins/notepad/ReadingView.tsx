@@ -1,12 +1,14 @@
 import { useMemo } from "react";
 import { createRenderer, splitFrontmatter } from "./markdownRender";
+import type { Palette } from "./editor";
 
 export interface ReadingViewProps {
   content: string;
+  palette: Palette;
   onChecklistToggle?: (index: number) => void;
 }
 
-export function ReadingView({ content, onChecklistToggle }: ReadingViewProps) {
+export function ReadingView({ content, palette, onChecklistToggle }: ReadingViewProps) {
   const { frontmatter, body } = useMemo(() => splitFrontmatter(content), [content]);
   const html = useMemo(() => createRenderer().render(body), [body]);
 
@@ -19,7 +21,7 @@ export function ReadingView({ content, onChecklistToggle }: ReadingViewProps) {
   }
 
   return (
-    <div style={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+    <div style={{ flex: 1, minHeight: 0, overflow: "auto", scrollbarWidth: "thin", scrollbarColor: `${palette.border} ${palette.surface}` }}>
       {frontmatter && (
         <details>
           <summary>Properties</summary>

@@ -40,6 +40,10 @@ function themeExtension(palette: Palette): Extension {
   return EditorView.theme(
     {
       "&": { color: palette.text, backgroundColor: palette.background, height: "100%" },
+      // CodeMirror owns its own internal scroll container (.cm-scroller),
+      // not the outer wrapper div - scrollbar styling has to land here to
+      // actually apply, an outer-div style alone would have no effect.
+      ".cm-scroller": { scrollbarWidth: "thin", scrollbarColor: `${palette.border} ${palette.surface}` },
       ".cm-content": { caretColor: palette.accent },
       ".cm-gutters": { backgroundColor: palette.background, color: palette.textMuted, border: "none" },
       ".cm-activeLine": { backgroundColor: palette.surface },
@@ -209,7 +213,16 @@ export function Editor({ value, onChange, mode, palette }: EditorProps) {
   return (
     <div
       ref={containerRef}
-      style={{ flex: 1, minHeight: 0, height: "100%", border: `1px solid ${palette.border}`, borderRadius: 4, overflow: "auto" }}
+      style={{
+        flex: 1,
+        minHeight: 0,
+        height: "100%",
+        border: `1px solid ${palette.border}`,
+        borderRadius: 4,
+        overflow: "auto",
+        scrollbarWidth: "thin",
+        scrollbarColor: `${palette.border} ${palette.surface}`,
+      }}
     />
   );
 }
