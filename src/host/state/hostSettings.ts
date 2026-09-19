@@ -1,6 +1,7 @@
 import { createStorageApi } from "../api/storage";
 import type { CategoryDef } from "../../shared/category";
 import type { NamedPalette } from "../../shared/palette";
+import type { PaneNode } from "./paneTree";
 
 // Host-level settings (categories, theme) reuse the same per-plugin
 // storage.rs mechanism as plugins, namespaced under a reserved id that no
@@ -8,6 +9,13 @@ import type { NamedPalette } from "../../shared/palette";
 const storage = createStorageApi("__host__");
 
 export type TaskbarBadgeThreshold = "off" | "success" | "warning" | "error";
+
+export interface SavedLayout {
+  id: string;
+  /** Max 14 characters, enforced by the save-layout prompt modal. */
+  name: string;
+  tree: PaneNode;
+}
 
 export interface HostSettings {
   categories: CategoryDef[];
@@ -33,6 +41,10 @@ export interface HostSettings {
   /** Sidebar category expand/collapse state, keyed by category id - missing =
    * expanded. See appStore.ts's toggleCategory. */
   categoriesExpanded: Record<string, boolean>;
+  /** Named, explicitly-saved pane arrangements, shown in the sidebar's
+   * Layouts section. The current in-progress pane tree itself is session-only
+   * and not persisted here - see appStore.ts's saveLayout/applyLayout. */
+  layouts: SavedLayout[];
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

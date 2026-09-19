@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
+import { findLeafForPlugin } from "../state/paneTree";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 
 const EMPTY_ITEMS: SidebarItem[] = [];
@@ -22,8 +23,10 @@ export function SidebarPluginItem({
    * parent uses this to clear its drop-target preview even on a cancelled drag. */
   onDragEndItem: () => void;
 }) {
-  const activePluginId = useAppStore((s) => s.activePluginId);
-  const setActivePlugin = useAppStore((s) => s.setActivePlugin);
+  const activePaneId = useAppStore((s) => s.activePaneId);
+  const paneTree = useAppStore((s) => s.paneTree);
+  const setPaneTool = useAppStore((s) => s.setPaneTool);
+  const setDraggingPlugin = useAppStore((s) => s.setDraggingPlugin);
   const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
   const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id] ?? EMPTY_ITEMS);
   const expanded = useAppStore((s) => s.sidebarSubItemsExpanded[entry.manifest.id] ?? true);
@@ -32,15 +35,22 @@ export function SidebarPluginItem({
   // shows at startup even before it's activated this session.
   const knownExpandable = useAppStore((s) => s.pluginsWithSidebarItems.includes(entry.manifest.id));
   const palette = useAppStore((s) => s.palette);
-  const isActive = activePluginId === entry.manifest.id;
+  const occupiedLeaf = findLeafForPlugin(paneTree, entry.manifest.id);
+  const isActive = occupiedLeaf?.id === activePaneId;
   const icon = usePluginIcon(entry.dir);
   const [hovered, setHovered] = useState(false);
 
   return (
     <button
       draggable
-      onDragStart={(e) => e.dataTransfer.setData("text/plain", entry.manifest.id)}
-      onDragEnd={onDragEndItem}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", entry.manifest.id);
+        setDraggingPlugin(entry.manifest.id);
+      }}
+      onDragEnd={() => {
+        setDraggingPlugin(null);
+        onDragEndItem();
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -52,7 +62,9 @@ export function SidebarPluginItem({
         const draggedId = e.dataTransfer.getData("text/plain");
         if (draggedId) onDropItem(draggedId);
       }}
-      onClick={() => (isActive ? toggleSidebarSubItemsExpanded(entry.manifest.id) : setActivePlugin(entry.manifest.id))}
+      onClick={() =>
+        isActive ? toggleSidebarSubItemsExpanded(entry.manifest.id) : setPaneTool(activePaneId, entry.manifest.id)
+      }
       style={{
         display: "flex",
         alignItems: "center",
@@ -93,7 +105,7 @@ export function SidebarPluginItem({
         <span
           onClick={(e) => {
             e.stopPropagation();
-            if (!isActive) setActivePlugin(entry.manifest.id);
+            if (!isActive) setPaneTool(activePaneId, entry.manifest.id);
             toggleSidebarSubItemsExpanded(entry.manifest.id);
           }}
           style={{ color: palette.textMuted, cursor: "pointer", padding: "0 4px" }}

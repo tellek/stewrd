@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import { useAppStore } from "./host/state/appStore";
+import { collectPaneToolIds } from "./host/state/paneTree";
 import { Sidebar } from "./host/layout/Sidebar";
 import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
@@ -26,7 +27,7 @@ function App() {
   const setPlugins = useAppStore((s) => s.setPlugins);
   const setPluginStatus = useAppStore((s) => s.setPluginStatus);
   const logMessage = useAppStore((s) => s.logMessage);
-  const activePluginId = useAppStore((s) => s.activePluginId);
+  const paneTree = useAppStore((s) => s.paneTree);
   const palette = useAppStore((s) => s.palette);
   const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
   const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
@@ -47,9 +48,15 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Depend on a stable joined string, not the fresh array collectPaneToolIds
+  // returns every render - App.tsx has a documented history of an infinite
+  // reload loop from exactly that "new array/object each render" shape (see
+  // the worstPluginStatus comment above).
+  const paneToolIdsKey = collectPaneToolIds(paneTree).join("|");
   useEffect(() => {
-    if (activePluginId) ensureLoaded(activePluginId);
-  }, [activePluginId, ensureLoaded]);
+    for (const id of paneToolIdsKey ? paneToolIdsKey.split("|") : []) ensureLoaded(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paneToolIdsKey, ensureLoaded]);
 
   useEffect(() => {
     setPlugins(entries.map((e) => ({ manifest: e.manifest, status: "idle", dir: e.dir, category: e.category })));

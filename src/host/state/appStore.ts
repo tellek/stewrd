@@ -4,9 +4,21 @@ import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 import { premadePalettes } from "../../shared/palette";
 import type { CategoryDef } from "../../shared/category";
 import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
-import { loadHostSettings, saveHostSettings, type TaskbarBadgeThreshold } from "./hostSettings";
+import { loadHostSettings, saveHostSettings, type SavedLayout, type TaskbarBadgeThreshold } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
+import {
+  closeLeafInTree,
+  countLeaves,
+  createLeaf,
+  findLeafForPlugin,
+  firstLeafId,
+  resizeSplitInTree,
+  setPluginInTree,
+  splitLeafInTree,
+  type PaneEdge,
+  type PaneNode,
+} from "./paneTree";
 
 // Stable empty-array reference for the common case (a plugin with no
 // registered sidebar items) - a fresh `[]` literal returned from a selector
@@ -35,12 +47,15 @@ export interface StatusLogEntry {
 
 export interface ModalRequest {
   id: number;
-  kind: "error" | "info" | "question" | "confirm";
+  kind: "error" | "info" | "question" | "confirm" | "prompt";
   title: string;
   message: string;
   buttons?: string[];
   confirmLabel?: string;
   cancelLabel?: string;
+  /** "prompt" only - see host/api/modals.ts's promptModal. */
+  maxLength?: number;
+  initialValue?: string;
 }
 
 export interface ToastEntry {
@@ -59,7 +74,24 @@ let nextLogId = 1;
 
 interface AppState {
   plugins: Record<string, PluginSidebarEntry>;
-  activePluginId: string | null;
+  /** Session-only pane layout (not persisted) - see paneTree.ts. Replaces the
+   * old single-tool `activePluginId` concept. */
+  paneTree: PaneNode;
+  /** Id of the pane last clicked/focused - a sidebar click/center-drop
+   * targets this pane, and it renders an accent-color outline. */
+  activePaneId: string;
+  /** Named, explicitly-saved pane arrangements - persisted via hostSettings.
+   * Surfaced as the sidebar's Layouts section once non-empty or once more
+   * than one pane is currently open. */
+  layouts: SavedLayout[];
+  /** Plugin id currently being dragged from the sidebar, if any - set on
+   * dragstart/cleared on dragend by SidebarPluginItem.tsx. dataTransfer's
+   * payload can't be read during a dragover (only on drop), so pane drop
+   * zones read this instead to know, while hovering, whether the dragged
+   * plugin already occupies a different pane (v1's one-pane-per-plugin
+   * rule) and should show a rejected/no-op cursor rather than a split
+   * preview that will do nothing on drop. */
+  draggingPluginId: string | null;
   statusLog: StatusLogEntry[];
   categoriesExpanded: Record<string, boolean>;
   categories: CategoryDef[];
@@ -102,7 +134,24 @@ interface AppState {
   pluginsWithSidebarItems: string[];
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
-  setActivePlugin(id: string | null): void;
+  setDraggingPlugin(id: string | null): void;
+  setActivePane(id: string): void;
+  /** Opens `pluginId` in the pane addressed by `paneId` and switches out of
+   * Settings. If `pluginId` already occupies a different pane, this only
+   * moves focus there (v1 restricts a given plugin to at most one pane) -
+   * never a silent no-op, so a click on an already-open tool always at least
+   * switches away from Settings and focuses it. */
+  setPaneTool(paneId: string, pluginId: string): void;
+  /** Splits the pane addressed by `paneId` in `edge`'s direction and opens
+   * `pluginId` in the new half - or just moves focus there (see setPaneTool)
+   * if `pluginId` already occupies a different pane. */
+  splitPane(paneId: string, edge: PaneEdge, pluginId: string): void;
+  resizePane(splitId: string, sizes: [number, number]): void;
+  /** No-ops if `paneId` is the tree's only pane. */
+  closePane(paneId: string): void;
+  saveLayout(name: string): void;
+  applyLayout(id: string): void;
+  deleteLayout(id: string): void;
   setPluginStatus(id: string, status: StatusColor, tooltip?: string): void;
   logMessage(level: StatusColor, message: string, pluginId?: string): void;
   toggleCategory(category: string): void;
@@ -147,9 +196,14 @@ export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]
   return (found ?? premadePalettes[0]).colors;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const initialPane = createLeaf();
+
+export const useAppStore = create<AppState>((set, get) => ({
   plugins: {},
-  activePluginId: null,
+  paneTree: initialPane,
+  activePaneId: initialPane.id,
+  layouts: [],
+  draggingPluginId: null,
   statusLog: [],
   categoriesExpanded: {},
   categories: DEFAULT_CATEGORIES,
@@ -185,7 +239,63 @@ export const useAppStore = create<AppState>((set) => ({
       return { plugins: next };
     }),
 
-  setActivePlugin: (id) => set({ activePluginId: id, view: "plugin" }),
+  setDraggingPlugin: (id) => set({ draggingPluginId: id }),
+
+  setActivePane: (id) => set({ activePaneId: id }),
+
+  setPaneTool: (paneId, pluginId) =>
+    set((state) => {
+      const elsewhere = findLeafForPlugin(state.paneTree, pluginId);
+      if (elsewhere && elsewhere.id !== paneId) {
+        return { activePaneId: elsewhere.id, view: "plugin" };
+      }
+      return { paneTree: setPluginInTree(state.paneTree, paneId, pluginId), activePaneId: paneId, view: "plugin" };
+    }),
+
+  splitPane: (paneId, edge, pluginId) =>
+    set((state) => {
+      const elsewhere = findLeafForPlugin(state.paneTree, pluginId);
+      if (elsewhere) {
+        return { activePaneId: elsewhere.id, view: "plugin" };
+      }
+      const paneTree = splitLeafInTree(state.paneTree, paneId, edge, pluginId);
+      const newLeaf = findLeafForPlugin(paneTree, pluginId);
+      return { paneTree, activePaneId: newLeaf?.id ?? paneId, view: "plugin" };
+    }),
+
+  resizePane: (splitId, sizes) =>
+    set((state) => ({ paneTree: resizeSplitInTree(state.paneTree, splitId, sizes) })),
+
+  closePane: (paneId) =>
+    set((state) => {
+      if (countLeaves(state.paneTree) <= 1) return {};
+      const paneTree = closeLeafInTree(state.paneTree, paneId);
+      if (paneTree === null) return {};
+      const activePaneId = state.activePaneId === paneId ? firstLeafId(paneTree) : state.activePaneId;
+      return { paneTree, activePaneId };
+    }),
+
+  saveLayout: (name) =>
+    set((state) => {
+      const layout: SavedLayout = { id: crypto.randomUUID(), name, tree: structuredClone(state.paneTree) };
+      const layouts = [...state.layouts, layout];
+      saveHostSettings({ layouts });
+      return { layouts };
+    }),
+
+  applyLayout: (id) => {
+    const layout = get().layouts.find((l) => l.id === id);
+    if (!layout) return;
+    const paneTree = structuredClone(layout.tree);
+    set({ paneTree, activePaneId: firstLeafId(paneTree), view: "plugin" });
+  },
+
+  deleteLayout: (id) =>
+    set((state) => {
+      const layouts = state.layouts.filter((l) => l.id !== id);
+      saveHostSettings({ layouts });
+      return { layouts };
+    }),
 
   setPluginStatus: (id, status, tooltip) =>
     set((state) => {
@@ -239,6 +349,7 @@ export const useAppStore = create<AppState>((set) => ({
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
+      const layouts = loaded.layouts ?? state.layouts;
       return {
         categories,
         pluginOrder,
@@ -249,6 +360,7 @@ export const useAppStore = create<AppState>((set) => ({
         sidebarSubItemsExpanded,
         taskbarBadgeThreshold,
         pluginsWithSidebarItems,
+        layouts,
         hostSettingsLoaded: true,
         palette: resolvePalette(paletteId, customPalettes),
       };

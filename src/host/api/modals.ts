@@ -25,6 +25,16 @@ export interface ModalApi {
   confirm(opts: { title: string; message: string; confirmLabel?: string; cancelLabel?: string }): Promise<boolean>;
 }
 
+/** Host-only - not part of the plugin-facing ModalApi below. Used by
+ * SidebarLayouts.tsx to name a saved pane layout. Resolves `null` on cancel. */
+export function promptModal(opts: { title: string; message: string; maxLength?: number }): Promise<string | null> {
+  return enqueue("prompt", {
+    title: opts.title,
+    message: opts.message,
+    maxLength: opts.maxLength,
+  }) as Promise<string | null>;
+}
+
 export function createModalApi(): ModalApi {
   return {
     error: (opts) => enqueue("error", { title: opts.title, message: opts.message }).then(() => undefined),

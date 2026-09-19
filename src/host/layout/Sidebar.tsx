@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { SidebarCategory } from "./SidebarCategory";
 import { SidebarCategoryCollapsed } from "./SidebarCategoryCollapsed";
+import { SidebarLayouts } from "./SidebarLayouts";
+import { SidebarLayoutsCollapsed } from "./SidebarLayoutsCollapsed";
 import { SidebarFooter } from "./SidebarFooter";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { getCategoryIcon } from "./categoryIcons";
+import { countLeaves } from "../state/paneTree";
 import { resolveCategory, type CategoryDef } from "../../shared/category";
 
 const COLLAPSE_ICON_SIZE = 18;
@@ -15,6 +18,9 @@ export function Sidebar() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const pluginOrder = useAppStore((s) => s.pluginOrder);
+  const layouts = useAppStore((s) => s.layouts);
+  const paneTree = useAppStore((s) => s.paneTree);
+  const showLayouts = layouts.length > 0 || countLeaves(paneTree) > 1;
   const expandIcon = getCategoryIcon(categoryIconFiles, "fast-forward");
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const palette = useAppStore((s) => s.palette);
@@ -61,6 +67,7 @@ export function Sidebar() {
             <SidebarCategory key={def.id} category={def} entries={entries} />
           ),
         )}
+        {showLayouts && (sidebarCollapsed ? <SidebarLayoutsCollapsed /> : <SidebarLayouts />)}
       </div>
       {sidebarCollapsed ? (
         <button
