@@ -11,10 +11,14 @@ const HIDDEN_TRANSFORM: Record<NonNullable<DrawerProps["side"]>, string> = {
 };
 
 /** Plugin-facing primitive, exposed via api.ui.Drawer. Slides in from `side`
- * of the plugin's own container (not the whole app). `size` controls how far
- * it extends (width for left/right, height for top/bottom) and `durationMs`
- * controls the slide speed. Stays mounted briefly after `open` goes false so
- * the close transition can play instead of popping out. */
+ * of the plugin's own container (not the whole app), and slides back out the
+ * same side it came in - `side` is snapshotted into `activeSide` whenever
+ * `open` goes true, so a caller changing/resetting `side` while closing
+ * (e.g. computing it from the same state it derives `open` from) can't flip
+ * the close direction mid-animation. `size` controls how far it extends
+ * (width for left/right, height for top/bottom) and `durationMs` controls
+ * the slide speed. Stays mounted briefly after `open` goes false so the close
+ * transition can play instead of popping out. */
 export function Drawer({
   open,
   onClose,
@@ -27,21 +31,34 @@ export function Drawer({
   const palette = useAppStore((s) => s.palette);
   const [mounted, setMounted] = useState(open);
   const [visible, setVisible] = useState(false);
+  const [activeSide, setActiveSide] = useState(side);
 
   useEffect(() => {
     if (open) {
+      setActiveSide(side);
       setMounted(true);
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+      setVisible(false);
+      // Two rAFs: the first lets the browser paint the "hidden" transform
+      // (just-mounted state) before the second flips it to visible - a
+      // single rAF can land before that first paint, collapsing the slide
+      // into an instant pop-in.
+      const pending = { raf2: 0 };
+      const raf1 = requestAnimationFrame(() => {
+        pending.raf2 = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(pending.raf2);
+      };
     }
     setVisible(false);
     const timer = setTimeout(() => setMounted(false), durationMs);
     return () => clearTimeout(timer);
-  }, [open, durationMs]);
+  }, [open, side, durationMs]);
 
   if (!mounted) return null;
 
-  const horizontal = side === "left" || side === "right";
+  const horizontal = activeSide === "left" || activeSide === "right";
 
   return (
     <>
@@ -50,15 +67,15 @@ export function Drawer({
         style={{
           position: "absolute",
           ...(horizontal
-            ? { top: 0, bottom: 0, [side]: 0, width: size, maxWidth: "80%" }
-            : { left: 0, right: 0, [side]: 0, height: size, maxHeight: "80%" }),
+            ? { top: 0, bottom: 0, [activeSide]: 0, width: size, maxWidth: "80%" }
+            : { left: 0, right: 0, [activeSide]: 0, height: size, maxHeight: "80%" }),
           background: palette.surface,
           color: palette.text,
           border: `1px solid ${palette.border}`,
           padding: 16,
           overflowY: "auto",
           zIndex: 11,
-          transform: visible ? "translate(0, 0)" : HIDDEN_TRANSFORM[side],
+          transform: visible ? "translate(0, 0)" : HIDDEN_TRANSFORM[activeSide],
           transition: `transform ${durationMs}ms ease`,
         }}
       >

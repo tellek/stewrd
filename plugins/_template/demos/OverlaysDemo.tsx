@@ -9,7 +9,11 @@ type Side = "left" | "right" | "top" | "bottom";
  * deliberately does NOT wrap itself in its own `position: relative` div, so
  * the Blanket dims the whole content area instead of just this section. */
 export function OverlaysDemo({ api }: { api: PluginApi }) {
-  const [drawerSide, setDrawerSide] = useState<Side | null>(null);
+  // drawerSide is kept even after closing (not reset to null) so the close
+  // transition slides back out the same side it opened from - Drawer also
+  // guards against this itself internally, but the demo shouldn't rely on that.
+  const [drawerSide, setDrawerSide] = useState<Side>("right");
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [size, setSize] = useState(280);
   const [durationMs, setDurationMs] = useState(220);
@@ -38,20 +42,44 @@ export function OverlaysDemo({ api }: { api: PluginApi }) {
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <api.ui.TextButton label="Open Drawer (Left)" onClick={() => setDrawerSide("left")} />
-        <api.ui.TextButton label="Open Drawer (Right)" onClick={() => setDrawerSide("right")} />
-        <api.ui.TextButton label="Open Drawer (Top)" onClick={() => setDrawerSide("top")} />
-        <api.ui.TextButton label="Open Drawer (Bottom)" onClick={() => setDrawerSide("bottom")} />
+        <api.ui.TextButton
+          label="Open Drawer (Left)"
+          onClick={() => {
+            setDrawerSide("left");
+            setDrawerOpen(true);
+          }}
+        />
+        <api.ui.TextButton
+          label="Open Drawer (Right)"
+          onClick={() => {
+            setDrawerSide("right");
+            setDrawerOpen(true);
+          }}
+        />
+        <api.ui.TextButton
+          label="Open Drawer (Top)"
+          onClick={() => {
+            setDrawerSide("top");
+            setDrawerOpen(true);
+          }}
+        />
+        <api.ui.TextButton
+          label="Open Drawer (Bottom)"
+          onClick={() => {
+            setDrawerSide("bottom");
+            setDrawerOpen(true);
+          }}
+        />
         <api.ui.TextButton label="Open Inline Dialog" onClick={() => setDialogOpen(true)} />
       </div>
 
       <api.ui.Drawer
-        open={drawerSide !== null}
-        onClose={() => setDrawerSide(null)}
-        side={drawerSide ?? "right"}
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        side={drawerSide}
         size={size}
         durationMs={durationMs}
-        title={`Drawer (${drawerSide ?? "right"})`}
+        title={`Drawer (${drawerSide})`}
       >
         <p>Drawer content goes here.</p>
       </api.ui.Drawer>
