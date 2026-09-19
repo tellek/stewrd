@@ -206,7 +206,12 @@ export function Editor({ value, onChange, mode, palette }: EditorProps) {
     });
   }, [mode]);
 
-  return <div ref={containerRef} style={{ height: "100%", minHeight: 320, border: `1px solid ${palette.border}`, borderRadius: 4 }} />;
+  return (
+    <div
+      ref={containerRef}
+      style={{ flex: 1, minHeight: 0, height: "100%", border: `1px solid ${palette.border}`, borderRadius: 4, overflow: "auto" }}
+    />
+  );
 }
 
 function wrapSelection(view: EditorView, marker: string) {

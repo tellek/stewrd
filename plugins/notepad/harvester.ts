@@ -4,6 +4,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { PluginApi, PluginContext } from "stewrd-plugin-api";
+import { loadSettings } from "./settings";
 
 interface FsDirEntry {
   name: string;
@@ -79,11 +80,7 @@ export class Harvester {
   private disposed = false;
   private activeKill: (() => void) | null = null;
 
-  constructor(
-    private ctx: PluginContext,
-    private getIntervalMs: () => number,
-    private getEnabled: () => boolean,
-  ) {
+  constructor(private ctx: PluginContext) {
     // Per-activation unique key: usePluginRegistry activates a reloaded
     // module before deactivating the old one, so a fixed key would let the
     // old instance's stop_interval cancel the ticker this instance just
@@ -91,8 +88,12 @@ export class Harvester {
     this.intervalKey = `notepad-harvester-${ctx.pluginId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 
-  start() {
-    invoke("start_interval", { key: this.intervalKey, intervalMs: this.getIntervalMs() });
+  async start() {
+    // Settings (including the interval) live in this plugin's own
+    // settings.json, edited via Settings > Plugins > Configure - read fresh
+    // at activation time rather than taking them as constructor args.
+    const settings = await loadSettings(this.ctx.pluginId);
+    invoke("start_interval", { key: this.intervalKey, intervalMs: settings.harvesterIntervalMs });
     listen(`interval-tick:${this.intervalKey}`, () => this.tick()).then((fn) => {
       if (this.disposed) fn();
       else this.unlisten = fn;
@@ -106,7 +107,9 @@ export class Harvester {
   }
 
   private async tick() {
-    if (!this.getEnabled() || this.isRunning) return;
+    if (this.isRunning) return;
+    const settings = await loadSettings(this.ctx.pluginId);
+    if (!settings.harvesterEnabled) return;
     const api = this.ctx.api;
     let entries: FsDirEntry[];
     try {

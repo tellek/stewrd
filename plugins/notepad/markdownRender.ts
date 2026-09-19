@@ -6,11 +6,12 @@
 // a webview that has full Tauri IPC access.
 import MarkdownIt from "markdown-it";
 import type { MarkdownIt as MarkdownItInstance } from "markdown-it";
-import type { Manifest } from "./vault";
 
 const CALLOUT_KINDS = new Set(["note", "tip", "warning", "important", "caution", "success", "question"]);
 
-export function createRenderer(manifest: Manifest): MarkdownItInstance {
+// There's no multi-note vault in this plugin - wikilinks/embeds are rendered
+// for visual/organizational intent but are not navigable (no note to jump to).
+export function createRenderer(): MarkdownItInstance {
   const md = new MarkdownIt({ html: false, linkify: true, breaks: false });
 
   // Strikethrough is built in; add highlight (==text==) as a simple inline rule.
@@ -65,11 +66,8 @@ export function createRenderer(manifest: Manifest): MarkdownItInstance {
   });
   md.renderer.rules.wikilink = (tokens, idx) => {
     const { target, alias } = tokens[idx].meta as { target: string; alias?: string };
-    const exists = manifest.notes.some((n) => n.title.trim().toLowerCase() === target.toLowerCase());
     const label = md.utils.escapeHtml(alias || target);
-    const safeTarget = md.utils.escapeHtml(target);
-    const cls = exists ? "wikilink" : "wikilink wikilink-missing";
-    return `<a class="${cls}" data-wikilink="${safeTarget}" href="#">${label}</a>`;
+    return `<span class="wikilink">${label}</span>`;
   };
   md.renderer.rules.wikiembed = (tokens, idx) => {
     const { target } = tokens[idx].meta as { target: string };
