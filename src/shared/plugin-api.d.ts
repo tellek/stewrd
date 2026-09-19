@@ -224,9 +224,12 @@ export interface InlineDialogProps {
 // --- Messaging ---
 export interface BannerProps {
   message: string;
-  /** Palette token, not a raw color - controls background + (via
-   * contrastText) legible foreground. */
+  /** Palette token, not a raw color - drives the banner's color. */
   tone?: StatusColor | "accent" | "surface";
+  /** `"outline"` (default): `palette.surface` background, tone-colored
+   * border/icon/text. `"solid"`: tone-colored background with a legible
+   * (contrastText) foreground. */
+  variant?: "outline" | "solid";
   /** Optional data URL (see api.fs.readDataUrl) - no auto-derived default. */
   icon?: string;
   onDismiss?: () => void;

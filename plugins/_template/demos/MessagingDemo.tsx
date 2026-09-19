@@ -4,15 +4,18 @@ import checkIcon from "../assets/check.png";
 import warningIcon from "../assets/warning2.png";
 import errorIcon from "../assets/error.png";
 
-type Tone = "success" | "warning" | "error";
+type Tone = "accent" | "success" | "warning" | "error";
+type Variant = "outline" | "solid";
 
-const TONE_ICON: Record<Tone, string> = { success: checkIcon, warning: warningIcon, error: errorIcon };
+const TONE_ICON: Partial<Record<Tone, string>> = { success: checkIcon, warning: warningIcon, error: errorIcon };
+const TONES: Tone[] = ["accent", "success", "warning", "error"];
 
-/** Demonstrates api.ui.Banner (solid tone colors, left-side icon, auto-dismiss
- * with fade) and api.toast.show's richer (titled, fading) content. */
+/** Demonstrates api.ui.Banner - both `variant`s ("outline": the original
+ * look, "solid": tone-filled background), a left-side icon, auto-dismiss
+ * with fade - and api.toast.show's richer (titled, fading) content. */
 export function MessagingDemo({ api }: { api: PluginApi }) {
   const [dismissed, setDismissed] = useState(false);
-  const [topBanner, setTopBanner] = useState<Tone | null>(null);
+  const [topBanner, setTopBanner] = useState<{ tone: Tone; variant: Variant } | null>(null);
   const [topBannerMs, setTopBannerMs] = useState(3000);
 
   return (
@@ -24,9 +27,10 @@ export function MessagingDemo({ api }: { api: PluginApi }) {
       {topBanner && (
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 15 }}>
           <api.ui.Banner
-            tone={topBanner}
-            message={`${topBanner[0].toUpperCase()}${topBanner.slice(1)} banner spawned at the top of the tool area.`}
-            icon={TONE_ICON[topBanner]}
+            tone={topBanner.tone}
+            variant={topBanner.variant}
+            message={`${topBanner.tone[0].toUpperCase()}${topBanner.tone.slice(1)} (${topBanner.variant}) banner spawned at the top of the tool area.`}
+            icon={TONE_ICON[topBanner.tone]}
             autoDismissMs={topBannerMs}
             onDismiss={() => setTopBanner(null)}
           />
@@ -34,6 +38,8 @@ export function MessagingDemo({ api }: { api: PluginApi }) {
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Default variant is "outline" - a palette.surface background with a
+            tone-colored border/icon/text, the original Banner look. */}
         <api.ui.Banner tone="accent" message="Informational banner (default accent tone)." />
         <api.ui.Banner tone="success" message="Success tone banner." icon={checkIcon} />
         <api.ui.Banner tone="error" message="Error tone banner." icon={errorIcon} />
@@ -51,19 +57,33 @@ export function MessagingDemo({ api }: { api: PluginApi }) {
           onClick={() => api.toast.show({ title: "Saved", message: "Your changes were saved.", kind: "success" })}
         />
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
-          <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
-            Stay Open (ms)
-            <input
-              type="number"
-              value={topBannerMs}
-              onChange={(e) => setTopBannerMs(Number(e.target.value))}
-              style={{ width: 80 }}
+        <label style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 8 }}>
+          Stay Open (ms)
+          <input
+            type="number"
+            value={topBannerMs}
+            onChange={(e) => setTopBannerMs(Number(e.target.value))}
+            style={{ width: 80 }}
+          />
+        </label>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {TONES.map((tone) => (
+            <api.ui.TextButton
+              key={`outline-${tone}`}
+              label={`Show ${tone[0].toUpperCase()}${tone.slice(1)} Banner (Outline)`}
+              onClick={() => setTopBanner({ tone, variant: "outline" })}
             />
-          </label>
-          <api.ui.TextButton label="Show Success Banner" onClick={() => setTopBanner("success")} />
-          <api.ui.TextButton label="Show Warning Banner" onClick={() => setTopBanner("warning")} />
-          <api.ui.TextButton label="Show Error Banner" onClick={() => setTopBanner("error")} />
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {TONES.map((tone) => (
+            <api.ui.TextButton
+              key={`solid-${tone}`}
+              label={`Show ${tone[0].toUpperCase()}${tone.slice(1)} Banner (Solid)`}
+              onClick={() => setTopBanner({ tone, variant: "solid" })}
+            />
+          ))}
         </div>
       </div>
     </div>

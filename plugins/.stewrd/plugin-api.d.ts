@@ -209,6 +209,7 @@ declare module "stewrd-plugin-api" {
   export interface BannerProps {
     message: string;
     tone?: StatusColor | "accent" | "surface";
+    variant?: "outline" | "solid";
     icon?: string;
     onDismiss?: () => void;
     autoDismissMs?: number;
