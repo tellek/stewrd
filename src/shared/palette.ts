@@ -57,34 +57,6 @@ export const premadePalettes: NamedPalette[] = [
   { id: "dark", name: "Dark", colors: defaultPalette },
   { id: "light", name: "Light", colors: lightPalette },
   {
-    id: "aperture",
-    name: "Aperture",
-    colors: {
-      background: "#16181c",
-      surface: "#1f2226",
-      surfaceHover: "#292d33",
-      text: "#eef1f4",
-      textMuted: "#8b95a1",
-      border: "#2c3036",
-      accent: "#ff9a00",
-      status: { idle: "#6b7280", "in-progress": "#36c0f1", success: "#4caf6a", warning: "#f2c14e", error: "#e0533d" },
-    },
-  },
-  {
-    id: "katana",
-    name: "Katana",
-    colors: {
-      background: "#121212",
-      surface: "#1a1a1a",
-      surfaceHover: "#242424",
-      text: "#f2f2f2",
-      textMuted: "#9a9a9a",
-      border: "#2e2e2e",
-      accent: "#ff2222",
-      status: { idle: "#8a8a8a", "in-progress": "#ff4d4d", success: "#4caf6e", warning: "#ffab30", error: "#ff3b30" },
-    },
-  },
-  {
     id: "phantom",
     name: "Phantom",
     colors: {
@@ -194,20 +166,6 @@ export const premadePalettes: NamedPalette[] = [
       border: "#232326",
       accent: "#b8c4cc",
       status: { idle: "#6e6e74", "in-progress": "#9db0bc", success: "#7a9a7e", warning: "#c9a35c", error: "#b05f56" },
-    },
-  },
-  {
-    id: "redstone",
-    name: "Redstone",
-    colors: {
-      background: "#0e1611",
-      surface: "#16201a",
-      surfaceHover: "#1e2c23",
-      text: "#e8ece5",
-      textMuted: "#8fa08e",
-      border: "#2a3a2e",
-      accent: "#4caf50",
-      status: { idle: "#7a8577", "in-progress": "#5cb85c", success: "#43a047", warning: "#d4a017", error: "#c0392b" },
     },
   },
   {
