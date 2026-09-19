@@ -44,7 +44,11 @@ function themeExtension(palette: Palette): Extension {
       // not the outer wrapper div - scrollbar styling has to land here to
       // actually apply, an outer-div style alone would have no effect.
       ".cm-scroller": { scrollbarWidth: "thin", scrollbarColor: `${palette.border} ${palette.surface}` },
-      ".cm-content": { caretColor: palette.accent },
+      // Extra bottom padding gives room to scroll past the last line and
+      // click there (see extendOnClickBelow), like editors' "scroll past
+      // end of file" - without it there's no space below short content to
+      // scroll or click into in the first place.
+      ".cm-content": { caretColor: palette.accent, paddingBottom: "50vh" },
       ".cm-gutters": { backgroundColor: palette.background, color: palette.textMuted, border: "none" },
       ".cm-activeLine": { backgroundColor: palette.surface },
       ".cm-activeLineGutter": { backgroundColor: palette.surface },
@@ -53,6 +57,29 @@ function themeExtension(palette: Palette): Extension {
     { dark: false },
   );
 }
+
+/** Lets you click in the empty space below the last line to place the
+ * cursor there, padding the document out with newlines as needed to reach
+ * it - CodeMirror normally just clamps such a click to the end of the last
+ * line instead. Paired with `.cm-content`'s extra bottom padding (see
+ * themeExtension) so there's always room below the text to scroll into and
+ * click, even when the document is shorter than the editor's height. */
+const extendOnClickBelow = EditorView.domEventHandlers({
+  mousedown(event, view) {
+    if (event.button !== 0) return false;
+    const docEnd = view.state.doc.length;
+    const endCoords = view.coordsAtPos(docEnd);
+    if (!endCoords || event.clientY <= endCoords.bottom) return false;
+    const linesToAdd = Math.max(1, Math.round((event.clientY - endCoords.bottom) / view.defaultLineHeight));
+    view.dispatch({
+      changes: { from: docEnd, insert: "\n".repeat(linesToAdd) },
+      selection: { anchor: docEnd + linesToAdd },
+      scrollIntoView: true,
+    });
+    view.focus();
+    return true;
+  },
+});
 
 function highlightExtension(palette: Palette): Extension {
   return syntaxHighlighting(
@@ -164,6 +191,7 @@ export function Editor({ value, onChange, mode, palette }: EditorProps) {
         markdown({ base: markdownLanguage, codeLanguages: CODE_LANGUAGES }),
         highlightActiveLine(),
         EditorView.lineWrapping,
+        extendOnClickBelow,
         themeCompartment.current.of(themeExtension(palette)),
         highlightCompartment.current.of(highlightExtension(palette)),
         modeCompartment.current.of(mode === "live-preview" ? [livePreviewMarks] : []),
