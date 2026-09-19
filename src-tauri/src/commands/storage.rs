@@ -7,7 +7,22 @@
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 use tauri::{AppHandle, Manager};
+
+/// storage_set does read-whole-file, mutate one key, write-whole-file - two
+/// concurrent storage_set calls for the *same* plugin_id (e.g. several
+/// appStore actions each firing their own fire-and-forget saveHostSettings()
+/// close together, which is common at startup as multiple plugins register
+/// state) can otherwise interleave and lose one of the writes: both read the
+/// file before either has written back. This lock serializes every
+/// storage_set for a plugin_id so each read-modify-write is atomic relative
+/// to the others. A single global lock (not per-plugin_id) is fine - writes
+/// are rare, brief, and calling it a bottleneck would be premature.
+fn write_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
 
 fn storage_path(app: &AppHandle, plugin_id: &str) -> Result<PathBuf, String> {
     let dir = app
@@ -41,6 +56,7 @@ pub fn storage_get(app: AppHandle, plugin_id: String, key: String) -> Result<Opt
 
 #[tauri::command]
 pub fn storage_set(app: AppHandle, plugin_id: String, key: String, value: Value) -> Result<(), String> {
+    let _guard = write_lock().lock().map_err(|e| e.to_string())?;
     let path = storage_path(&app, &plugin_id)?;
     let mut store = read_store(&path);
     store.insert(key, value);

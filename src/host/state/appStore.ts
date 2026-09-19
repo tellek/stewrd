@@ -203,9 +203,14 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   toggleCategory: (category) =>
-    set((state) => ({
-      categoriesExpanded: { ...state.categoriesExpanded, [category]: !(state.categoriesExpanded[category] ?? true) },
-    })),
+    set((state) => {
+      const categoriesExpanded = {
+        ...state.categoriesExpanded,
+        [category]: !(state.categoriesExpanded[category] ?? true),
+      };
+      saveHostSettings({ categoriesExpanded });
+      return { categoriesExpanded };
+    }),
 
   pushModal: (request) => set((state) => ({ modalQueue: [...state.modalQueue, request] })),
   dismissModal: (id) => set((state) => ({ modalQueue: state.modalQueue.filter((m) => m.id !== id) })),
@@ -233,12 +238,14 @@ export const useAppStore = create<AppState>((set) => ({
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
+      const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
       return {
         categories,
         pluginOrder,
         paletteId,
         customPalettes,
         hiddenPaletteIds,
+        categoriesExpanded,
         sidebarSubItemsExpanded,
         taskbarBadgeThreshold,
         pluginsWithSidebarItems,

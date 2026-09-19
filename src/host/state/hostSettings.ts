@@ -30,6 +30,9 @@ export interface HostSettings {
    * activated and registers items). See appStore.ts's
    * toggleSidebarSubItemsExpanded. */
   sidebarSubItemsExpanded: Record<string, boolean>;
+  /** Sidebar category expand/collapse state, keyed by category id - missing =
+   * expanded. See appStore.ts's toggleCategory. */
+  categoriesExpanded: Record<string, boolean>;
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {
