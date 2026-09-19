@@ -2,10 +2,13 @@ import type { DropdownImageGridProps } from "../../shared/plugin-api.d.ts";
 import { useAppStore } from "../../host/state/appStore";
 import { usePopover } from "../shared/usePopover";
 import { controlBase, disabledStyle } from "../shared/styles";
+import { MaskIcon } from "../MaskIcon/MaskIcon";
 
 /** Plugin-facing primitive, exposed via api.ui.DropdownImageGrid. Item
- * images take a data URL - see plugins/_template/README.md's icon contract. */
-export function DropdownImageGrid({ options, value, onChange, placeholder, disabled }: DropdownImageGridProps) {
+ * images take a data URL - see plugins/_template/README.md's icon contract.
+ * Pass `tint` for single-color glyph sets so they recolor with the palette
+ * instead of rendering with their own baked-in colors (see MaskIcon). */
+export function DropdownImageGrid({ options, value, onChange, placeholder, disabled, tint }: DropdownImageGridProps) {
   const palette = useAppStore((s) => s.palette);
   const { open, setOpen, ref } = usePopover<HTMLDivElement>();
   const selected = options.find((o) => o.value === value);
@@ -27,7 +30,12 @@ export function DropdownImageGrid({ options, value, onChange, placeholder, disab
           ...(disabled ? disabledStyle() : {}),
         }}
       >
-        {selected?.image && <img src={selected.image} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />}
+        {selected?.image &&
+          (tint ? (
+            <MaskIcon png={selected.image} alt="" size={18} color={tint} />
+          ) : (
+            <img src={selected.image} alt="" style={{ width: 18, height: 18, objectFit: "contain" }} />
+          ))}
         {selected?.label ?? placeholder ?? "Select..."}
       </button>
       {open && (
@@ -47,6 +55,8 @@ export function DropdownImageGrid({ options, value, onChange, placeholder, disab
             gap: 8,
             maxHeight: 240,
             overflowY: "auto",
+            scrollbarWidth: "thin",
+            scrollbarColor: `${palette.border} ${palette.surface}`,
           }}
         >
           {options.map((opt) => (
@@ -73,7 +83,12 @@ export function DropdownImageGrid({ options, value, onChange, placeholder, disab
                 (e.currentTarget.style.background = opt.value === value ? palette.surfaceHover : "transparent")
               }
             >
-              {opt.image && <img src={opt.image} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />}
+              {opt.image &&
+                (tint ? (
+                  <MaskIcon png={opt.image} alt="" size={32} color={tint} />
+                ) : (
+                  <img src={opt.image} alt="" style={{ width: 32, height: 32, objectFit: "contain" }} />
+                ))}
               <span style={{ fontSize: 11, color: palette.text, whiteSpace: "nowrap" }}>{opt.label}</span>
             </div>
           ))}

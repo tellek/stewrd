@@ -150,6 +150,9 @@ declare module "stewrd-plugin-api" {
     onChange: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
+    /** When set, images render as a CSS mask tinted with this color instead of
+     * their own baked-in colors - for single-color glyph sets only. */
+    tint?: string;
   }
 
   // --- Navigation ---

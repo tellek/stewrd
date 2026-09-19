@@ -4,7 +4,7 @@ import { OTHER_CATEGORY_ID } from "../../shared/category";
 import { getCategoryIcon, listCategoryIconNames } from "./categoryIcons";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { TextButton } from "../../components/TextButton/TextButton";
-import { Dropdown } from "../../components/Dropdown/Dropdown";
+import { DropdownImageGrid } from "../../components/DropdownImageGrid/DropdownImageGrid";
 import { Skeleton } from "../../components/Skeleton/Skeleton";
 
 export function SettingsCategories() {
@@ -17,6 +17,10 @@ export function SettingsCategories() {
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
   const iconNames = listCategoryIconNames(categoryIconFiles);
+  const iconOptions = [
+    { label: "(none)", value: "" },
+    ...iconNames.map((n) => ({ label: n, value: n, image: getCategoryIcon(categoryIconFiles, n)?.png })),
+  ];
 
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
@@ -106,10 +110,11 @@ export function SettingsCategories() {
                   />
                 </td>
                 <td style={{ padding: "6px 8px" }}>
-                  <Dropdown
-                    options={[{ label: "(none)", value: "" }, ...iconNames.map((n) => ({ label: n, value: n }))]}
+                  <DropdownImageGrid
+                    options={iconOptions}
                     value={category.icon}
                     disabled={isOther}
+                    tint={palette.text}
                     onChange={(icon) => updateCategory(category.id, { icon })}
                   />
                 </td>
@@ -137,11 +142,7 @@ export function SettingsCategories() {
             padding: "4px 6px",
           }}
         />
-        <Dropdown
-          options={[{ label: "(none)", value: "" }, ...iconNames.map((n) => ({ label: n, value: n }))]}
-          value={newIcon}
-          onChange={setNewIcon}
-        />
+        <DropdownImageGrid options={iconOptions} value={newIcon} tint={palette.text} onChange={setNewIcon} />
         <TextButton
           label="Add"
           disabled={!canAdd}
