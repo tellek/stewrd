@@ -15,6 +15,10 @@ export interface HostSettings {
   customPalettes: NamedPalette[];
   hiddenPaletteIds: string[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
+  /** Plugin ids in sidebar display order (within their resolved category) -
+   * see appStore.ts's movePlugin. Ids missing from this list (new plugins)
+   * sort after everything listed here. */
+  pluginOrder: string[];
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

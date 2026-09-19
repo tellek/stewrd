@@ -57,6 +57,10 @@ interface AppState {
   categoriesExpanded: Record<string, boolean>;
   categories: CategoryDef[];
   categoryIconFiles: CategoryIconFile[];
+  /** Plugin ids in sidebar display order (within their resolved category) -
+   * persisted via hostSettings. Ids not present here sort after everything
+   * listed. */
+  pluginOrder: string[];
   hiddenPaletteIds: string[];
   paletteId: string;
   customPalettes: NamedPalette[];
@@ -95,6 +99,17 @@ interface AppState {
   addCategory(category: CategoryDef): void;
   updateCategory(id: string, updates: Partial<Pick<CategoryDef, "name" | "icon">>): void;
   removeCategory(id: string): void;
+  /** Reorders `draggedId` to just before `beforeId` (or to the end of the
+   * list when `beforeId` is null) and, if `targetCategoryId` differs from its
+   * current resolved category, updates it locally too - callers are
+   * responsible for persisting the category change to the plugin's own
+   * settings.json (see pluginDiscovery.ts's setPluginCategoryFile) using the
+   * returned `dir`. */
+  movePlugin(
+    draggedId: string,
+    targetCategoryId: string,
+    beforeId: string | null,
+  ): { categoryChanged: boolean; dir: string };
   setPaletteId(id: string): void;
   saveCustomPalette(palette: NamedPalette): void;
   deleteCustomPalette(id: string): void;
@@ -115,6 +130,7 @@ export const useAppStore = create<AppState>((set) => ({
   categoriesExpanded: {},
   categories: DEFAULT_CATEGORIES,
   categoryIconFiles: [],
+  pluginOrder: [],
   paletteId: premadePalettes[0].id,
   customPalettes: [],
   hiddenPaletteIds: [],
@@ -182,12 +198,14 @@ export const useAppStore = create<AppState>((set) => ({
     const loaded = await loadHostSettings();
     set((state) => {
       const categories = loaded.categories ?? state.categories;
+      const pluginOrder = loaded.pluginOrder ?? state.pluginOrder;
       const paletteId = loaded.paletteId ?? state.paletteId;
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       return {
         categories,
+        pluginOrder,
         paletteId,
         customPalettes,
         hiddenPaletteIds,
@@ -234,6 +252,30 @@ export const useAppStore = create<AppState>((set) => ({
       saveHostSettings({ categories });
       return { categories };
     }),
+
+  movePlugin: (draggedId, targetCategoryId, beforeId) => {
+    let categoryChanged = false;
+    let dir = "";
+    set((state) => {
+      const allIds = Object.keys(state.plugins);
+      const order = state.pluginOrder.filter((id) => allIds.includes(id));
+      for (const id of allIds) if (!order.includes(id)) order.push(id);
+      const withoutDragged = order.filter((id) => id !== draggedId);
+      const insertAt = beforeId ? withoutDragged.indexOf(beforeId) : -1;
+      withoutDragged.splice(insertAt < 0 ? withoutDragged.length : insertAt, 0, draggedId);
+      saveHostSettings({ pluginOrder: withoutDragged });
+
+      const draggedEntry = state.plugins[draggedId];
+      let plugins = state.plugins;
+      if (draggedEntry && draggedEntry.category !== targetCategoryId) {
+        categoryChanged = true;
+        dir = draggedEntry.dir;
+        plugins = { ...state.plugins, [draggedId]: { ...draggedEntry, category: targetCategoryId } };
+      }
+      return { pluginOrder: withoutDragged, plugins };
+    });
+    return { categoryChanged, dir };
+  },
 
   setPaletteId: (id) =>
     set((state) => {

@@ -60,3 +60,18 @@ export async function readPluginSettingsFile(dir: string): Promise<string> {
 export async function writePluginSettingsFile(dir: string, contents: string): Promise<void> {
   return invoke("write_plugin_settings_file", { dir, contents });
 }
+
+/** Rewrites just the "category" key of a plugin's settings.json, preserving
+ * everything else - used when dragging a sidebar item into a different
+ * category (see SidebarPluginItem/SidebarCategory). */
+export async function setPluginCategoryFile(dir: string, category: string): Promise<void> {
+  const text = await readPluginSettingsFile(dir);
+  let settings: Record<string, unknown> = {};
+  try {
+    settings = JSON.parse(text);
+  } catch {
+    settings = {};
+  }
+  settings.category = category;
+  await writePluginSettingsFile(dir, JSON.stringify(settings, null, 2) + "\n");
+}

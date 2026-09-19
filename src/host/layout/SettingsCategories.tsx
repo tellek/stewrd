@@ -12,12 +12,28 @@ export function SettingsCategories() {
   const addCategory = useAppStore((s) => s.addCategory);
   const updateCategory = useAppStore((s) => s.updateCategory);
   const removeCategory = useAppStore((s) => s.removeCategory);
+  const setCategories = useAppStore((s) => s.setCategories);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
   const iconNames = listCategoryIconNames(categoryIconFiles);
 
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  function handleDrop(targetId: string) {
+    return () => {
+      if (!draggedId || draggedId === targetId) return;
+      const from = categories.findIndex((c) => c.id === draggedId);
+      const to = categories.findIndex((c) => c.id === targetId);
+      if (from < 0 || to < 0) return;
+      const next = [...categories];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      setCategories(next);
+      setDraggedId(null);
+    };
+  }
 
   const canAdd = newName.trim().length > 0 && !categories.some((c) => c.id === newName.trim());
 
@@ -35,7 +51,21 @@ export function SettingsCategories() {
             const icon = getCategoryIcon(categoryIconFiles, category.icon);
             const isOther = category.id === OTHER_CATEGORY_ID;
             return (
-              <tr key={category.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
+              <tr
+                key={category.id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop(category.id)}
+                style={{ borderBottom: `1px solid ${palette.border}`, opacity: draggedId === category.id ? 0.5 : 1 }}
+              >
+                <td
+                  draggable
+                  onDragStart={() => setDraggedId(category.id)}
+                  onDragEnd={() => setDraggedId(null)}
+                  title="Drag to reorder"
+                  style={{ padding: "6px 4px", width: 16, color: palette.textMuted, cursor: "grab" }}
+                >
+                  ⠿
+                </td>
                 <td style={{ padding: "6px 8px", width: 40 }}>
                   {icon?.png && <MaskIcon png={icon.png} alt={category.name} size={24} color={palette.text} />}
                 </td>

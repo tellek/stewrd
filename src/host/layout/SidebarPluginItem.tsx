@@ -1,18 +1,39 @@
 import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
+import { setPluginCategoryFile } from "../loader/pluginDiscovery";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
 
 export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
   const activePluginId = useAppStore((s) => s.activePluginId);
   const setActivePlugin = useAppStore((s) => s.setActivePlugin);
+  const movePlugin = useAppStore((s) => s.movePlugin);
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
   const [hovered, setHovered] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (!draggedId || draggedId === entry.manifest.id) return;
+    const { categoryChanged, dir } = movePlugin(draggedId, entry.category, entry.manifest.id);
+    if (categoryChanged) setPluginCategoryFile(dir, entry.category).catch(console.error);
+  }
 
   return (
     <button
+      draggable
+      onDragStart={(e) => e.dataTransfer.setData("text/plain", entry.manifest.id)}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
       onClick={() => setActivePlugin(entry.manifest.id)}
       style={{
         display: "flex",
@@ -22,6 +43,7 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         textAlign: "left",
         padding: "6px 12px 6px 22px",
         border: "none",
+        borderTop: dragOver ? `2px solid ${palette.accent}` : "2px solid transparent",
         background: isActive ? palette.surfaceHover : "transparent",
         color: palette.text,
         cursor: "pointer",

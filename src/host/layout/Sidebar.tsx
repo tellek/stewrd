@@ -14,6 +14,7 @@ export function Sidebar() {
   const categories = useAppStore((s) => s.categories);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
+  const pluginOrder = useAppStore((s) => s.pluginOrder);
   const expandIcon = getCategoryIcon(categoryIconFiles, "fast-forward");
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const palette = useAppStore((s) => s.palette);
@@ -24,12 +25,21 @@ export function Sidebar() {
   // category list (Settings > Categories) - anything that doesn't match a
   // known category id falls into Other. Categories with no matching plugins
   // aren't rendered (no empty headers).
+  const orderIndex = new Map(pluginOrder.map((id, i) => [id, i]));
   const byCategory = new Map<string, { def: CategoryDef; entries: PluginSidebarEntry[] }>();
   for (const entry of Object.values(plugins)) {
     const def = resolveCategory(categories, entry.category);
     const bucket = byCategory.get(def.id) ?? { def, entries: [] };
     bucket.entries.push(entry);
     byCategory.set(def.id, bucket);
+  }
+  // Categories render in the order set via Settings > Categories; plugins
+  // within each render in the order set by dragging in the sidebar.
+  const orderedBuckets = categories
+    .map((def) => byCategory.get(def.id))
+    .filter((bucket): bucket is { def: CategoryDef; entries: PluginSidebarEntry[] } => bucket !== undefined);
+  for (const bucket of orderedBuckets) {
+    bucket.entries.sort((a, b) => (orderIndex.get(a.manifest.id) ?? Infinity) - (orderIndex.get(b.manifest.id) ?? Infinity));
   }
 
   return (
@@ -44,7 +54,7 @@ export function Sidebar() {
       }}
     >
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        {[...byCategory.values()].map(({ def, entries }) =>
+        {orderedBuckets.map(({ def, entries }) =>
           sidebarCollapsed ? (
             <SidebarCategoryCollapsed key={def.id} category={def} entries={entries} />
           ) : (
