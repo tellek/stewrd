@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
+import type { SidebarItem } from "../../shared/plugin-api.d.ts";
+
+const EMPTY_ITEMS: SidebarItem[] = [];
 
 export function SidebarPluginItem({
   entry,
@@ -22,6 +25,8 @@ export function SidebarPluginItem({
   const activePluginId = useAppStore((s) => s.activePluginId);
   const setActivePlugin = useAppStore((s) => s.setActivePlugin);
   const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
+  const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id] ?? EMPTY_ITEMS);
+  const expanded = useAppStore((s) => s.sidebarSubItemsExpanded[entry.manifest.id] ?? true);
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
@@ -47,6 +52,7 @@ export function SidebarPluginItem({
       style={{
         display: "flex",
         alignItems: "center",
+        justifyContent: "space-between",
         gap: 8,
         width: "100%",
         textAlign: "left",
@@ -71,6 +77,7 @@ export function SidebarPluginItem({
         />
         <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
       </span>
+      {items.length > 0 && <span style={{ color: palette.textMuted }}>{expanded ? "▾" : "▸"}</span>}
     </button>
   );
 }
