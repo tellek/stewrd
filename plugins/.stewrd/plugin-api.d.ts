@@ -215,6 +215,47 @@ declare module "stewrd-plugin-api" {
     autoDismissMs?: number;
   }
 
+  export interface RangeSliderProps {
+    value: number;
+    onChange: (value: number) => void;
+    min?: number;
+    max?: number;
+    step?: number;
+    disabled?: boolean;
+  }
+
+  export interface CalendarProps {
+    value?: string;
+    onChange: (value: string) => void;
+  }
+
+  export interface DatePickerProps {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    disabled?: boolean;
+  }
+
+  export interface TimePickerProps {
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+  }
+
+  export interface DateTimePickerProps {
+    value: { date: string; time: string };
+    onChange: (value: { date: string; time: string }) => void;
+    disabled?: boolean;
+  }
+
+  export interface CodeTextAreaProps {
+    value: string;
+    onChange: (value: string) => void;
+    language?: "json" | "plain";
+    height?: number;
+    readOnly?: boolean;
+  }
+
   export interface PluginApi {
     theme: { readonly palette: Palette; subscribe(fn: (p: Palette) => void): () => void };
     statusIcon: { set(color: StatusColor, tooltip?: string): void; get(): StatusColor };
@@ -251,6 +292,12 @@ declare module "stewrd-plugin-api" {
       Drawer: ComponentType<DrawerProps>;
       InlineDialog: ComponentType<InlineDialogProps>;
       Banner: ComponentType<BannerProps>;
+      RangeSlider: ComponentType<RangeSliderProps>;
+      Calendar: ComponentType<CalendarProps>;
+      DatePicker: ComponentType<DatePickerProps>;
+      TimePicker: ComponentType<TimePickerProps>;
+      DateTimePicker: ComponentType<DateTimePickerProps>;
+      CodeTextArea: ComponentType<CodeTextAreaProps>;
     };
     shell: {
       exec(

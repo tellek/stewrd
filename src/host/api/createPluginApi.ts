@@ -42,6 +42,12 @@ import { Blanket } from "../../components/Blanket/Blanket";
 import { Drawer } from "../../components/Drawer/Drawer";
 import { InlineDialog } from "../../components/InlineDialog/InlineDialog";
 import { Banner } from "../../components/Banner/Banner";
+import { RangeSlider } from "../../components/RangeSlider/RangeSlider";
+import { Calendar } from "../../components/Calendar/Calendar";
+import { DatePicker } from "../../components/DatePicker/DatePicker";
+import { TimePicker } from "../../components/TimePicker/TimePicker";
+import { DateTimePicker } from "../../components/DateTimePicker/DateTimePicker";
+import { CodeTextArea } from "../../components/CodeTextArea/CodeTextArea";
 import { tickScheduler, type TickHandle } from "../scheduler/tickScheduler";
 import type { PluginApi, PluginContext } from "../../shared/plugin-api.d.ts";
 
@@ -120,6 +126,12 @@ export function createPluginContext(pluginId: string, generation: number): Creat
       Drawer,
       InlineDialog,
       Banner,
+      RangeSlider,
+      Calendar,
+      DatePicker,
+      TimePicker,
+      DateTimePicker,
+      CodeTextArea,
     },
     shell: createShellApi(),
     storage: createStorageApi(pluginId),

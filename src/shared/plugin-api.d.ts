@@ -239,6 +239,56 @@ export interface BannerProps {
   autoDismissMs?: number;
 }
 
+// --- Selection (continued) ---
+export interface RangeSliderProps {
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
+}
+
+// --- Calendar ---
+export interface CalendarProps {
+  /** ISO "YYYY-MM-DD", or undefined for no selection. */
+  value?: string;
+  onChange: (value: string) => void;
+}
+
+export interface DatePickerProps {
+  /** ISO "YYYY-MM-DD", or "" for no selection. */
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+export interface TimePickerProps {
+  /** "HH:MM", 24h. */
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+export interface DateTimePickerProps {
+  /** ISO "YYYY-MM-DD" date + "HH:MM" time. */
+  value: { date: string; time: string };
+  onChange: (value: { date: string; time: string }) => void;
+  disabled?: boolean;
+}
+
+// --- Text ---
+export interface CodeTextAreaProps {
+  value: string;
+  onChange: (value: string) => void;
+  /** Only `"json"` is wired to a language pack today. */
+  language?: "json" | "plain";
+  /** Editor height in px. */
+  height?: number;
+  readOnly?: boolean;
+}
+
 export interface PluginApi {
   theme: ThemeApi;
   statusIcon: StatusIconApi;
@@ -270,6 +320,12 @@ export interface PluginApi {
     Drawer: ComponentType<DrawerProps>;
     InlineDialog: ComponentType<InlineDialogProps>;
     Banner: ComponentType<BannerProps>;
+    RangeSlider: ComponentType<RangeSliderProps>;
+    Calendar: ComponentType<CalendarProps>;
+    DatePicker: ComponentType<DatePickerProps>;
+    TimePicker: ComponentType<TimePickerProps>;
+    DateTimePicker: ComponentType<DateTimePickerProps>;
+    CodeTextArea: ComponentType<CodeTextAreaProps>;
   };
   shell: ShellApi;
   storage: StorageApi;

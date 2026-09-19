@@ -13,6 +13,8 @@ import { DropdownsDemo } from "./demos/DropdownsDemo";
 import { NavigationDemo } from "./demos/NavigationDemo";
 import { OverlaysDemo } from "./demos/OverlaysDemo";
 import { MessagingDemo } from "./demos/MessagingDemo";
+import { CalendarDemo } from "./demos/CalendarDemo";
+import { TextAreaDemo } from "./demos/TextAreaDemo";
 
 export function activate(ctx: PluginContext) {
   ctx.api.log.info("template plugin activated");
@@ -90,6 +92,8 @@ const demoTabs = [
   { label: "Navigation", value: "navigation" },
   { label: "Overlays", value: "overlays" },
   { label: "Messaging", value: "messaging" },
+  { label: "Calendar", value: "calendar" },
+  { label: "Text Area", value: "text-area" },
 ];
 
 export function Component({ api }: { api: PluginApi }) {
@@ -121,6 +125,8 @@ export function Component({ api }: { api: PluginApi }) {
         {demoTab === "navigation" && <NavigationDemo api={api} />}
         {demoTab === "overlays" && <OverlaysDemo api={api} />}
         {demoTab === "messaging" && <MessagingDemo api={api} />}
+        {demoTab === "calendar" && <CalendarDemo api={api} />}
+        {demoTab === "text-area" && <TextAreaDemo api={api} />}
       </div>
     </div>
   );

@@ -116,6 +116,12 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `Drawer` | Slide-in panel scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
 | `InlineDialog` | Centered confirm/info card scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
 | `Banner` | Palette-toned inline message, `variant` `"outline"` (default) or `"solid"`, optional left icon, optional dismiss, optional auto-dismiss-with-fade (`autoDismissMs`) | `demos/MessagingDemo.tsx` |
+| `RangeSlider` | Native range input, accent-colored track/thumb | `demos/FormControlsDemo.tsx` |
+| `Calendar` | Month-grid date picker, ISO `"YYYY-MM-DD"` value | `demos/CalendarDemo.tsx` |
+| `DatePicker` | Text field + `Calendar` popover | `demos/CalendarDemo.tsx` |
+| `TimePicker` | Native time input, `"HH:MM"` (24h) value | `demos/CalendarDemo.tsx` |
+| `DateTimePicker` | `DatePicker` + `TimePicker` combined, `{ date, time }` value | `demos/CalendarDemo.tsx` |
+| `CodeTextArea` | CodeMirror 6-backed code editor, palette-themed live via a `Compartment`; `language="json"` wired today | `demos/TextAreaDemo.tsx` |
 
 Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
 `Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`
