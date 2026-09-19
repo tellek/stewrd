@@ -153,9 +153,12 @@ a `StatusColor` (same set as `api.statusIcon`) fully controlled by the
 plugin, and defaults to a plain muted dot (`palette.textMuted`) if omitted.
 
 Clicking the plugin's own sidebar row toggles its sub-items collapsed/expanded
-- but only while that plugin is already the active selection. Clicking the
-row of a plugin that *isn't* currently active just selects it (as before)
-without touching its collapse state.
+while that plugin is already the active selection. Clicking the row of a
+plugin that *isn't* currently active just selects it (as before) without
+touching its collapse state - but the disclosure triangle itself is a
+separate click target that always toggles regardless of active state
+(activating the plugin first if needed), so a lazy plugin's sub-items can be
+collapsed on the very first click.
 
 Caveat: non-`background` plugins only activate on first sidebar selection, so
 a lazy plugin's actual sub-items don't exist until the user has clicked its
