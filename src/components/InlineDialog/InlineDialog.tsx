@@ -3,6 +3,11 @@ import type { InlineDialogProps } from "../../shared/plugin-api.d.ts";
 import { useAppStore } from "../../host/state/appStore";
 import { Blanket } from "../Blanket/Blanket";
 
+/** Blanket's own fade is a fixed 1s regardless of the dialog's own
+ * `durationMs` - unmounting must wait for whichever is longer so the dim
+ * doesn't pop away mid-fade. */
+const BLANKET_FADE_MS = 1000;
+
 /** Plugin-facing primitive, exposed via api.ui.InlineDialog. A centered
  * confirm/info card scoped to the plugin's own container - use this instead
  * of `window.confirm`/a raw overlay. Stays mounted briefly after `open` goes
@@ -15,11 +20,18 @@ export function InlineDialog({ open, onClose, durationMs = 220, title, message, 
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+      setVisible(false);
+      const pending = { raf2: 0 };
+      const raf1 = requestAnimationFrame(() => {
+        pending.raf2 = requestAnimationFrame(() => setVisible(true));
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(pending.raf2);
+      };
     }
     setVisible(false);
-    const timer = setTimeout(() => setMounted(false), durationMs);
+    const timer = setTimeout(() => setMounted(false), Math.max(durationMs, BLANKET_FADE_MS));
     return () => clearTimeout(timer);
   }, [open, durationMs]);
 
@@ -27,7 +39,7 @@ export function InlineDialog({ open, onClose, durationMs = 220, title, message, 
 
   return (
     <>
-      <Blanket onClick={onClose} durationMs={durationMs} />
+      <Blanket onClick={onClose} visible={visible} />
       <div
         style={{
           position: "absolute",

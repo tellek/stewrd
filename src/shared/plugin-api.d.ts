@@ -195,8 +195,9 @@ export interface LinkProps {
 // will not cover the sidebar/status bar.
 export interface BlanketProps {
   onClick?: () => void;
-  /** Fade-in duration, in ms. */
-  durationMs?: number;
+  /** Set to `false` to fade the dim out (fixed 1s) instead of removing it
+   * outright - defaults to `true` (dimmed/fading in). */
+  visible?: boolean;
 }
 
 export interface DrawerProps {

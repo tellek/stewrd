@@ -10,6 +10,11 @@ const HIDDEN_TRANSFORM: Record<NonNullable<DrawerProps["side"]>, string> = {
   bottom: "translateY(100%)",
 };
 
+/** Blanket's own fade is a fixed 1s regardless of the panel's `durationMs` -
+ * unmounting must wait for whichever is longer so the dim doesn't pop away
+ * mid-fade. */
+const BLANKET_FADE_MS = 1000;
+
 /** Plugin-facing primitive, exposed via api.ui.Drawer. Slides in from `side`
  * of the plugin's own container (not the whole app), and slides back out the
  * same side it came in - `side` is snapshotted into `activeSide` whenever
@@ -52,7 +57,7 @@ export function Drawer({
       };
     }
     setVisible(false);
-    const timer = setTimeout(() => setMounted(false), durationMs);
+    const timer = setTimeout(() => setMounted(false), Math.max(durationMs, BLANKET_FADE_MS));
     return () => clearTimeout(timer);
   }, [open, side, durationMs]);
 
@@ -67,7 +72,7 @@ export function Drawer({
     // off-screen still counts toward that ancestor's scrollable overflow,
     // flashing a scrollbar for the duration of the slide.
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-      <Blanket onClick={onClose} durationMs={durationMs} />
+      <Blanket onClick={onClose} visible={visible} />
       <div
         style={{
           position: "absolute",

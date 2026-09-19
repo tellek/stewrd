@@ -184,7 +184,7 @@ declare module "stewrd-plugin-api" {
 
   export interface BlanketProps {
     onClick?: () => void;
-    durationMs?: number;
+    visible?: boolean;
   }
 
   export interface DrawerProps {
