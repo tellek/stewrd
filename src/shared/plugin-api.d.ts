@@ -284,6 +284,8 @@ export interface CodeTextAreaProps {
   onChange: (value: string) => void;
   /** Only `"json"` is wired to a language pack today. */
   language?: "json" | "plain";
+  /** Editor width, e.g. "100%" or a px number. Defaults to "100%". */
+  width?: number | string;
   /** Editor height in px. */
   height?: number;
   readOnly?: boolean;

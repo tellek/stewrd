@@ -121,7 +121,7 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `DatePicker` | Text field + `Calendar` popover | `demos/CalendarDemo.tsx` |
 | `TimePicker` | Native time input, `"HH:MM"` (24h) value | `demos/CalendarDemo.tsx` |
 | `DateTimePicker` | `DatePicker` + `TimePicker` combined, `{ date, time }` value | `demos/CalendarDemo.tsx` |
-| `CodeTextArea` | CodeMirror 6-backed code editor, palette-themed live via a `Compartment`; `language="json"` wired today | `demos/TextAreaDemo.tsx` |
+| `CodeTextArea` | CodeMirror 6-backed code editor, fixed `width`/`height` with word-wrap, syntax colors + theme both palette-driven live via `Compartment`s; `language="json"` wired today | `demos/TextAreaDemo.tsx` |
 
 Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
 `Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`

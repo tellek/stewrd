@@ -41,7 +41,7 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function isLight(hex: string): boolean {
+export function isLight(hex: string): boolean {
   return luminance(hex) > 0.5;
 }
 

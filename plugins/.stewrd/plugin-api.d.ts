@@ -252,6 +252,7 @@ declare module "stewrd-plugin-api" {
     value: string;
     onChange: (value: string) => void;
     language?: "json" | "plain";
+    width?: number | string;
     height?: number;
     readOnly?: boolean;
   }
