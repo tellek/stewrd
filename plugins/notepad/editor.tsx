@@ -2,7 +2,7 @@
 // extension seam and no markdown language, so this plugin bundles and owns
 // its own CodeMirror 6 instance instead.
 import { useEffect, useRef } from "react";
-import { EditorState, Compartment, type Extension } from "@codemirror/state";
+import { EditorState, Compartment, Annotation, type Extension } from "@codemirror/state";
 import { EditorView, keymap, highlightActiveLine, Decoration, type DecorationSet, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentMore, indentLess, insertNewlineAndIndent } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -17,6 +17,11 @@ import { tags } from "@lezer/highlight";
 // Hand-picked fenced-code languages only - @codemirror/language-data pulls in
 // ~30 lang packs + legacy-modes that would bloat the single-file bundle this
 // plugin's build produces (parsed on every app start since it's background:true).
+// Tags transactions that pad the document with blank lines (click-below,
+// infinite scroll) so the updateListener can skip firing onChange/save for
+// them - they're scaffolding for scrolling/clicking, not user edits.
+const paddingAnnotation = Annotation.define<boolean>();
+
 const CODE_LANGUAGES = [
   LanguageDescription.of({ name: "javascript", alias: ["js", "jsx", "ts", "tsx"], support: javascript() }),
   LanguageDescription.of({ name: "python", alias: ["py"], support: python() }),
@@ -75,6 +80,7 @@ const extendOnClickBelow = EditorView.domEventHandlers({
       changes: { from: docEnd, insert: "\n".repeat(linesToAdd) },
       selection: { anchor: docEnd + linesToAdd },
       scrollIntoView: true,
+      annotations: paddingAnnotation.of(true),
     });
     view.focus();
     return true;
@@ -98,7 +104,10 @@ const infiniteScroll = ViewPlugin.fromClass(
       const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
       if (remaining > this.view.defaultLineHeight * (GROW_BATCH_LINES / 2)) return;
       const docEnd = this.view.state.doc.length;
-      this.view.dispatch({ changes: { from: docEnd, insert: "\n".repeat(GROW_BATCH_LINES) } });
+      this.view.dispatch({
+        changes: { from: docEnd, insert: "\n".repeat(GROW_BATCH_LINES) },
+        annotations: paddingAnnotation.of(true),
+      });
     }
     destroy() {
       this.view.scrollDOM.removeEventListener("scroll", this.onScroll);
@@ -222,7 +231,9 @@ export function Editor({ value, onChange, mode, palette }: EditorProps) {
         highlightCompartment.current.of(highlightExtension(palette)),
         modeCompartment.current.of(mode === "live-preview" ? [livePreviewMarks] : []),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+          if (update.docChanged && !update.transactions.some((tr) => tr.annotation(paddingAnnotation))) {
+            onChangeRef.current(update.state.doc.toString());
+          }
         }),
       ],
     });
