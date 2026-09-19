@@ -37,8 +37,22 @@ export async function loadHostSettings(): Promise<Partial<HostSettings>> {
   return all as Partial<HostSettings>;
 }
 
+// saveHostSettings is fire-and-forget (callers are synchronous zustand
+// actions) - each write's promise is tracked here so flushHostSettings()
+// can await them all before the window is allowed to actually close. Without
+// this, a save triggered right before quitting (e.g. a sidebar-collapse
+// click, then immediately closing the app) can lose the write: the webview
+// tears down before the async storage_set IPC round-trip completes.
+const pendingWrites = new Set<Promise<unknown>>();
+
 export function saveHostSettings(partial: Partial<HostSettings>): void {
   for (const [key, value] of Object.entries(partial)) {
-    void storage.set(key, value);
+    const write = storage.set(key, value).catch((err) => console.error("[hostSettings] save failed", key, err));
+    pendingWrites.add(write);
+    write.finally(() => pendingWrites.delete(write));
   }
+}
+
+export async function flushHostSettings(): Promise<void> {
+  await Promise.all(pendingWrites);
 }

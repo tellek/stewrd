@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import { useAppStore } from "./host/state/appStore";
+import { flushHostSettings } from "./host/state/hostSettings";
 import { Sidebar } from "./host/layout/Sidebar";
 import { MainContent } from "./host/layout/MainContent";
 import { StatusBar } from "./host/layout/StatusBar";
@@ -14,6 +16,23 @@ import "./App.css";
 function App() {
   useEffect(() => {
     registerGlobalErrorHandlers();
+  }, []);
+
+  // hostSettings saves (category/palette/pluginOrder/sidebar state, etc.) are
+  // fire-and-forget from synchronous zustand actions - without this, a save
+  // triggered right before quitting can be lost if the webview tears down
+  // before its storage_set IPC round-trip finishes. destroy() (not close())
+  // bypasses close-requested, so this doesn't re-trigger itself.
+  useEffect(() => {
+    const appWindow = getCurrentWindow();
+    const unlistenPromise = appWindow.onCloseRequested(async (event) => {
+      event.preventDefault();
+      await flushHostSettings();
+      await appWindow.destroy();
+    });
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
   }, []);
 
   const { entries, discoveryErrors, safeMode, reloadPlugin, ensureLoaded } = usePluginRegistry();
