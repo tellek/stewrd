@@ -326,6 +326,10 @@ declare module "stewrd-plugin-api" {
       readTextFile(path: string): Promise<string>;
       writeTextFile(path: string, contents: string): Promise<void>;
       readDataUrl(path: string): Promise<string>;
+      listDir(path?: string): Promise<{ name: string; isDir: boolean }[]>;
+      getRootPath(): Promise<string>;
+      deleteFile(path: string): Promise<void>;
+      renameFile(from: string, to: string): Promise<void>;
       watchFile(path: string, onChange: () => void): () => void;
     };
     log: { info(msg: string): void; warn(msg: string): void; error(msg: string): void };

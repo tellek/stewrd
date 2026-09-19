@@ -12,6 +12,6 @@
     "strict": true,
     "types": ["react"]
   },
-  "include": ["_template/**/*.ts", "_template/**/*.tsx", ".stewrd/plugin-api.d.ts", ".stewrd/assets.d.ts"],
+  "include": ["_template/**/*.ts", "_template/**/*.tsx", "notepad/**/*.ts", "notepad/**/*.tsx", ".stewrd/plugin-api.d.ts", ".stewrd/assets.d.ts"],
   "exclude": ["**/dist/**", "**/node_modules/**"]
 }

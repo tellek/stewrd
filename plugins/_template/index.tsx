@@ -57,6 +57,10 @@ export function activate(ctx: PluginContext) {
   // --- fs: raw file access, namespaced under this plugin's own folder ---
   // const contents = await ctx.api.fs.readTextFile("notes.txt");
   // await ctx.api.fs.writeTextFile("notes.txt", "updated contents");
+  // const entries = await ctx.api.fs.listDir("some-folder"); // [] if the folder doesn't exist yet
+  // const rootPath = await ctx.api.fs.getRootPath(); // absolute path, e.g. for a spawned process's cwd
+  // await ctx.api.fs.renameFile("notes.txt", "archive/notes.txt"); // creates the destination folder as needed
+  // await ctx.api.fs.deleteFile("archive/notes.txt");
   // const unwatch = ctx.api.fs.watchFile("notes.txt", () => ctx.api.log.info("notes.txt changed"));
   // ctx.onDispose(unwatch);
 

@@ -73,3 +73,73 @@ pub fn fs_write_text_file(app: AppHandle, plugin_id: String, path: String, conte
     std::fs::write(&tmp, &contents).map_err(|e| format!("could not write {}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, &full_path).map_err(|e| format!("could not finalize {}: {e}", full_path.display()))
 }
+
+#[derive(serde::Serialize)]
+pub struct FsDirEntry {
+    name: String,
+    #[serde(rename = "isDir")]
+    is_dir: bool,
+}
+
+/// Lists entries in a directory within the plugin's namespaced folder.
+/// Returns an empty list (not an error) when the directory simply doesn't
+/// exist yet - `plugin_fs_root` only creates the plugin's root, not
+/// subfolders a plugin might organize its own data into, so every caller
+/// that lists a not-yet-created subfolder (e.g. before its first write)
+/// would otherwise have to special-case a NotFound error. Any other error
+/// (permission denied, path is a file, etc.) still propagates as a real
+/// error so it isn't silently mistaken for "nothing here".
+#[tauri::command]
+pub fn fs_list_dir(app: AppHandle, plugin_id: String, path: Option<String>) -> Result<Vec<FsDirEntry>, String> {
+    let root = plugin_fs_root(&app, &plugin_id)?;
+    let full_path = match &path {
+        Some(p) if !p.is_empty() => resolve_scoped_path(&root, p)?,
+        _ => root,
+    };
+    let read_dir = match std::fs::read_dir(&full_path) {
+        Ok(rd) => rd,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(format!("failed to list {}: {e}", full_path.display())),
+    };
+    let mut entries = Vec::new();
+    for entry in read_dir {
+        let entry = entry.map_err(|e| format!("failed to read entry in {}: {e}", full_path.display()))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let is_dir = entry
+            .file_type()
+            .map_err(|e| format!("failed to stat {}: {e}", name))?
+            .is_dir();
+        entries.push(FsDirEntry { name, is_dir });
+    }
+    Ok(entries)
+}
+
+/// Returns the absolute path of the plugin's own sandboxed storage folder,
+/// so a plugin can hand it to a spawned external process (e.g. as `cwd`)
+/// that needs a real filesystem path rather than a path scoped through
+/// these commands. Note this does NOT extend the sandbox to that process -
+/// it only tells the plugin where its own folder lives on disk.
+#[tauri::command]
+pub fn fs_get_root_path(app: AppHandle, plugin_id: String) -> Result<String, String> {
+    let root = plugin_fs_root(&app, &plugin_id)?;
+    Ok(root.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn fs_delete_file(app: AppHandle, plugin_id: String, path: String) -> Result<(), String> {
+    let root = plugin_fs_root(&app, &plugin_id)?;
+    let full_path = resolve_scoped_path(&root, &path)?;
+    std::fs::remove_file(&full_path).map_err(|e| format!("failed to delete {}: {e}", full_path.display()))
+}
+
+#[tauri::command]
+pub fn fs_rename_file(app: AppHandle, plugin_id: String, from: String, to: String) -> Result<(), String> {
+    let root = plugin_fs_root(&app, &plugin_id)?;
+    let from_path = resolve_scoped_path(&root, &from)?;
+    let to_path = resolve_scoped_path(&root, &to)?;
+    if let Some(parent) = to_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("could not create {}: {e}", parent.display()))?;
+    }
+    std::fs::rename(&from_path, &to_path)
+        .map_err(|e| format!("failed to rename {} to {}: {e}", from_path.display(), to_path.display()))
+}

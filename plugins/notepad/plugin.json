@@ -1,11 +1,11 @@
 {
   "id": "notepad",
   "name": "Notepad",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "category": "Utilities",
   "icon": "default",
   "entry": "dist/index.js",
-  "description": "Autosaving scratch pad with Claude memory extraction",
+  "description": "Obsidian-style markdown notes with wikilinks, backlinks, and a background LLM-wiki harvester",
   "apiVersion": "1",
-  "background": false
+  "background": true
 }
