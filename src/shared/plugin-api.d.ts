@@ -301,6 +301,10 @@ export interface SidebarItem {
   label: string;
   /** Data URL from api.fs.readDataUrl, or other MaskIcon-compatible source. */
   icon?: string;
+  /** Status dot rendered in front of the item's label - the plugin fully
+   * controls its color (same StatusColor set as api.statusIcon). Omit for no
+   * dot. */
+  color?: StatusColor;
   onClick: () => void;
 }
 

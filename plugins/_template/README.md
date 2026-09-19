@@ -139,14 +139,23 @@ resolve.
 ## `ctx.api.sidebar` - sidebar sub-items
 
 A plugin can register sub-items that render indented under its own sidebar
-row via `api.sidebar.setItems([{ id, label, icon?, onClick }, ...])` - see
-`index.tsx`'s `Component` for a live example (two pages, "Overview" and
+row via `api.sidebar.setItems([{ id, label, icon?, color?, onClick }, ...])` -
+see `index.tsx`'s `Component` for a live example (two pages, "Overview" and
 "Second Page", switched via local `useState` in each item's `onClick`). The
 plugin owns the full list: it decides its contents, when it's shown (a
 non-empty list) vs. hidden (`setItems([])`), and what happens on click. Call
 `api.sidebar.setSelected(id)` to change the highlighted sub-item
 programmatically - the host already highlights the clicked item itself, so
 this is only needed for other navigation paths (e.g. deep-linking).
+
+Each item renders with a small status dot in front of its label - `color` is
+a `StatusColor` (same set as `api.statusIcon`) fully controlled by the
+plugin, and defaults to a plain muted dot (`palette.textMuted`) if omitted.
+
+Clicking the plugin's own sidebar row toggles its sub-items collapsed/expanded
+- but only while that plugin is already the active selection. Clicking the
+row of a plugin that *isn't* currently active just selects it (as before)
+without touching its collapse state.
 
 Caveat: non-`background` plugins only activate on first sidebar selection, so
 a lazy plugin's sub-items don't exist until the user has clicked its row once

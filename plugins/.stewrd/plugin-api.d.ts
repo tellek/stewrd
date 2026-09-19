@@ -264,6 +264,7 @@ declare module "stewrd-plugin-api" {
     id: string;
     label: string;
     icon?: string;
+    color?: StatusColor;
     onClick: () => void;
   }
 

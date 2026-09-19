@@ -92,6 +92,9 @@ interface AppState {
    * activation, same as `plugins[id].status`. */
   sidebarItemsByPlugin: Record<string, SidebarItem[]>;
   sidebarSelectedByPlugin: Record<string, string | null>;
+  /** Whether a plugin's sub-items are expanded - toggled only by clicking the
+   * plugin's own row while it's already the active selection; missing = expanded. */
+  sidebarSubItemsExpanded: Record<string, boolean>;
 
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setActivePlugin(id: string | null): void;
@@ -130,6 +133,7 @@ interface AppState {
   setSidebarItems(pluginId: string, items: SidebarItem[]): void;
   setSidebarSelected(pluginId: string, id: string | null): void;
   clearSidebarItems(pluginId: string): void;
+  toggleSidebarSubItemsExpanded(pluginId: string): void;
 }
 
 export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]): Palette {
@@ -159,6 +163,7 @@ export const useAppStore = create<AppState>((set) => ({
   view: "plugin",
   sidebarItemsByPlugin: {},
   sidebarSelectedByPlugin: {},
+  sidebarSubItemsExpanded: {},
 
   setPlugins: (plugins) =>
     set((state) => {
@@ -352,4 +357,12 @@ export const useAppStore = create<AppState>((set) => ({
       delete sidebarSelectedByPlugin[pluginId];
       return { sidebarItemsByPlugin, sidebarSelectedByPlugin };
     }),
+
+  toggleSidebarSubItemsExpanded: (pluginId) =>
+    set((state) => ({
+      sidebarSubItemsExpanded: {
+        ...state.sidebarSubItemsExpanded,
+        [pluginId]: !(state.sidebarSubItemsExpanded[pluginId] ?? true),
+      },
+    })),
 }));

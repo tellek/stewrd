@@ -21,6 +21,7 @@ export function SidebarPluginItem({
 }) {
   const activePluginId = useAppStore((s) => s.activePluginId);
   const setActivePlugin = useAppStore((s) => s.setActivePlugin);
+  const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
   const palette = useAppStore((s) => s.palette);
   const isActive = activePluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
@@ -42,7 +43,7 @@ export function SidebarPluginItem({
         const draggedId = e.dataTransfer.getData("text/plain");
         if (draggedId) onDropItem(draggedId);
       }}
-      onClick={() => setActivePlugin(entry.manifest.id)}
+      onClick={() => (isActive ? toggleSidebarSubItemsExpanded(entry.manifest.id) : setActivePlugin(entry.manifest.id))}
       style={{
         display: "flex",
         alignItems: "center",

@@ -114,7 +114,7 @@ export function Component({ api }: { api: PluginApi }) {
   //     needed, the host clears stale items itself on deactivate. ---
   useEffect(() => {
     api.sidebar.setItems([
-      { id: "main", label: "Overview", onClick: () => setPage("main") },
+      { id: "main", label: "Overview", color: "success", onClick: () => setPage("main") },
       { id: "second-page", label: "Second Page", onClick: () => setPage("second-page") },
     ]);
   }, [api]);
