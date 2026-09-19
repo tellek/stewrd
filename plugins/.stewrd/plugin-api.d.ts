@@ -211,6 +211,7 @@ declare module "stewrd-plugin-api" {
     tone?: StatusColor | "accent" | "surface";
     icon?: string;
     onDismiss?: () => void;
+    autoDismissMs?: number;
   }
 
   export interface PluginApi {

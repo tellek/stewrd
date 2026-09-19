@@ -70,6 +70,10 @@ interface AppState {
   palette: Palette;
   modalQueue: ModalRequest[];
   toasts: ToastEntry[];
+  /** Ids of toasts mid fade-out (still rendered, opacity transitioning to 0
+   * via CSS) - separate from removal so ToastContainer can animate before
+   * `dismissToast` actually drops the entry. */
+  fadingToastIds: number[];
   sidebarCollapsed: boolean;
   view: "plugin" | "settings";
 
@@ -81,6 +85,7 @@ interface AppState {
   pushModal(request: ModalRequest): void;
   dismissModal(id: number): void;
   pushToast(entry: ToastEntry): void;
+  fadeToast(id: number): void;
   dismissToast(id: number): void;
   toggleSidebarCollapsed(): void;
   openSettings(): void;
@@ -118,6 +123,7 @@ export const useAppStore = create<AppState>((set) => ({
   palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
   toasts: [],
+  fadingToastIds: [],
   sidebarCollapsed: false,
   view: "plugin",
 
@@ -161,7 +167,13 @@ export const useAppStore = create<AppState>((set) => ({
   dismissModal: (id) => set((state) => ({ modalQueue: state.modalQueue.filter((m) => m.id !== id) })),
 
   pushToast: (entry) => set((state) => ({ toasts: [...state.toasts, entry] })),
-  dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+  fadeToast: (id) =>
+    set((state) => (state.fadingToastIds.includes(id) ? state : { fadingToastIds: [...state.fadingToastIds, id] })),
+  dismissToast: (id) =>
+    set((state) => ({
+      toasts: state.toasts.filter((t) => t.id !== id),
+      fadingToastIds: state.fadingToastIds.filter((i) => i !== id),
+    })),
 
   toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   openSettings: () => set({ view: "settings" }),

@@ -115,7 +115,7 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `Blanket` | Dimming overlay scoped to the plugin's own container (used internally by `Drawer`/`InlineDialog`) | `demos/OverlaysDemo.tsx` (via `Drawer`/`InlineDialog`) |
 | `Drawer` | Slide-in panel scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
 | `InlineDialog` | Centered confirm/info card scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
-| `Banner` | Palette-toned inline message, optional icon/dismiss | `demos/MessagingDemo.tsx` |
+| `Banner` | Solid palette-toned inline message, optional left icon, optional dismiss, optional auto-dismiss-with-fade (`autoDismissMs`) | `demos/MessagingDemo.tsx` |
 
 Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
 `Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`

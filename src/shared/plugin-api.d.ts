@@ -224,11 +224,15 @@ export interface InlineDialogProps {
 // --- Messaging ---
 export interface BannerProps {
   message: string;
-  /** Palette token, not a raw color - keeps banners theme-consistent. */
+  /** Palette token, not a raw color - controls background + (via
+   * contrastText) legible foreground. */
   tone?: StatusColor | "accent" | "surface";
   /** Optional data URL (see api.fs.readDataUrl) - no auto-derived default. */
   icon?: string;
   onDismiss?: () => void;
+  /** If set, the banner fades itself out (1s) after this many ms, then calls
+   * `onDismiss`. */
+  autoDismissMs?: number;
 }
 
 export interface PluginApi {
