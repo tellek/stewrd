@@ -34,11 +34,14 @@ function toggleChecklistAt(content: string, index: number): string {
   });
 }
 
+type SaveState = "idle" | "warning" | "success" | "error";
+
 export function Component({ api }: { api: PluginApi }) {
   const [content, setContent] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [mode, setMode] = useState<Mode>(DEFAULT_SETTINGS.defaultMode);
   const [settings, setSettings] = useState<NotepadSettings>(DEFAULT_SETTINGS);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const contentRef = useRef("");
   const palette = api.theme.palette as Palette;
@@ -66,8 +69,14 @@ export function Component({ api }: { api: PluginApi }) {
     // those back out before they ever touch disk. The live buffer/cursor/
     // scroll position are untouched; only the saved copy is trimmed.
     saveNote(api, value.trimEnd())
-      .then(() => api.statusIcon.set("idle"))
-      .catch(() => api.statusIcon.set("error", "save failed"));
+      .then(() => {
+        setSaveState("success");
+        api.statusIcon.set("idle");
+      })
+      .catch(() => {
+        setSaveState("error");
+        api.statusIcon.set("error", "save failed");
+      });
   }
 
   // Save 1s after typing stops, independent of the editor keeping focus -
@@ -76,6 +85,7 @@ export function Component({ api }: { api: PluginApi }) {
   function onChange(value: string) {
     setContent(value);
     contentRef.current = value;
+    setSaveState("warning"); // unsaved changes pending
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => flushSave(value), settings.autosaveDebounceMs);
   }
@@ -122,7 +132,8 @@ export function Component({ api }: { api: PluginApi }) {
           value={mode}
           onChange={(v) => setMode(v as Mode)}
         />
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <api.ui.StatusDot color={saveState} />
           <api.ui.TextButton label="Clear" onClick={handleClear} disabled={!content.trim()} variant="secondary" />
           <api.ui.TextButton label="Shift" onClick={handleShift} disabled={!content.trim()} variant="secondary" />
         </div>
