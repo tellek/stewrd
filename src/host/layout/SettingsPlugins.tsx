@@ -208,11 +208,13 @@ export function SettingsPlugins() {
         type="file"
         accept=".zip,.tar,.tar.gz,.tgz"
         disabled={installing}
+        style={{ display: "none" }}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onFilePicked(file);
         }}
       />
+      <TextButton label="Choose File" onClick={() => fileInputRef.current?.click()} disabled={installing} />
       <p style={{ color: palette.textMuted, fontSize: 11 }}>Accepts .zip, .tar, .tar.gz, or .tgz archives.</p>
     </div>
   );
