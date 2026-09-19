@@ -232,12 +232,14 @@ export const useAppStore = create<AppState>((set) => ({
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
+      const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       return {
         categories,
         pluginOrder,
         paletteId,
         customPalettes,
         hiddenPaletteIds,
+        sidebarSubItemsExpanded,
         taskbarBadgeThreshold,
         pluginsWithSidebarItems,
         hostSettingsLoaded: true,
@@ -376,10 +378,12 @@ export const useAppStore = create<AppState>((set) => ({
     }),
 
   toggleSidebarSubItemsExpanded: (pluginId) =>
-    set((state) => ({
-      sidebarSubItemsExpanded: {
+    set((state) => {
+      const sidebarSubItemsExpanded = {
         ...state.sidebarSubItemsExpanded,
         [pluginId]: !(state.sidebarSubItemsExpanded[pluginId] ?? true),
-      },
-    })),
+      };
+      saveHostSettings({ sidebarSubItemsExpanded });
+      return { sidebarSubItemsExpanded };
+    }),
 }));

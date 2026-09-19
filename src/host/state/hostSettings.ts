@@ -25,6 +25,11 @@ export interface HostSettings {
    * session and the real item list is known. See appStore.ts's
    * setSidebarItems. */
   pluginsWithSidebarItems: string[];
+  /** Per-plugin sidebar sub-item expand/collapse state, keyed by plugin id -
+   * missing = expanded (a tool defaults to expanded the first time it's
+   * activated and registers items). See appStore.ts's
+   * toggleSidebarSubItemsExpanded. */
+  sidebarSubItemsExpanded: Record<string, boolean>;
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

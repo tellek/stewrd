@@ -82,7 +82,11 @@ export function SidebarPluginItem({
         <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
       </span>
       {(items.length > 0 || knownExpandable) && (
-        <span style={{ color: palette.textMuted }}>{expanded ? "▾" : "▸"}</span>
+        // Direction reflects whether sub-items are actually rendered below
+        // (SidebarSubItems.tsx uses the same items.length && expanded check)
+        // - a lazy plugin not yet activated has no items to show regardless
+        // of its stored expanded flag, so the triangle reads "collapsed".
+        <span style={{ color: palette.textMuted }}>{items.length > 0 && expanded ? "▾" : "▸"}</span>
       )}
     </button>
   );
