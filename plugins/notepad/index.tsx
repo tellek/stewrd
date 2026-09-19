@@ -61,7 +61,11 @@ export function Component({ api }: { api: PluginApi }) {
     // Autosave is routine/frequent - leave the sidebar status dot uncolored
     // ("idle") on a normal save instead of pinning it green forever; only a
     // real failure is worth calling out with color.
-    saveNote(api, value)
+    // The editor pads itself with trailing blank lines to allow scrolling
+    // past the end of the note (see editor.tsx's infiniteScroll) - trim
+    // those back out before they ever touch disk. The live buffer/cursor/
+    // scroll position are untouched; only the saved copy is trimmed.
+    saveNote(api, value.trimEnd())
       .then(() => api.statusIcon.set("idle"))
       .catch(() => api.statusIcon.set("error", "save failed"));
   }
@@ -82,7 +86,7 @@ export function Component({ api }: { api: PluginApi }) {
     return () => {
       if (saveTimer.current) {
         clearTimeout(saveTimer.current);
-        saveNote(api, contentRef.current).catch(() => {});
+        saveNote(api, contentRef.current.trimEnd()).catch(() => {});
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,7 +99,7 @@ export function Component({ api }: { api: PluginApi }) {
   async function handleShift() {
     if (!content.trim()) return;
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    await api.fs.writeTextFile(`harvest/note-${timestamp}.md`, content);
+    await api.fs.writeTextFile(`harvest/note-${timestamp}.md`, content.trimEnd());
     onChange("");
     api.toast.show({ message: "Moved to harvest folder", kind: "success" });
   }

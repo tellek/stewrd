@@ -81,6 +81,31 @@ const extendOnClickBelow = EditorView.domEventHandlers({
   },
 });
 
+/** Grows the document with blank lines as the user scrolls toward the
+ * bottom, so scrolling never simply hits a hard stop - each near-bottom
+ * scroll appends another batch of lines, keeping there always somewhere
+ * further to scroll to. The trailing blank lines this produces are trimmed
+ * back out at save time (see index.tsx), not kept in the saved file. */
+const GROW_BATCH_LINES = 40;
+const infiniteScroll = ViewPlugin.fromClass(
+  class {
+    private onScroll = () => this.maybeGrow();
+    constructor(private view: EditorView) {
+      view.scrollDOM.addEventListener("scroll", this.onScroll, { passive: true });
+    }
+    maybeGrow() {
+      const el = this.view.scrollDOM;
+      const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
+      if (remaining > this.view.defaultLineHeight * (GROW_BATCH_LINES / 2)) return;
+      const docEnd = this.view.state.doc.length;
+      this.view.dispatch({ changes: { from: docEnd, insert: "\n".repeat(GROW_BATCH_LINES) } });
+    }
+    destroy() {
+      this.view.scrollDOM.removeEventListener("scroll", this.onScroll);
+    }
+  },
+);
+
 function highlightExtension(palette: Palette): Extension {
   return syntaxHighlighting(
     HighlightStyle.define([
@@ -192,6 +217,7 @@ export function Editor({ value, onChange, mode, palette }: EditorProps) {
         highlightActiveLine(),
         EditorView.lineWrapping,
         extendOnClickBelow,
+        infiniteScroll,
         themeCompartment.current.of(themeExtension(palette)),
         highlightCompartment.current.of(highlightExtension(palette)),
         modeCompartment.current.of(mode === "live-preview" ? [livePreviewMarks] : []),
