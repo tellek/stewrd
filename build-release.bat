@@ -16,6 +16,25 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo Building plugin bundles...
+for /d %%P in ("%REPO%plugins\*") do (
+    if exist "%%P\index.tsx" call :buildplugin "%%P"
+    if exist "%%P\index.ts" call :buildplugin "%%P"
+    if exist "%%P\index.jsx" call :buildplugin "%%P"
+    if exist "%%P\index.js" call :buildplugin "%%P"
+)
+goto :afterplugins
+
+:buildplugin
+call npm run plugin:build -- %1
+if errorlevel 1 (
+    echo Plugin build failed: %1
+    exit /b 1
+)
+exit /b 0
+
+:afterplugins
+
 echo Deploying to %DEPLOY%...
 if not exist "%DEPLOY%" mkdir "%DEPLOY%"
 
