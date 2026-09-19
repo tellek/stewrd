@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
-import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { usePluginIcon } from "./usePluginIcon";
 
 export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
@@ -36,16 +35,10 @@ export function SidebarPluginItem({ entry }: { entry: PluginSidebarEntry }) {
         <StatusIcon
           status={entry.status}
           tooltip={entry.statusTooltip ?? entry.status}
-          idleColor={hovered ? palette.accent : undefined}
+          png={icon.png}
+          alt={entry.manifest.name}
+          idleColor={hovered ? palette.accent : palette.text}
         />
-        {icon.png && (
-          <MaskIcon
-            png={icon.png}
-            alt={entry.manifest.name}
-            size={24}
-            color={hovered ? palette.accent : palette.text}
-          />
-        )}
         <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
       </span>
     </button>
