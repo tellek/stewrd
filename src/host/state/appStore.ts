@@ -38,6 +38,7 @@ export interface ModalRequest {
 
 export interface ToastEntry {
   id: number;
+  title?: string;
   message: string;
   kind: StatusColor;
   durationMs: number;

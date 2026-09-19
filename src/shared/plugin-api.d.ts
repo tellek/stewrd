@@ -189,6 +189,40 @@ export interface LinkProps {
   disabled?: boolean;
 }
 
+// --- Overlays ---
+// Blanket/Drawer/InlineDialog position themselves against the nearest
+// positioned ancestor, which is the plugin's own render container - they
+// will not cover the sidebar/status bar.
+export interface BlanketProps {
+  onClick?: () => void;
+}
+
+export interface DrawerProps {
+  open: boolean;
+  onClose: () => void;
+  side?: "left" | "right";
+  title?: string;
+  children?: ReactNode;
+}
+
+export interface InlineDialogProps {
+  open: boolean;
+  onClose: () => void;
+  title?: string;
+  message?: string;
+  children?: ReactNode;
+}
+
+// --- Messaging ---
+export interface BannerProps {
+  message: string;
+  /** Palette token, not a raw color - keeps banners theme-consistent. */
+  tone?: StatusColor | "accent" | "surface";
+  /** Optional data URL (see api.fs.readDataUrl) - no auto-derived default. */
+  icon?: string;
+  onDismiss?: () => void;
+}
+
 export interface PluginApi {
   theme: ThemeApi;
   statusIcon: StatusIconApi;
@@ -216,6 +250,10 @@ export interface PluginApi {
     Pagination: ComponentType<PaginationProps>;
     Menu: ComponentType<MenuProps>;
     Link: ComponentType<LinkProps>;
+    Blanket: ComponentType<BlanketProps>;
+    Drawer: ComponentType<DrawerProps>;
+    InlineDialog: ComponentType<InlineDialogProps>;
+    Banner: ComponentType<BannerProps>;
   };
   shell: ShellApi;
   storage: StorageApi;

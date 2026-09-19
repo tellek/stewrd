@@ -112,6 +112,10 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `Pagination` | Prev/next page control | `demos/NavigationDemo.tsx` |
 | `Menu` | Click-to-open action list | `demos/NavigationDemo.tsx` |
 | `Link` | Styled clickable label | `demos/NavigationDemo.tsx` |
+| `Blanket` | Dimming overlay scoped to the plugin's own container (used internally by `Drawer`/`InlineDialog`) | `demos/OverlaysDemo.tsx` (via `Drawer`/`InlineDialog`) |
+| `Drawer` | Slide-in panel scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
+| `InlineDialog` | Centered confirm/info card scoped to the plugin's own container | `demos/OverlaysDemo.tsx` |
+| `Banner` | Palette-toned inline message, optional icon/dismiss | `demos/MessagingDemo.tsx` |
 
 Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
 `Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`

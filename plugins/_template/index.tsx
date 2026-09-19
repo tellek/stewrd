@@ -11,6 +11,8 @@ import { FormControlsDemo } from "./demos/FormControlsDemo";
 import { LoadingDemo } from "./demos/LoadingDemo";
 import { DropdownsDemo } from "./demos/DropdownsDemo";
 import { NavigationDemo } from "./demos/NavigationDemo";
+import { OverlaysDemo } from "./demos/OverlaysDemo";
+import { MessagingDemo } from "./demos/MessagingDemo";
 
 export function activate(ctx: PluginContext) {
   ctx.api.log.info("template plugin activated");
@@ -86,6 +88,8 @@ const demoTabs = [
   { label: "Loading", value: "loading" },
   { label: "Dropdowns", value: "dropdowns" },
   { label: "Navigation", value: "navigation" },
+  { label: "Overlays", value: "overlays" },
+  { label: "Messaging", value: "messaging" },
 ];
 
 export function Component({ api }: { api: PluginApi }) {
@@ -115,6 +119,8 @@ export function Component({ api }: { api: PluginApi }) {
         {demoTab === "loading" && <LoadingDemo api={api} />}
         {demoTab === "dropdowns" && <DropdownsDemo api={api} />}
         {demoTab === "navigation" && <NavigationDemo api={api} />}
+        {demoTab === "overlays" && <OverlaysDemo api={api} />}
+        {demoTab === "messaging" && <MessagingDemo api={api} />}
       </div>
     </div>
   );

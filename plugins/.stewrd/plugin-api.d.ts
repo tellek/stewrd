@@ -182,6 +182,33 @@ declare module "stewrd-plugin-api" {
     disabled?: boolean;
   }
 
+  export interface BlanketProps {
+    onClick?: () => void;
+  }
+
+  export interface DrawerProps {
+    open: boolean;
+    onClose: () => void;
+    side?: "left" | "right";
+    title?: string;
+    children?: ReactNode;
+  }
+
+  export interface InlineDialogProps {
+    open: boolean;
+    onClose: () => void;
+    title?: string;
+    message?: string;
+    children?: ReactNode;
+  }
+
+  export interface BannerProps {
+    message: string;
+    tone?: StatusColor | "accent" | "surface";
+    icon?: string;
+    onDismiss?: () => void;
+  }
+
   export interface PluginApi {
     theme: { readonly palette: Palette; subscribe(fn: (p: Palette) => void): () => void };
     statusIcon: { set(color: StatusColor, tooltip?: string): void; get(): StatusColor };
@@ -191,7 +218,7 @@ declare module "stewrd-plugin-api" {
       question(opts: { title: string; message: string; buttons: string[] }): Promise<string>;
       confirm(opts: { title: string; message: string; confirmLabel?: string; cancelLabel?: string }): Promise<boolean>;
     };
-    toast: { show(opts: { message: string; kind?: StatusColor; durationMs?: number }): void };
+    toast: { show(opts: { title?: string; message: string; kind?: StatusColor; durationMs?: number }): void };
     ui: {
       TextBox: ComponentType<TextBoxProps>;
       StatusDot: ComponentType<{ color: StatusColor }>;
@@ -214,6 +241,10 @@ declare module "stewrd-plugin-api" {
       Pagination: ComponentType<PaginationProps>;
       Menu: ComponentType<MenuProps>;
       Link: ComponentType<LinkProps>;
+      Blanket: ComponentType<BlanketProps>;
+      Drawer: ComponentType<DrawerProps>;
+      InlineDialog: ComponentType<InlineDialogProps>;
+      Banner: ComponentType<BannerProps>;
     };
     shell: {
       exec(

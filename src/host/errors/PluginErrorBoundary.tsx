@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Banner } from "../../components/Banner/Banner";
+import { TextButton } from "../../components/TextButton/TextButton";
 
 interface Props {
   pluginId: string;
@@ -34,11 +36,14 @@ export class PluginErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.error) {
       return (
-        <div role="alert" style={{ padding: 12, border: "1px solid #c33", background: "#fee", color: "#600" }}>
-          <p>
-            Plugin "{this.props.pluginId}" crashed: {this.state.error.message}
-          </p>
-          <button onClick={this.reload}>Reload this plugin</button>
+        <div role="alert" style={{ padding: 12 }}>
+          <Banner
+            tone="error"
+            message={`Plugin "${this.props.pluginId}" crashed: ${this.state.error.message}`}
+          />
+          <div style={{ marginTop: 8 }}>
+            <TextButton label="Reload This Plugin" onClick={this.reload} variant="primary" />
+          </div>
         </div>
       );
     }

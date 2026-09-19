@@ -38,6 +38,10 @@ import { Tabs } from "../../components/Tabs/Tabs";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Menu } from "../../components/Menu/Menu";
 import { Link } from "../../components/Link/Link";
+import { Blanket } from "../../components/Blanket/Blanket";
+import { Drawer } from "../../components/Drawer/Drawer";
+import { InlineDialog } from "../../components/InlineDialog/InlineDialog";
+import { Banner } from "../../components/Banner/Banner";
 import { tickScheduler, type TickHandle } from "../scheduler/tickScheduler";
 import type { PluginApi, PluginContext } from "../../shared/plugin-api.d.ts";
 
@@ -112,6 +116,10 @@ export function createPluginContext(pluginId: string, generation: number): Creat
       Pagination,
       Menu,
       Link,
+      Blanket,
+      Drawer,
+      InlineDialog,
+      Banner,
     },
     shell: createShellApi(),
     storage: createStorageApi(pluginId),

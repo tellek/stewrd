@@ -18,6 +18,7 @@ export function MainContent({
   return (
     <main
       style={{
+        position: "relative",
         flex: 1,
         overflow: "auto",
         background: palette.background,

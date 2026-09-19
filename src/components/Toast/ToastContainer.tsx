@@ -22,15 +22,37 @@ export function ToastContainer() {
         <div
           key={t.id}
           style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
             background: palette.surface,
-            color: palette.status[t.kind],
-            border: `1px solid ${palette.border}`,
+            color: palette.text,
+            border: `1px solid ${palette.status[t.kind]}`,
             borderRadius: 6,
             padding: "8px 12px",
             minWidth: 200,
           }}
         >
-          {t.message}
+          <div style={{ flex: 1 }}>
+            {t.title && <div style={{ fontWeight: 600, color: palette.status[t.kind] }}>{t.title}</div>}
+            <div>{t.message}</div>
+          </div>
+          <button
+            onClick={() => useAppStore.getState().dismissToast(t.id)}
+            aria-label="Dismiss"
+            title="Dismiss"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: palette.textMuted,
+              cursor: "pointer",
+              fontSize: 14,
+              lineHeight: 1,
+              padding: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
       ))}
     </div>
