@@ -1,27 +1,65 @@
 import { useState } from "react";
 import type { PluginApi } from "stewrd-plugin-api";
 
-/** Demonstrates api.ui.Drawer / InlineDialog. Both position themselves
- * against the nearest positioned ancestor, which this wrapper `div` provides
- * so the overlay stays scoped to this demo instead of covering the sidebar. */
+type Side = "left" | "right" | "top" | "bottom";
+
+/** Demonstrates api.ui.Drawer (all four sides, configurable size/speed) and
+ * api.ui.InlineDialog. Both render with `position: absolute` against
+ * `MainContent.tsx`'s `<main>` (the nearest positioned ancestor) - this demo
+ * deliberately does NOT wrap itself in its own `position: relative` div, so
+ * the Blanket dims the whole content area instead of just this section. */
 export function OverlaysDemo({ api }: { api: PluginApi }) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerSide, setDrawerSide] = useState<Side | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [size, setSize] = useState(280);
+  const [durationMs, setDurationMs] = useState(220);
 
   return (
-    <div style={{ position: "relative", minHeight: 160 }}>
-      <div style={{ display: "flex", gap: 8 }}>
-        <api.ui.TextButton label="Open Drawer" onClick={() => setDrawerOpen(true)} />
+    <div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          Size (px)
+          <input
+            type="number"
+            value={size}
+            onChange={(e) => setSize(Number(e.target.value))}
+            style={{ width: 70 }}
+          />
+        </label>
+        <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          Speed (ms)
+          <input
+            type="number"
+            value={durationMs}
+            onChange={(e) => setDurationMs(Number(e.target.value))}
+            style={{ width: 70 }}
+          />
+        </label>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <api.ui.TextButton label="Open Drawer (Left)" onClick={() => setDrawerSide("left")} />
+        <api.ui.TextButton label="Open Drawer (Right)" onClick={() => setDrawerSide("right")} />
+        <api.ui.TextButton label="Open Drawer (Top)" onClick={() => setDrawerSide("top")} />
+        <api.ui.TextButton label="Open Drawer (Bottom)" onClick={() => setDrawerSide("bottom")} />
         <api.ui.TextButton label="Open Inline Dialog" onClick={() => setDialogOpen(true)} />
       </div>
 
-      <api.ui.Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Drawer Title">
+      <api.ui.Drawer
+        open={drawerSide !== null}
+        onClose={() => setDrawerSide(null)}
+        side={drawerSide ?? "right"}
+        size={size}
+        durationMs={durationMs}
+        title={`Drawer (${drawerSide ?? "right"})`}
+      >
         <p>Drawer content goes here.</p>
       </api.ui.Drawer>
 
       <api.ui.InlineDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        durationMs={durationMs}
         title="Confirm Action"
         message="Are you sure you want to do this?"
       >

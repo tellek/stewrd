@@ -195,12 +195,18 @@ export interface LinkProps {
 // will not cover the sidebar/status bar.
 export interface BlanketProps {
   onClick?: () => void;
+  /** Fade-in duration, in ms. */
+  durationMs?: number;
 }
 
 export interface DrawerProps {
   open: boolean;
   onClose: () => void;
-  side?: "left" | "right";
+  side?: "left" | "right" | "top" | "bottom";
+  /** Width (left/right) or height (top/bottom) of the drawer, in px. */
+  size?: number;
+  /** Slide transition duration, in ms. */
+  durationMs?: number;
   title?: string;
   children?: ReactNode;
 }
@@ -208,6 +214,8 @@ export interface DrawerProps {
 export interface InlineDialogProps {
   open: boolean;
   onClose: () => void;
+  /** Fade/scale transition duration, in ms. */
+  durationMs?: number;
   title?: string;
   message?: string;
   children?: ReactNode;

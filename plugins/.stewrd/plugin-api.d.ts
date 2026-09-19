@@ -184,12 +184,15 @@ declare module "stewrd-plugin-api" {
 
   export interface BlanketProps {
     onClick?: () => void;
+    durationMs?: number;
   }
 
   export interface DrawerProps {
     open: boolean;
     onClose: () => void;
-    side?: "left" | "right";
+    side?: "left" | "right" | "top" | "bottom";
+    size?: number;
+    durationMs?: number;
     title?: string;
     children?: ReactNode;
   }
@@ -197,6 +200,7 @@ declare module "stewrd-plugin-api" {
   export interface InlineDialogProps {
     open: boolean;
     onClose: () => void;
+    durationMs?: number;
     title?: string;
     message?: string;
     children?: ReactNode;
