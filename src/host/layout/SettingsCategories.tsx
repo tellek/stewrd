@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { useAppStore } from "../state/appStore";
-import { OTHER_CATEGORY_ID } from "../../shared/category";
+import { LAYOUTS_CATEGORY_ID, OTHER_CATEGORY_ID } from "../../shared/category";
 import { getCategoryIcon, listCategoryIconNames } from "./categoryIcons";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { TextButton } from "../../components/TextButton/TextButton";
@@ -62,7 +62,11 @@ export function SettingsCategories() {
         <tbody>
           {categories.map((category) => {
             const icon = getCategoryIcon(categoryIconFiles, category.icon);
-            const isOther = category.id === OTHER_CATEGORY_ID;
+            // Both are built-in sentinel ids (Other = plugin catch-all,
+            // Layouts = the saved-layouts section, not a plugin bucket at
+            // all) - neither can be renamed, re-iconed, or deleted, but both
+            // can still be dragged to reorder like any other category.
+            const isOther = category.id === OTHER_CATEGORY_ID || category.id === LAYOUTS_CATEGORY_ID;
             const rowProps = {
               onDragOver: (e: React.DragEvent) => {
                 e.preventDefault();

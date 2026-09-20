@@ -228,9 +228,33 @@ function PaneSplitView({
           flexShrink: 0,
           background: palette.border,
           cursor: node.direction === "row" ? "col-resize" : "row-resize",
+          // Sits above both panes: the negative margins make the hit-box
+          // overlap the siblings, and the later sibling would otherwise win
+          // hit-testing over it.
+          position: "relative",
+          zIndex: 1,
+          touchAction: "none",
+          // Sizes are border-box (see App.css), so the outer size must include
+          // the padding: 7 - 3 - 3 leaves the 1px visible line (backgroundClip
+          // keeps the background off the padding), and the negative margins
+          // pull the 7px hit-box back down to 1px of layout space.
           ...(node.direction === "row"
-            ? { width: 1, marginLeft: -3, marginRight: -3, paddingLeft: 3, paddingRight: 3, backgroundClip: "content-box" }
-            : { height: 1, marginTop: -3, marginBottom: -3, paddingTop: 3, paddingBottom: 3, backgroundClip: "content-box" }),
+            ? {
+                width: 7,
+                marginLeft: -3,
+                marginRight: -3,
+                paddingLeft: 3,
+                paddingRight: 3,
+                backgroundClip: "content-box",
+              }
+            : {
+                height: 7,
+                marginTop: -3,
+                marginBottom: -3,
+                paddingTop: 3,
+                paddingBottom: 3,
+                backgroundClip: "content-box",
+              }),
         }}
       />
       <div style={{ display: "flex", flexBasis: `${sizeB}%`, minWidth: 0, minHeight: 0 }}>

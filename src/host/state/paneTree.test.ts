@@ -41,6 +41,25 @@ describe("resizeSplitInTree", () => {
     const resized = resizeSplitInTree(split, split.id, [30, 70]);
     expect(resized).toMatchObject({ sizes: [30, 70] });
   });
+
+  it("keeps resized sizes through a saved-layout clone round-trip", () => {
+    const root = createLeaf("a");
+    const split = splitLeafInTree(root, root.id, "right", "b");
+    if (split.type !== "split") throw new Error("expected split");
+    const nested = splitLeafInTree(split, split.children[1].id, "bottom", "c");
+    if (nested.type !== "split") throw new Error("expected split");
+    const outerResized = resizeSplitInTree(nested, nested.id, [30, 70]);
+    if (outerResized.type !== "split") throw new Error("expected split");
+    const innerId = outerResized.children[1].id;
+    const resized = resizeSplitInTree(outerResized, innerId, [25, 75]);
+
+    // saveLayout stores structuredClone(tree); applyLayout clones it back.
+    const roundTripped = structuredClone(structuredClone(resized));
+    expect(roundTripped).toEqual(resized);
+    expect(roundTripped).toMatchObject({ sizes: [30, 70] });
+    if (roundTripped.type !== "split") throw new Error("expected split");
+    expect(roundTripped.children[1]).toMatchObject({ sizes: [25, 75] });
+  });
 });
 
 describe("closeLeafInTree", () => {

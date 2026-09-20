@@ -39,6 +39,7 @@ export function SidebarLayouts() {
           alignItems: "center",
           gap: 6,
           padding: "6px 12px",
+          color: palette.textMuted,
           fontSize: 16,
           fontWeight: "bold",
           textTransform: "capitalize",

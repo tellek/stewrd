@@ -3,7 +3,7 @@ import type { PluginManifest } from "../../shared/plugin-api.d.ts";
 import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 import { premadePalettes } from "../../shared/palette";
 import type { CategoryDef } from "../../shared/category";
-import { DEFAULT_CATEGORIES, OTHER_CATEGORY_ID } from "../../shared/category";
+import { DEFAULT_CATEGORIES, LAYOUTS_CATEGORY_ID, OTHER_CATEGORY_ID } from "../../shared/category";
 import { loadHostSettings, saveHostSettings, type SavedLayout, type TaskbarBadgeThreshold } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
@@ -340,7 +340,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   hydrateHostSettings: async () => {
     const loaded = await loadHostSettings();
     set((state) => {
-      const categories = loaded.categories ?? state.categories;
+      // Migration: existing installs' persisted `categories` predate the
+      // built-in Layouts category - append it (at the end, user can drag it
+      // to reorder) if it's missing, so it still shows up in
+      // Settings > Categories after an upgrade instead of only existing for
+      // brand-new installs that start from DEFAULT_CATEGORIES.
+      const loadedCategories = loaded.categories ?? state.categories;
+      const categories = loadedCategories.some((c) => c.id === LAYOUTS_CATEGORY_ID)
+        ? loadedCategories
+        : [...loadedCategories, { id: LAYOUTS_CATEGORY_ID, name: "Layouts", icon: "diagram" }];
       const pluginOrder = loaded.pluginOrder ?? state.pluginOrder;
       const paletteId = loaded.paletteId ?? state.paletteId;
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
