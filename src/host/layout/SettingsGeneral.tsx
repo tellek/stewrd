@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getName, getVersion } from "@tauri-apps/api/app";
+import { getName } from "@tauri-apps/api/app";
 import { useAppStore } from "../state/appStore";
 import type { TaskbarBadgeThreshold } from "../state/hostSettings";
 
@@ -15,22 +15,17 @@ export function SettingsGeneral() {
   const taskbarBadgeThreshold = useAppStore((s) => s.taskbarBadgeThreshold);
   const setTaskbarBadgeThreshold = useAppStore((s) => s.setTaskbarBadgeThreshold);
   const [name, setName] = useState<string | null>(null);
-  const [version, setVersion] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getName(), getVersion()])
-      .then(([n, v]) => {
-        setName(n);
-        setVersion(v);
-      })
+    getName()
+      .then(setName)
       .catch((err) => setError(err instanceof Error ? err.message : String(err)));
   }, []);
 
   return (
     <div>
       {name && <p style={{ color: palette.textMuted }}>{name}</p>}
-      {version && <p style={{ color: palette.textMuted }}>Version {version}</p>}
       {error && <p style={{ color: palette.status.error }}>Couldn't read app info: {error}</p>}
 
       <h3 style={{ fontSize: 13, color: palette.text }}>Taskbar status badge</h3>

@@ -109,6 +109,7 @@ pub fn run() {
             commands::plugin_icons::get_plugin_icon,
             commands::category_icons::list_category_icons,
             commands::updates::list_releases,
+            commands::updates::pending_update_version,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

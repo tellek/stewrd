@@ -117,6 +117,19 @@ struct UpdateMeta {
     fail_count: u32,
 }
 
+/// The version currently staged in `pending-update\` and ready to apply on
+/// the next launch, if any - backs the Settings > Version tab's "restart to
+/// apply" messaging. `None` covers both "nothing staged" and "staged but
+/// unreadable/corrupt" alike; either way there's nothing to tell the user to
+/// restart for.
+#[tauri::command]
+pub fn pending_update_version() -> Option<String> {
+    let state_dir = update_state_dir().ok()?;
+    let meta_text = std::fs::read_to_string(state_dir.join("pending-update").join("meta.json")).ok()?;
+    let meta: UpdateMeta = serde_json::from_str(&meta_text).ok()?;
+    Some(meta.version)
+}
+
 fn http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent(USER_AGENT)

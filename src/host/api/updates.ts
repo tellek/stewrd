@@ -23,3 +23,10 @@ export async function listReleases(): Promise<ReleaseInfo[]> {
   cache = { releases, fetchedAt: Date.now() };
   return releases;
 }
+
+// The version currently staged and ready to apply on next launch, or null
+// if nothing is staged. Not cached - reflects live background-download
+// state, and is cheap (local disk read, no network).
+export function pendingUpdateVersion(): Promise<string | null> {
+  return invoke<string | null>("pending_update_version");
+}
