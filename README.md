@@ -285,12 +285,13 @@ Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore
 
 ### Settings (`SettingsPage.tsx` and siblings)
 
-Four tabs, all in `host/layout/`:
+Five tabs, all in `host/layout/`:
 
 - **General** (`SettingsGeneral.tsx`) — app name/version, plus the taskbar status badge threshold (see §8 above).
 - **Categories** (`SettingsCategories.tsx`) — add/rename/delete categories and assign each one an icon (from `<exe-dir>/assets/category-icons/` - see §8). Renaming a category's display `name` is safe for existing plugins; its `id` (the value a plugin's resolved `category` must match) is fixed at creation. `Other` is built-in and can't be renamed or deleted.
 - **Themes** (`SettingsThemes.tsx`) — pick a premade palette (`shared/palette.ts`'s `premadePalettes`: Dark/Light) or build a custom one (one color picker per `Palette` field) and save it. Selection persists via `hostSettings.ts` and applies live across the whole app and every plugin (`api.theme`).
 - **Plugins** (`SettingsPlugins.tsx`) — lists every discovered plugin (including disabled/errored ones, via a direct `listPlugins()` call rather than `usePluginRegistry`, which filters disabled plugins out). Every row shows exactly three buttons, in this order: **Configure** — opens the plugin's own `settings.json` as raw JSON text (`read_plugin_settings_file`/`write_plugin_settings_file` in `commands/plugin_settings.rs`, JSON-validated client- and server-side before it's written, mirroring `plugins/claude-settings-editor/index.tsx`'s own file-editing pattern) unconditionally, even for a plugin with no `settings.json` yet (a starter `{ "category": "" }` is shown); **Activate/Deactivate** (`set_plugin_disabled`, emits `plugin-changed` so the toggle takes effect immediately instead of only on next restart); **Remove** (`remove_plugin`, confirmed via `createModalApi()`, deletes the folder). An "Add plugin" file picker installs a `.zip`/`.tar`/`.tar.gz`/`.tgz` via `install_plugin_from_archive` (`commands/plugin_install.rs`) — no Tauri dialog plugin, the webview reads the picked file itself and hands the bytes over.
+- **Release Notes** (`SettingsReleaseNotes.tsx`) — fetches the last ~10 GitHub Releases (`list_releases`) and renders each one's notes as markdown. Module-level 5-minute cache in `host/api/updates.ts` since the tab unmounts/remounts on every tab switch. See §9a for the update mechanism this tab is paired with.
 
 `General`/`Categories`/`Themes` persist through `hostSettings.ts`, a thin wrapper around the same `storage_get`/`storage_set` commands plugins use, namespaced under the reserved plugin id `"__host__"`. `Plugins` is different — it doesn't go through `hostSettings.ts` at all; it manages real plugin folders/files directly via the discovery/install/remove/configure commands above, including each plugin's own `settings.json`, not host-namespaced storage.
 
@@ -313,11 +314,32 @@ All commands are plain `#[tauri::command]` functions registered directly on the 
 | (none directly — `commands/logged.rs`) | `commands/logged.rs` | Thin renamed (`#[tauri::command(rename = "...")]`) wrappers around the higher-risk fs/storage/shell/plugin-install commands above — same IPC name and behavior as the wrapped command, but logs `Err` results (to `stewrd.log` and live via the `log-line` event) before returning. The wrapped command's own file never imports or knows about logging; this is the only integration point, so a newly added risky command needs one wrapper added here, not a change to its own implementation. |
 | `get_plugin_icon` | `commands/plugin_icons.rs` | Reads a plugin's `icon.png` (by discovery `dir`, validated as a single path segment) and returns it as a data URL. |
 | `list_category_icons` | `commands/category_icons.rs` | Lists every `<name>.png` in `<exe-dir>/assets/category-icons/` (resolved via `std::env::current_exe()`, not app-data) as data URLs. Both icon commands share a `read_as_data_url` helper in `commands/icon_util.rs`. |
+| `list_releases` | `commands/updates.rs` | Fetches the last ~10 GitHub Releases for the Settings > Release Notes tab. See §9a. |
 | (none exposed to JS) | `commands/watcher.rs` | Started once in `lib.rs`'s `setup()`; watches the resolved plugins dir (1s debounce) and emits a fixed `"plugin-changed"` event with the affected directory name as its **payload** (not a per-plugin event name). The `Debouncer` handle is kept in `AppState.plugin_watcher` — dropping it silently stops delivery, so it must stay owned somewhere. |
 
 Also still registered but unused by any `PluginApi` surface: the scaffold `greet` command and `tauri_plugin_opener` init in `lib.rs` — harmless leftovers from `npm create tauri-app`, safe to remove if you're cleaning up but not currently in anyone's way.
 
 `state.rs` (`AppState`): owns the plugin watcher handle, `child_kill_senders` (normal runtime kill path) and `child_pids` (redundant, used only in the `RunEvent::Exit` handler in `lib.rs` — a synchronous OS-level `taskkill`/`kill` call, since by exit time there's no guarantee the tokio runtime is still scheduled to act on an async oneshot signal). This split exists specifically to fix a real bug (child processes like `ping`/`claude` surviving graceful app exit on Windows) — don't collapse it back into one mechanism without re-verifying that case.
+
+---
+
+## 9a. Auto-update (`commands/updates.rs`)
+
+A self-built check-and-self-replace mechanism, deliberately **not** `tauri-plugin-updater` (that assumes an NSIS-installed app; `build-release.bat` deploys loose files) and **not wired into `build-release.bat`** (that script is Topher's local dev-deploy tool only — publishing a release is a separate, manual step below). See `docs/auto-update-options.md` for the full option comparison this was scoped down from.
+
+**Version source of truth** is `tauri.conf.json`'s `version` field, not `Cargo.toml`'s — `build.rs` reads it at compile time and exposes it as `env!("STEWRD_APP_VERSION")`, so the running app's self-comparison and the tag used to publish a release can never drift independently of each other.
+
+**On every launch** (release builds only — gated `#[cfg(not(debug_assertions))]` in `lib.rs`, since a dev build's `current_exe()` points at `target/debug/stewrd.exe`):
+1. `apply_pending_update_if_present()` runs first, before the Tauri `Builder` even exists — if a newer build was staged last session, it uses the [`self-replace`](https://docs.rs/self_replace) crate to swap the running exe on disk for the staged one (the *next* launch picks up the new file; this process keeps running old code in memory until then), copies `assets/` over add-only, and writes a `just-updated.json` marker.
+2. In `.setup()`, that marker (if present) produces a one-time `"Updated to vX.Y.Z."` status-bar log and **skips** this launch's check (avoids immediately re-downloading the release just applied). Otherwise, a background task hits `GET https://api.github.com/repos/tellek/stewrd/releases/latest`; a failure of any kind just logs a `"warning"`-level status-bar line and the app continues normally. A newer version triggers a download of the release's `.zip`+`.sig` assets, a minisign signature check against the public key embedded in `updates.rs` (`minisign-verify` crate), extraction, and an atomic-rename commit into `%LOCALAPPDATA%\stewrd\pending-update\` — then a `"success"` status-bar log telling the user to restart.
+
+An `update.lock` file (opened with `share_mode(0)` — Rust's default `OpenOptions` does *not* exclude a second opener on Windows) coordinates both flows against two concurrently-running instances.
+
+**Publishing a release** (manual, not scripted — `gh` CLI required):
+1. Bump `version` in `tauri.conf.json` (and `package.json`/`Cargo.toml` for consistency).
+2. `npx tauri build`, then stage a filtered copy of `src-tauri/target/release` (exclude build-artifact noise the same way `build-release.bat`'s own robocopy does) plus `assets/` into a scratch dir, and zip its contents — `stewrd.exe` and `assets/` must land at the zip root.
+3. Sign it: `npx tauri signer sign -k "$env:TAURI_SIGNING_PRIVATE_KEY" -p "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" stewrd-v<version>-windows.zip`. The private key lives outside the repo at `C:\Users\chris\.stewrd-signing\update-signing-key` (passwordless) — **back it up**; losing it means no future update can ever be verified again by installs that already have the embedded public key.
+4. `git tag v<version> && git push origin v<version>`, then `gh release create v<version> stewrd-v<version>-windows.zip stewrd-v<version>-windows.zip.sig --generate-notes`.
 
 ---
 

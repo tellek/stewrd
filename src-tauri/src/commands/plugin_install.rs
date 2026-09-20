@@ -14,13 +14,13 @@ use tauri::AppHandle;
 /// root. Both supported archive kinds (zip, tar/tar.gz) are normalized into
 /// this shape so the rest of the install logic - prefix stripping,
 /// plugin.json lookup, extraction - is written once.
-struct ArchiveEntry {
-    path: String,
-    is_dir: bool,
-    contents: Vec<u8>,
+pub(crate) struct ArchiveEntry {
+    pub(crate) path: String,
+    pub(crate) is_dir: bool,
+    pub(crate) contents: Vec<u8>,
 }
 
-fn read_zip_entries(bytes: &[u8]) -> Result<Vec<ArchiveEntry>, String> {
+pub(crate) fn read_zip_entries(bytes: &[u8]) -> Result<Vec<ArchiveEntry>, String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| format!("invalid zip archive: {e}"))?;
     let mut entries = Vec::with_capacity(archive.len());
     for i in 0..archive.len() {
@@ -86,7 +86,7 @@ fn read_archive_entries(bytes: &[u8], file_name: &str) -> Result<Vec<ArchiveEntr
 /// used as a directory by at least one entry (some entry path has a `/`
 /// after it) - not just "first segment of the first entry", which would
 /// misfire on an archive containing exactly one root-level file.
-fn detect_common_prefix(entries: &[ArchiveEntry]) -> Option<String> {
+pub(crate) fn detect_common_prefix(entries: &[ArchiveEntry]) -> Option<String> {
     let mut first_segment: Option<&str> = None;
     let mut segment_used_as_dir = false;
     for entry in entries {
@@ -112,7 +112,7 @@ fn detect_common_prefix(entries: &[ArchiveEntry]) -> Option<String> {
     }
 }
 
-fn strip_prefix(path: &str, prefix: &Option<String>) -> String {
+pub(crate) fn strip_prefix(path: &str, prefix: &Option<String>) -> String {
     match prefix {
         Some(p) => path.strip_prefix(p).and_then(|s| s.strip_prefix('/')).unwrap_or(path).to_string(),
         None => path.to_string(),
@@ -158,7 +158,7 @@ pub fn install_plugin_from_archive(app: AppHandle, bytes: Vec<u8>, file_name: St
     Ok(dir_name)
 }
 
-fn extract_entries(entries: &[ArchiveEntry], prefix: &Option<String>, target_dir: &Path) -> Result<(), String> {
+pub(crate) fn extract_entries(entries: &[ArchiveEntry], prefix: &Option<String>, target_dir: &Path) -> Result<(), String> {
     for entry in entries {
         let relative = strip_prefix(&entry.path, prefix);
         if relative.is_empty() {

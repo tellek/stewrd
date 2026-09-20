@@ -8,6 +8,21 @@ fn main() {
 
     tauri_build::build();
 
+    // Auto-update (commands/updates.rs) needs a single version source of truth
+    // that's shared between the running app's self-comparison and the value
+    // used to tag/publish a release - tauri.conf.json's `version` field, not
+    // Cargo.toml's (which is easy to forget bumping and would otherwise cause
+    // a same-version-forever update loop or a silent downgrade). Expose it as
+    // a compile-time env var so both the pre-Builder apply step (no AppHandle
+    // yet) and the post-setup check task can read the same constant.
+    let manifest_dir_for_conf = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+    let conf_path = manifest_dir_for_conf.join("tauri.conf.json");
+    println!("cargo:rerun-if-changed={}", conf_path.display());
+    let conf_text = fs::read_to_string(&conf_path).expect("could not read tauri.conf.json");
+    let conf: serde_json::Value = serde_json::from_str(&conf_text).expect("tauri.conf.json is not valid JSON");
+    let app_version = conf["version"].as_str().expect("tauri.conf.json is missing a string `version` field");
+    println!("cargo:rustc-env=STEWRD_APP_VERSION={app_version}");
+
     // `bundle.resources` in tauri.conf.json only copies files during
     // `tauri build`. For `cargo run`/`tauri dev`, mirror the same
     // src/assets/category-icons/ -> <exe-dir>/assets/category-icons/ layout

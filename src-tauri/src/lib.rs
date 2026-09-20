@@ -14,6 +14,13 @@ fn greet(name: &str) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Applies a previously-downloaded update (if any) before anything else
+    // starts - see commands/updates.rs. Debug-gated: a dev build's
+    // current_exe() points at target/debug/stewrd.exe, and this must never
+    // touch that.
+    #[cfg(not(debug_assertions))]
+    commands::updates::apply_pending_update_if_present();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
@@ -41,6 +48,22 @@ pub fn run() {
                     .unwrap_or_default();
                 log_line_to_disk_and_ui(&panic_app_handle, "error", None, &format!("panic: {message}{location}"));
             }));
+
+            // Auto-update: log the one-time "Updated to vX.Y.Z" confirmation
+            // if apply_pending_update_if_present() just ran, then spawn the
+            // background version check - unless this same launch already
+            // just applied an update, in which case checking again would
+            // immediately re-download the release just installed (this
+            // process still has the pre-update version compiled in until
+            // its own next restart).
+            #[cfg(not(debug_assertions))]
+            {
+                let just_updated = commands::updates::consume_just_updated_marker(&app_handle);
+                if !just_updated {
+                    let check_app_handle = app_handle.clone();
+                    tauri::async_runtime::spawn(commands::updates::check_for_update(check_app_handle));
+                }
+            }
 
             let plugins_dir = commands::plugins::resolve_plugins_dir(&app_handle)?;
             match commands::watcher::start_watching(app_handle.clone(), plugins_dir) {
@@ -85,6 +108,7 @@ pub fn run() {
             commands::interval::stop_interval,
             commands::plugin_icons::get_plugin_icon,
             commands::category_icons::list_category_icons,
+            commands::updates::list_releases,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

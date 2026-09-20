@@ -4,14 +4,16 @@ import { SettingsGeneral } from "./SettingsGeneral";
 import { SettingsCategories } from "./SettingsCategories";
 import { SettingsThemes } from "./SettingsThemes";
 import { SettingsPlugins } from "./SettingsPlugins";
+import { SettingsReleaseNotes } from "./SettingsReleaseNotes";
 
-type SettingsTab = "general" | "categories" | "themes" | "plugins";
+type SettingsTab = "general" | "categories" | "themes" | "plugins" | "releaseNotes";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
   { id: "categories", label: "Categories" },
   { id: "themes", label: "Themes" },
   { id: "plugins", label: "Plugins" },
+  { id: "releaseNotes", label: "Release Notes" },
 ];
 
 export function SettingsPage() {
@@ -44,6 +46,7 @@ export function SettingsPage() {
       {tab === "categories" && <SettingsCategories />}
       {tab === "themes" && <SettingsThemes />}
       {tab === "plugins" && <SettingsPlugins />}
+      {tab === "releaseNotes" && <SettingsReleaseNotes />}
     </div>
   );
 }

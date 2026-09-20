@@ -11,4 +11,5 @@ pub mod plugin_settings;
 pub mod plugins;
 pub mod shell;
 pub mod storage;
+pub mod updates;
 pub mod watcher;
