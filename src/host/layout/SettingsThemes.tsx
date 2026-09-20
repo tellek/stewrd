@@ -90,7 +90,7 @@ export function SettingsThemes() {
     .filter((pp) => overrideMap.has(pp.id) || !hiddenPaletteIds.includes(pp.id))
     .map((pp) => overrideMap.get(pp.id) ?? pp);
   const pureCustom = customPalettes.filter((c) => !premadePalettes.some((pp) => pp.id === c.id));
-  const allPalettes = [...mergedPremade, ...pureCustom];
+  const allPalettes = [...mergedPremade, ...pureCustom].sort((a, b) => a.name.localeCompare(b.name));
 
   function startCreate() {
     setDraftName("");
