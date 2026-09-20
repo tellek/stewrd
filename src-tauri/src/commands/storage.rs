@@ -1,14 +1,16 @@
 // Per-plugin key/value storage, namespaced automatically under the plugin's
-// own app-data folder - plugin authors never construct the path themselves.
-// Writes are atomic (tmp-file-then-rename), since a plugin's tick loop writing
-// on the same file as e.g. Notepad's autosave is a realistic day-one path to a
-// torn/corrupted JSON file with a naive overwrite. Plaintext JSON on disk -
-// documented as such so plugin authors know not to put secrets in it.
+// own folder inside the plugins directory - plugin authors never construct
+// the path themselves. Writes are atomic (tmp-file-then-rename), since a
+// plugin's tick loop writing on the same file as e.g. Notepad's autosave is a
+// realistic day-one path to a torn/corrupted JSON file with a naive
+// overwrite. Plaintext JSON on disk - documented as such so plugin authors
+// know not to put secrets in it.
+use super::plugins::resolve_plugins_dir;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// storage_set does read-whole-file, mutate one key, write-whole-file - two
 /// concurrent storage_set calls for the *same* plugin_id (e.g. several
@@ -25,13 +27,9 @@ fn write_lock() -> &'static Mutex<()> {
 }
 
 fn storage_path(app: &AppHandle, plugin_id: &str) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?
-        .join("storage");
+    let dir = resolve_plugins_dir(app)?.join(plugin_id);
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
-    Ok(dir.join(format!("{plugin_id}.json")))
+    Ok(dir.join("storage.json"))
 }
 
 fn read_store(path: &PathBuf) -> HashMap<String, Value> {

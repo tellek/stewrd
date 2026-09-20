@@ -43,7 +43,6 @@ pub fn run() {
             }));
 
             let plugins_dir = commands::plugins::resolve_plugins_dir(&app_handle)?;
-            commands::plugins::migrate_legacy_appdata_plugins(&app_handle, &plugins_dir);
             match commands::watcher::start_watching(app_handle.clone(), plugins_dir) {
                 Ok(debouncer) => {
                     let state = app_handle.state::<AppState>();

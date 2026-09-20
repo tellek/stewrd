@@ -1,4 +1,4 @@
-// Rolling persistent log file in app-data. Two things write to it: explicit
+// Rolling persistent log file next to the running executable. Two things write to it: explicit
 // host/plugin log calls via append_log_line (JS builds the line), and the
 // commands in `logged.rs` + the panic hook in lib.rs (Rust builds the line
 // itself, via log_command_error / log_line_from_parts) - both paths funnel
@@ -9,22 +9,22 @@
 // JSON, breaking the frontend's line-by-line JSON.parse on hydration.
 use serde_json::json;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 const MAX_LOG_BYTES: u64 = 2 * 1024 * 1024;
 
-fn log_path(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join("stewrd.log")
+fn log_path(log_dir: &Path) -> PathBuf {
+    log_dir.join("stewrd.log")
 }
 
-pub fn append_log_line_internal(app_data_dir: &Path, line: &str) -> Result<(), String> {
-    std::fs::create_dir_all(app_data_dir)
-        .map_err(|e| format!("could not create {}: {e}", app_data_dir.display()))?;
-    let path = log_path(app_data_dir);
+pub fn append_log_line_internal(log_dir: &Path, line: &str) -> Result<(), String> {
+    std::fs::create_dir_all(log_dir)
+        .map_err(|e| format!("could not create {}: {e}", log_dir.display()))?;
+    let path = log_path(log_dir);
 
     if let Ok(meta) = std::fs::metadata(&path) {
         if meta.len() > MAX_LOG_BYTES {
-            let _ = std::fs::rename(&path, app_data_dir.join("stewrd.log.old"));
+            let _ = std::fs::rename(&path, log_dir.join("stewrd.log.old"));
         }
     }
 
@@ -38,11 +38,8 @@ pub fn append_log_line_internal(app_data_dir: &Path, line: &str) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn append_log_line(app: AppHandle, line: String) -> Result<(), String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?;
+pub fn append_log_line(_app: AppHandle, line: String) -> Result<(), String> {
+    let dir = super::path_util::exe_dir()?;
     append_log_line_internal(&dir, &line)
 }
 
@@ -64,7 +61,7 @@ pub fn build_log_line(level: &str, plugin_id: Option<&str>, message: &str) -> St
 /// frontend only ever needs one listener for backend-originated log lines.
 pub fn log_line_to_disk_and_ui(app: &AppHandle, level: &str, plugin_id: Option<&str>, message: &str) {
     let line = build_log_line(level, plugin_id, message);
-    if let Ok(dir) = app.path().app_data_dir() {
+    if let Ok(dir) = super::path_util::exe_dir() {
         let _ = append_log_line_internal(&dir, &line);
     }
     let _ = app.emit("log-line", line);
@@ -82,11 +79,8 @@ pub fn log_command_error(app: &AppHandle, command: &str, err: &str) {
 /// confusing doubled history across a rotation boundary, and avoids shipping
 /// up to 2MB+ over IPC just to truncate it into the frontend's ring buffer).
 #[tauri::command]
-pub fn read_log_lines(app: AppHandle, max_lines: usize) -> Result<Vec<String>, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?;
+pub fn read_log_lines(_app: AppHandle, max_lines: usize) -> Result<Vec<String>, String> {
+    let dir = super::path_util::exe_dir()?;
     let path = log_path(&dir);
     let contents = match std::fs::read_to_string(&path) {
         Ok(c) => c,

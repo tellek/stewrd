@@ -4,6 +4,20 @@
 // shared rather than re-derived per call site.
 use std::path::{Path, PathBuf};
 
+/// The folder the running executable lives in - the single root everything
+/// app-level (log file, boot-marks/disabled-plugins state, the `plugins`
+/// folder itself) is anchored under. Deliberately has no app-data fallback:
+/// this app is portable-by-design, so if the exe's own folder isn't
+/// writable that's a real error, not something to silently paper over by
+/// writing somewhere the user didn't install it.
+pub(crate) fn exe_dir() -> Result<PathBuf, String> {
+    std::env::current_exe()
+        .map_err(|e| format!("could not resolve current exe path: {e}"))?
+        .parent()
+        .ok_or_else(|| "exe path has no parent directory".to_string())
+        .map(|p| p.to_path_buf())
+}
+
 /// Resolves `..`/`.` components without touching the filesystem (unlike
 /// `Path::canonicalize`, which requires the path to exist). Used to check
 /// whether a relative path - e.g. one entry's name out of an archive -

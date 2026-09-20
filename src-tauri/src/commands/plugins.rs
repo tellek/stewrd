@@ -5,7 +5,7 @@ use super::path_util::sanitize_dir_name;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 const SUPPORTED_API_VERSION: &str = "1";
 const DISABLED_PLUGINS_FILE: &str = "disabled-plugins.json";
@@ -55,96 +55,19 @@ pub enum PluginDiscoveryEntry {
 }
 
 /// Resolution order: `STEWRD_PLUGINS` env var (dev convenience) -> a
-/// `plugins` folder next to the running executable (portable install) -> the
-/// per-user app-data plugins directory, only as a last-resort fallback if the
-/// exe's own folder isn't writable (e.g. a Program Files install). The
-/// read-only bundled-plugins tier is a packaging concern deferred to
-/// Milestone 7.
-pub fn resolve_plugins_dir(app: &AppHandle) -> Result<PathBuf, String> {
+/// `plugins` folder next to the running executable. This app is portable by
+/// design - there is no app-data fallback tier.
+pub fn resolve_plugins_dir(_app: &AppHandle) -> Result<PathBuf, String> {
     if let Ok(dir) = std::env::var("STEWRD_PLUGINS") {
         return Ok(PathBuf::from(dir));
     }
-    let exe_dir = std::env::current_exe()
-        .map_err(|e| format!("could not resolve current exe path: {e}"))?
-        .parent()
-        .ok_or_else(|| "exe path has no parent directory".to_string())?
-        .to_path_buf();
-    let plugins_dir = exe_dir.join("plugins");
-    // A hard error here would propagate out of `setup()` via `?` and the app
-    // would never open a window at all - so treat an unwritable exe dir
-    // (Program Files, etc.) as a fallback to the old AppData location instead
-    // of a fatal error.
-    if std::fs::create_dir_all(&plugins_dir).is_ok() {
-        return Ok(plugins_dir);
-    }
-    let fallback = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?
-        .join("plugins");
-    std::fs::create_dir_all(&fallback)
-        .map_err(|e| format!("could not create {} or {}: {e}", plugins_dir.display(), fallback.display()))?;
-    Ok(fallback)
+    let plugins_dir = super::path_util::exe_dir()?.join("plugins");
+    std::fs::create_dir_all(&plugins_dir).map_err(|e| format!("could not create {}: {e}", plugins_dir.display()))?;
+    Ok(plugins_dir)
 }
 
-/// One-time best-effort copy of any plugins already installed under the old
-/// AppData plugins location into the new portable `<exe-dir>/plugins`
-/// location, so an existing install doesn't silently lose its plugins the
-/// first time it launches after this change. Never moves/deletes the old
-/// copy, and never errors the app out - failures are logged only.
-pub fn migrate_legacy_appdata_plugins(app: &AppHandle, plugins_dir: &Path) {
-    let has_entries = std::fs::read_dir(plugins_dir).map(|mut rd| rd.next().is_some()).unwrap_or(false);
-    if has_entries {
-        return; // new location already has something - nothing to do
-    }
-    let Ok(app_data) = app.path().app_data_dir() else { return };
-    let legacy_dir = app_data.join("plugins");
-    if legacy_dir == *plugins_dir {
-        return; // fallback tier resolved to the same folder - no migration needed
-    }
-    let Ok(read_dir) = std::fs::read_dir(&legacy_dir) else { return };
-    let mut migrated = 0;
-    for entry in read_dir.flatten() {
-        let src = entry.path();
-        if !src.is_dir() {
-            continue;
-        }
-        let Some(name) = src.file_name() else { continue };
-        let dest = plugins_dir.join(name);
-        if copy_dir_recursive(&src, &dest).is_ok() {
-            migrated += 1;
-        } else {
-            eprintln!("[stewrd] warning: failed to migrate plugin folder {}", src.display());
-        }
-    }
-    if migrated > 0 {
-        eprintln!(
-            "[stewrd] migrated {migrated} plugin folder(s) from {} to {}",
-            legacy_dir.display(),
-            plugins_dir.display()
-        );
-    }
-}
-
-fn copy_dir_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(dest)?;
-    for entry in std::fs::read_dir(src)?.flatten() {
-        let entry_path = entry.path();
-        let dest_path = dest.join(entry.file_name());
-        if entry_path.is_dir() {
-            copy_dir_recursive(&entry_path, &dest_path)?;
-        } else {
-            std::fs::copy(&entry_path, &dest_path)?;
-        }
-    }
-    Ok(())
-}
-
-fn app_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?;
+fn app_state_dir(_app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = super::path_util::exe_dir()?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     Ok(dir)
 }
@@ -175,7 +98,7 @@ fn write_id_set(path: &Path, ids: &HashSet<String>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn is_safe_mode(app: AppHandle) -> Result<bool, String> {
-    let dir = app_data_dir(&app)?;
+    let dir = app_state_dir(&app)?;
     Ok(dir.join(SAFE_MODE_FILE).exists())
 }
 
@@ -186,7 +109,7 @@ pub fn is_safe_mode(app: AppHandle) -> Result<bool, String> {
 /// are cleared so this run starts fresh.
 #[tauri::command]
 pub fn reconcile_boot_marks(app: AppHandle) -> Result<Vec<String>, String> {
-    let dir = app_data_dir(&app)?;
+    let dir = app_state_dir(&app)?;
     let marks_path = dir.join(BOOT_MARKS_FILE);
     let stale = read_id_set(&marks_path);
 
@@ -206,7 +129,7 @@ pub fn reconcile_boot_marks(app: AppHandle) -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub fn mark_plugin_attempt(app: AppHandle, plugin_id: String) -> Result<(), String> {
-    let dir = app_data_dir(&app)?;
+    let dir = app_state_dir(&app)?;
     let marks_path = dir.join(BOOT_MARKS_FILE);
     let mut marks = read_id_set(&marks_path);
     marks.insert(plugin_id);
@@ -215,7 +138,7 @@ pub fn mark_plugin_attempt(app: AppHandle, plugin_id: String) -> Result<(), Stri
 
 #[tauri::command]
 pub fn clear_plugin_attempt(app: AppHandle, plugin_id: String) -> Result<(), String> {
-    let dir = app_data_dir(&app)?;
+    let dir = app_state_dir(&app)?;
     let marks_path = dir.join(BOOT_MARKS_FILE);
     let mut marks = read_id_set(&marks_path);
     marks.remove(&plugin_id);
@@ -225,12 +148,12 @@ pub fn clear_plugin_attempt(app: AppHandle, plugin_id: String) -> Result<(), Str
 /// `dir` is only used to notify the watcher-driven hot-reload path below -
 /// the actual enabled/disabled state is still keyed by `plugin_id`, same as
 /// before. Without the emit, toggling this from the UI updated
-/// `disabled-plugins.json` (under `app_data_dir()`, which nothing watches)
+/// `disabled-plugins.json` (under `app_state_dir()`, which nothing watches)
 /// but left the already-loaded plugin instance running untouched until the
 /// next full app restart.
 #[tauri::command]
 pub fn set_plugin_disabled(app: AppHandle, plugin_id: String, dir: String, disabled: bool) -> Result<(), String> {
-    let app_data = app_data_dir(&app)?;
+    let app_data = app_state_dir(&app)?;
     let disabled_path = app_data.join(DISABLED_PLUGINS_FILE);
     let mut ids = read_id_set(&disabled_path);
     if disabled {
@@ -304,7 +227,7 @@ fn resolve_settings_string(settings_value: &Option<serde_json::Value>, key: &str
 #[tauri::command]
 pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String> {
     let plugins_dir = resolve_plugins_dir(&app)?;
-    let disabled_path = app_data_dir(&app)?.join(DISABLED_PLUGINS_FILE);
+    let disabled_path = app_state_dir(&app)?.join(DISABLED_PLUGINS_FILE);
     let disabled_ids = read_id_set(&disabled_path);
 
     let mut entries = Vec::new();

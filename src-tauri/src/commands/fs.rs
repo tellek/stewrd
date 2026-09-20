@@ -1,20 +1,17 @@
-// Plugin-facing raw file access, namespaced under the plugin's own app-data
-// folder automatically (mirrors storage.rs's atomic-write approach). watchFile
-// is deferred - no plugin needs it yet (Milestone 4's build order omits fs
-// entirely; readTextFile/writeTextFile are implemented now since they're a
-// near-zero-marginal-cost mirror of storage.rs, but watchFile needs genuinely
-// new per-file watcher lifecycle infrastructure with no consumer yet).
+// Plugin-facing raw file access, namespaced under the plugin's own folder
+// inside the plugins directory automatically (mirrors storage.rs's
+// atomic-write approach). watchFile is deferred - no plugin needs it yet
+// (Milestone 4's build order omits fs entirely; readTextFile/writeTextFile
+// are implemented now since they're a near-zero-marginal-cost mirror of
+// storage.rs, but watchFile needs genuinely new per-file watcher lifecycle
+// infrastructure with no consumer yet).
 use super::path_util::path_clean;
+use super::plugins::resolve_plugins_dir;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 fn plugin_fs_root(app: &AppHandle, plugin_id: &str) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("could not resolve app data dir: {e}"))?
-        .join("plugin-fs")
-        .join(plugin_id);
+    let dir = resolve_plugins_dir(app)?.join(plugin_id).join("data");
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     Ok(dir)
 }
