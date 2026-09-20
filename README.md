@@ -4,6 +4,10 @@ A personal, cross-platform (Windows/macOS/Linux) desktop app whose functionality
 
 Built with **Tauri 2 (Rust backend) + React 19 + TypeScript + Zustand**, plugin bundles built with **esbuild**. One plugin (`claude-settings-editor`) is currently Windows-only (shells out to `powershell`) — the host itself is not.
 
+## License
+
+Stewrd is source-available under the [Business Source License 1.1](LICENSE). Personal, non-commercial use is free. Commercial/company use requires a paid license — contact chrisbirth@gmail.com. On 2030-01-01 (or 4 years after each version's release, whichever is first), that version converts to Apache 2.0. Donations are welcome and appreciated if you find this useful.
+
 > **Maintenance note for future readers (human or AI):** `claude.md` at the repo root points here as a good source of detail before starting work. This file is meant to be updated incrementally — when you add/change a host API, a Rust command, or a major mechanism, update the relevant section below in the same commit. Don't let this drift from the code; when in doubt, the source files linked in each section are the ground truth and this doc should be corrected to match them, not the other way around. Every claim below was verified against the source as of this writing — if you find one that no longer matches, fix it rather than assuming it's still close enough.
 
 ---
