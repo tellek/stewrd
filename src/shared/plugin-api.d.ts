@@ -14,6 +14,7 @@ import type { ShellApi } from "../host/api/shell";
 import type { StorageApi } from "../host/api/storage";
 import type { FsApi } from "../host/api/fs";
 import type { LogApi } from "../host/api/logging";
+import type { AiApi } from "../host/api/ai";
 
 export interface PluginManifest {
   id: string;
@@ -351,6 +352,10 @@ export interface PluginApi {
   storage: StorageApi;
   fs: FsApi;
   log: LogApi;
+  /** Headless AI CLI invocation - the single launch point for this app's
+   * "spawn claude headlessly" functionality, kept behind one surface so a
+   * different AI provider can be substituted later. See host/api/ai.ts. */
+  ai: AiApi;
 }
 
 export interface PluginContext {

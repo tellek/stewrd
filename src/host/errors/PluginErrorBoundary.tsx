@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Banner } from "../../components/Banner/Banner";
 import { TextButton } from "../../components/TextButton/TextButton";
+import { logToHost } from "../api/logging";
 
 interface Props {
   pluginId: string;
@@ -26,6 +27,7 @@ export class PluginErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(`[plugin:${this.props.pluginId}] render error`, error, info.componentStack);
+    logToHost("error", `render error: ${error.message}`, this.props.pluginId);
   }
 
   private reload = () => {

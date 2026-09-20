@@ -9,6 +9,7 @@
 // callback fails loudly rather than quietly corrupting live state. storage/
 // shell/fs/modal are not guarded this way - the AbortSignal is the intended
 // cancellation mechanism for those (per docs/architecture-plan.md).
+import { createAiApi } from "./ai";
 import { createFsApi } from "./fs";
 import { createLogApi, logToHost } from "./logging";
 import { createModalApi } from "./modals";
@@ -144,6 +145,7 @@ export function createPluginContext(pluginId: string, generation: number): Creat
       warn: guardVoid(pluginId, generation, logBase.warn),
       error: guardVoid(pluginId, generation, logBase.error),
     },
+    ai: createAiApi(),
   };
 
   const ctx: PluginContext = {

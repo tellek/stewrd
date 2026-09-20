@@ -135,12 +135,19 @@ export class Harvester {
 
     const [wikiBefore, processedBefore] = await Promise.all([snapshotDir(api, "wiki"), snapshotDir(api, "processed")]);
     const rootPath = await api.fs.getRootPath();
-    const args = ["-p", PROMPT, "--allowedTools", "Read,Write,Edit", "--permission-mode", "acceptEdits", ...fileNames.map((f) => `harvest/${f}`)];
+    const extraArgs = [
+      "--allowedTools",
+      "Read,Write,Edit",
+      "--permission-mode",
+      "acceptEdits",
+      ...fileNames.map((f) => `harvest/${f}`),
+    ];
 
-    let result: { code: number } | null = null;
+    let result: string | null = null;
     try {
-      const handle = api.shell.spawn("claude", args, {
+      const handle = api.ai.run(PROMPT, {
         cwd: rootPath,
+        extraArgs,
         onStderr: (chunk) => api.log.warn(`notepad harvester: ${chunk}`),
       });
       this.activeKill = () => handle.kill();

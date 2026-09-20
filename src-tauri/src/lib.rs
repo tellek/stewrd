@@ -3,6 +3,7 @@ mod commands;
 mod state;
 
 use commands::interval::IntervalState;
+use commands::logging::log_line_to_disk_and_ui;
 use state::AppState;
 use tauri::Manager;
 
@@ -19,6 +20,28 @@ pub fn run() {
         .manage(IntervalState::default())
         .setup(|app| {
             let app_handle = app.handle().clone();
+
+            // Global panic hook: writes straight to stewrd.log and, if the
+            // process survives (dev/debug - release builds abort right after
+            // per Cargo.toml's panic="abort", so the emit below only reaches
+            // a running UI in dev/debug builds; the file write still lands
+            // either way), pushes it live via the same `log-line` event the
+            // wrapped commands in commands/logged.rs use.
+            let panic_app_handle = app_handle.clone();
+            std::panic::set_hook(Box::new(move |info| {
+                let message = info
+                    .payload()
+                    .downcast_ref::<&str>()
+                    .map(|s| s.to_string())
+                    .or_else(|| info.payload().downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_string());
+                let location = info
+                    .location()
+                    .map(|l| format!(" ({}:{}:{})", l.file(), l.line(), l.column()))
+                    .unwrap_or_default();
+                log_line_to_disk_and_ui(&panic_app_handle, "error", None, &format!("panic: {message}{location}"));
+            }));
+
             let plugins_dir = commands::plugins::resolve_plugins_dir(&app_handle)?;
             commands::plugins::migrate_legacy_appdata_plugins(&app_handle, &plugins_dir);
             match commands::watcher::start_watching(app_handle.clone(), plugins_dir) {
@@ -41,23 +64,24 @@ pub fn run() {
             commands::plugins::clear_plugin_attempt,
             commands::plugins::set_plugin_disabled,
             commands::plugins::remove_plugin,
-            commands::plugin_install::install_plugin_from_archive,
+            commands::logged::install_plugin_from_archive_logged,
             commands::plugin_settings::read_plugin_settings_file,
             commands::plugin_settings::write_plugin_settings_file,
-            commands::storage::storage_get,
-            commands::storage::storage_set,
-            commands::storage::storage_get_all,
+            commands::logged::storage_get_logged,
+            commands::logged::storage_set_logged,
+            commands::logged::storage_get_all_logged,
             commands::logging::append_log_line,
-            commands::shell::run_command,
-            commands::shell::spawn_command,
+            commands::logging::read_log_lines,
+            commands::logged::run_command_logged,
+            commands::logged::spawn_command_logged,
             commands::shell::kill_command,
-            commands::fs::fs_read_text_file,
-            commands::fs::fs_write_text_file,
+            commands::logged::fs_read_text_file_logged,
+            commands::logged::fs_write_text_file_logged,
             commands::fs::fs_read_data_url,
             commands::fs::fs_list_dir,
             commands::fs::fs_get_root_path,
-            commands::fs::fs_delete_file,
-            commands::fs::fs_rename_file,
+            commands::logged::fs_delete_file_logged,
+            commands::logged::fs_rename_file_logged,
             commands::interval::start_interval,
             commands::interval::stop_interval,
             commands::plugin_icons::get_plugin_icon,

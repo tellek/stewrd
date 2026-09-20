@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { usePluginRegistry } from "./host/loader/usePluginRegistry";
 import { registerGlobalErrorHandlers } from "./host/errors/globalErrorHandlers";
 import { useAppStore } from "./host/state/appStore";
@@ -32,6 +33,8 @@ function App() {
   const hostSettingsLoaded = useAppStore((s) => s.hostSettingsLoaded);
   const hydrateHostSettings = useAppStore((s) => s.hydrateHostSettings);
   const loadCategoryIcons = useAppStore((s) => s.loadCategoryIcons);
+  const hydrateStatusLog = useAppStore((s) => s.hydrateStatusLog);
+  const appendRemoteLogLine = useAppStore((s) => s.appendRemoteLogLine);
   // Selecting just the derived status string (not the whole `plugins`
   // object) matters here: zustand's default equality check then skips
   // re-rendering App when plugin metadata changes without the worst status
@@ -45,6 +48,18 @@ function App() {
   useEffect(() => {
     hydrateHostSettings();
     loadCategoryIcons();
+    hydrateStatusLog();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rust-originated log lines (wrapped command errors, panics - see
+  // commands/logged.rs / lib.rs's panic hook) arrive here live, separately
+  // from hydrateStatusLog's on-mount disk read.
+  useEffect(() => {
+    const unlistenPromise = listen<string>("log-line", (event) => appendRemoteLogLine(event.payload));
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

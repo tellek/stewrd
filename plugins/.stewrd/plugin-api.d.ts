@@ -345,6 +345,20 @@ declare module "stewrd-plugin-api" {
       watchFile(path: string, onChange: () => void): () => void;
     };
     log: { info(msg: string): void; warn(msg: string): void; error(msg: string): void };
+    ai: {
+      run(
+        prompt: string,
+        opts?: {
+          model?: string;
+          allowedTools?: string[];
+          disallowedTools?: string[];
+          extraArgs?: string[];
+          cwd?: string;
+          onStdout?: (chunk: string) => void;
+          onStderr?: (chunk: string) => void;
+        },
+      ): { readonly pid: number; kill(): void; done: Promise<string> };
+    };
   }
 
   export interface PluginContext {

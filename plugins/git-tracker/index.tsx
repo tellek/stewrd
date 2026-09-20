@@ -119,11 +119,11 @@ export function Component({ api }: { api: PluginApi }) {
     const prompt =
       "In one short sentence, summarize this git repo's current state for a busy developer:\n\n" +
       `Status:\n${result.statusOutput}\n\nLast commit:\n${result.lastCommit}`;
-    const child = api.shell.spawn("claude", ["-p", prompt], {
+    const child = api.ai.run(prompt, {
       onStdout: (chunk) => setClaudeResponse((prev) => prev + chunk),
       onStderr: (chunk) => api.log.warn(chunk),
     });
-    await child.done;
+    await child.done.catch(() => {});
     setAsking(false);
   }
 

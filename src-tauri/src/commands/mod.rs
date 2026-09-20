@@ -2,6 +2,7 @@ pub mod category_icons;
 pub mod fs;
 pub mod icon_util;
 pub mod interval;
+pub mod logged;
 pub mod logging;
 pub mod path_util;
 pub mod plugin_icons;

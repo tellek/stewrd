@@ -24,7 +24,7 @@ export function StatusBar() {
             bottom: "100%",
             left: 0,
             right: 0,
-            maxHeight: 160,
+            maxHeight: "25vh",
             overflowY: "auto",
             padding: "8px 12px",
             background: palette.surface,

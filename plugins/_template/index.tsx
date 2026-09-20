@@ -15,6 +15,8 @@ import { OverlaysDemo } from "./demos/OverlaysDemo";
 import { MessagingDemo } from "./demos/MessagingDemo";
 import { CalendarDemo } from "./demos/CalendarDemo";
 import { TextAreaDemo } from "./demos/TextAreaDemo";
+import { ErrorsDemo } from "./demos/ErrorsDemo";
+import { AiDemo } from "./demos/AiDemo";
 
 export function activate(ctx: PluginContext) {
   ctx.api.log.info("template plugin activated");
@@ -81,6 +83,14 @@ export function activate(ctx: PluginContext) {
 
   // --- signal: cancel in-flight async work on deactivate ---
   // fetch("https://example.com", { signal: ctx.signal }).catch(() => {});
+
+  // --- ai: headless AI CLI invocation (currently spawns `claude`) - the
+  //     single launch point in this app, so a different provider can be
+  //     swapped in later without touching every call site ---
+  // const child = ctx.api.ai.run("summarize this in one sentence: ...", {
+  //   onStdout: (chunk) => ctx.api.log.info(chunk),
+  // });
+  // const fullText = await child.done; // or child.kill() to stop it early
 }
 
 export function deactivate() {
@@ -98,6 +108,8 @@ const demoTabs = [
   { label: "Messaging", value: "messaging" },
   { label: "Calendar", value: "calendar" },
   { label: "Text Area", value: "text-area" },
+  { label: "Errors", value: "errors" },
+  { label: "AI (Headless)", value: "ai" },
 ];
 
 export function Component({ api }: { api: PluginApi }) {
@@ -156,6 +168,8 @@ export function Component({ api }: { api: PluginApi }) {
         {demoTab === "messaging" && <MessagingDemo api={api} />}
         {demoTab === "calendar" && <CalendarDemo api={api} />}
         {demoTab === "text-area" && <TextAreaDemo api={api} />}
+        {demoTab === "errors" && <ErrorsDemo />}
+        {demoTab === "ai" && <AiDemo api={api} />}
       </div>
     </div>
   );

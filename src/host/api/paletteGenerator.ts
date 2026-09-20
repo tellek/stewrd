@@ -1,5 +1,5 @@
 import { tempDir } from "@tauri-apps/api/path";
-import { createShellApi } from "./shell";
+import { runHeadlessAi } from "./ai";
 import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 
 /** Ids owned by the built-in, immutable Dark/Light themes - a generated or
@@ -82,39 +82,20 @@ export interface PaletteGeneration {
 export class GenerationCancelled extends Error {}
 
 /** Shells out to the `claude` CLI headlessly (WebSearch/WebFetch only, no
- * file/shell tools) to research a movie/show/game's dominant colors and turn
- * them into a NamedPalette. Returns a cancellable, timed-out-after-2-minutes
- * handle rather than a bare promise, since this is a long-running external
- * process that the UI needs to be able to kill. */
+ * file/shell tools) via runHeadlessAi to research a movie/show/game's
+ * dominant colors and turn them into a NamedPalette. Returns a cancellable,
+ * timed-out-after-2-minutes handle rather than a bare promise, since this is
+ * a long-running external process that the UI needs to be able to kill. */
 export function generatePaletteFromMedia(mediaName: string): PaletteGeneration {
-  let stdout = "";
-  let stderr = "";
   let outcome: "cancelled" | "timeout" | null = null;
 
-  const shell = createShellApi();
   const handlePromise = tempDir().then((cwd) =>
-    shell.spawn(
-      "claude",
-      [
-        "-p",
-        buildPrompt(mediaName),
-        "--model",
-        "sonnet",
-        "--allowedTools",
-        "WebSearch,WebFetch",
-        "--disallowedTools",
-        "Bash,Write,Edit,Read",
-      ],
-      {
-        cwd,
-        onStdout: (chunk) => {
-          stdout += chunk;
-        },
-        onStderr: (chunk) => {
-          stderr += chunk;
-        },
-      },
-    ),
+    runHeadlessAi(buildPrompt(mediaName), {
+      model: "sonnet",
+      allowedTools: ["WebSearch", "WebFetch"],
+      disallowedTools: ["Bash", "Write", "Edit", "Read"],
+      cwd,
+    }),
   );
 
   const timeoutId = setTimeout(() => {
@@ -124,22 +105,18 @@ export function generatePaletteFromMedia(mediaName: string): PaletteGeneration {
 
   const promise = handlePromise
     .then((h) => h.done)
-    .then(({ code }) => {
+    .then((stdout) => {
       clearTimeout(timeoutId);
       if (outcome === "cancelled") throw new GenerationCancelled();
       if (outcome === "timeout") throw new Error("Timed out waiting for a response (2 min).");
-      if (code !== 0) throw new Error(stderr.trim() || `claude exited with code ${code}`);
       const parsed = parsePaletteJson(stdout);
       return { id: safeId(slugify(parsed.name)), name: parsed.name, colors: parsed.colors };
     })
     .catch((err) => {
+      clearTimeout(timeoutId);
+      if (outcome === "cancelled") throw new GenerationCancelled();
+      if (outcome === "timeout") throw new Error("Timed out waiting for a response (2 min).");
       if (err instanceof GenerationCancelled) throw err;
-      const message = err instanceof Error ? err.message : String(err);
-      if (/failed to spawn|program not found|os error 2|ENOENT/i.test(message)) {
-        throw new Error(
-          "Couldn't launch the claude CLI on PATH. If it's installed via npm as a .cmd shim, this app can't currently launch it directly.",
-        );
-      }
       throw err;
     });
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
 import type { PluginManifest } from "../../shared/plugin-api.d.ts";
 import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 import { premadePalettes } from "../../shared/palette";
@@ -71,6 +72,41 @@ const MAX_LOG_ENTRIES = 500; // bounded ring buffer - logging is also persisted
 // scrollback for StatusBar.
 
 let nextLogId = 1;
+let statusLogHydrated = false;
+
+interface DiskLogLine {
+  ts: number;
+  level: StatusColor;
+  pluginId: string | null;
+  message: string;
+}
+
+function logEntryKey(entry: Pick<StatusLogEntry, "timestamp" | "level" | "pluginId" | "message">): string {
+  return `${entry.timestamp}|${entry.level}|${entry.pluginId ?? ""}|${entry.message}`;
+}
+
+/** Parses one on-disk/`log-line` JSON line into a StatusLogEntry, mapping the
+ * disk shape (`ts`) onto the store shape (`timestamp`, fresh `id`). Returns
+ * null for a malformed line rather than throwing, so one bad line (e.g. a
+ * panic message with unusual characters slipping past serde_json) never
+ * aborts the whole hydration/listener. */
+function parseDiskLogLine(line: string): StatusLogEntry | null {
+  try {
+    const parsed = JSON.parse(line) as Partial<DiskLogLine>;
+    if (typeof parsed.ts !== "number" || typeof parsed.level !== "string" || typeof parsed.message !== "string") {
+      return null;
+    }
+    return {
+      id: nextLogId++,
+      timestamp: parsed.ts,
+      level: parsed.level as StatusColor,
+      message: parsed.message,
+      pluginId: parsed.pluginId ?? undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
 interface AppState {
   plugins: Record<string, PluginSidebarEntry>;
@@ -154,6 +190,15 @@ interface AppState {
   deleteLayout(id: string): void;
   setPluginStatus(id: string, status: StatusColor, tooltip?: string): void;
   logMessage(level: StatusColor, message: string, pluginId?: string): void;
+  /** One-shot, StrictMode-safe: reads the on-disk log tail and merges it into
+   * `statusLog` (deduped, sorted by timestamp) so history survives a
+   * restart. Safe to call more than once - later calls are no-ops once
+   * already hydrated. See host/api/logging.ts for the on-disk line shape. */
+  hydrateStatusLog(): Promise<void>;
+  /** Appends a line pushed live from Rust (`log-line` event - wrapped command
+   * errors and panics, see commands/logged.rs and lib.rs's panic hook),
+   * deduped against whatever's already in the store. */
+  appendRemoteLogLine(line: string): void;
   toggleCategory(category: string): void;
   pushModal(request: ModalRequest): void;
   dismissModal(id: number): void;
@@ -307,6 +352,40 @@ export const useAppStore = create<AppState>((set, get) => ({
   logMessage: (level, message, pluginId) =>
     set((state) => {
       const entry: StatusLogEntry = { id: nextLogId++, timestamp: Date.now(), level, message, pluginId };
+      const log = [...state.statusLog, entry];
+      if (log.length > MAX_LOG_ENTRIES) log.shift();
+      return { statusLog: log };
+    }),
+
+  hydrateStatusLog: async () => {
+    if (statusLogHydrated) return;
+    statusLogHydrated = true;
+    try {
+      const lines = await invoke<string[]>("read_log_lines", { maxLines: 200 });
+      const parsed = lines.map(parseDiskLogLine).filter((e): e is StatusLogEntry => e !== null);
+      set((state) => {
+        const existingKeys = new Set(state.statusLog.map(logEntryKey));
+        const merged = [...state.statusLog];
+        for (const entry of parsed) {
+          const key = logEntryKey(entry);
+          if (existingKeys.has(key)) continue;
+          existingKeys.add(key);
+          merged.push(entry);
+        }
+        merged.sort((a, b) => a.timestamp - b.timestamp);
+        return { statusLog: merged.length > MAX_LOG_ENTRIES ? merged.slice(-MAX_LOG_ENTRIES) : merged };
+      });
+    } catch (err) {
+      console.error("[appStore] failed to hydrate status log from disk", err);
+    }
+  },
+
+  appendRemoteLogLine: (line) =>
+    set((state) => {
+      const entry = parseDiskLogLine(line);
+      if (!entry) return {};
+      const key = logEntryKey(entry);
+      if (state.statusLog.some((e) => logEntryKey(e) === key)) return {};
       const log = [...state.statusLog, entry];
       if (log.length > MAX_LOG_ENTRIES) log.shift();
       return { statusLog: log };

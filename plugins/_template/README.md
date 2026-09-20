@@ -81,6 +81,29 @@ one React instance instead of bundling a second copy.
 5. **Deactivate** - runs on hot-reload-replace or app shutdown. Your `deactivate()` export runs first (its return value isn't awaited), then the host runs anything you registered via `ctx.onDispose(fn)`, then aborts `ctx.signal`, then unregisters your tick handler - so an `onDispose` callback can't assume `ctx.signal` is already aborted.
 6. **Uninstall** - delete the folder; the next discovery pass removes it and deactivates it if it was active.
 
+## Errors and the status bar
+
+Every exception a plugin can produce - a thrown error inside a render/lifecycle
+method, an uncaught throw inside an event handler, an unhandled promise
+rejection, or an `Err` bubbling up from `ctx.api.fs`/`ctx.api.storage`/
+`ctx.api.shell` - automatically ends up in the host's status bar (the bar at
+the bottom of the app) and its on-disk log file, with no logging code needed
+inside the tool itself. Explicit `ctx.api.log.error(msg)` calls also land
+there, for cases where you want to log something in your own words rather
+than relying on an actual exception. See the "Errors" tab in `demos/` for a
+live demonstration.
+
+## Headless AI (`ctx.api.ai`)
+
+`ctx.api.ai.run(prompt, opts?)` is the single launch point for headless AI CLI
+invocations in this app (currently spawns the `claude` CLI headlessly) -
+prefer it over shelling out to `claude` via `ctx.api.shell.spawn` directly, so
+a different AI provider can be substituted later without touching every call
+site. Returns a handle with `.done` (resolves with the full response text,
+rejects with a stderr-aware error) and `.kill()` for cancelling an in-flight
+request; `opts.onStdout`/`onStderr` stream output live. See the "AI
+(Headless)" tab in `demos/` for a live example.
+
 ## Component Library Coverage
 
 `api.ui.*` is the full set of host-provided, palette-driven components plugins
