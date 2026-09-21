@@ -6,7 +6,7 @@ import { listReleases, pendingUpdateVersion, type ReleaseInfo } from "../api/upd
 
 const md = new MarkdownIt({ html: false, linkify: true });
 
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const pa = a.split(".").map(Number);
   const pb = b.split(".").map(Number);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
