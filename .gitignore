@@ -15,6 +15,15 @@ dist-ssr
 # Plugin build output (each plugin's own esbuild dist/, not the host's)
 plugins/*/dist
 
+# Staged filtered copies of plugins bundled into installer builds (see
+# scripts/stage-bundled-plugins.mjs) - build-time only, never committed
+bundled-plugins/
+
+# Release packaging scratch/output (see scripts/package-update-zip.mjs)
+update-zip-staging/
+stewrd-v*-windows.zip
+stewrd-v*-windows.zip.sig
+
 # Serena MCP local project cache
 .serena/
 

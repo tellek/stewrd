@@ -335,11 +335,13 @@ A self-built check-and-self-replace mechanism, deliberately **not** `tauri-plugi
 
 An `update.lock` file (opened with `share_mode(0)` — Rust's default `OpenOptions` does *not* exclude a second opener on Windows) coordinates both flows against two concurrently-running instances.
 
-**Publishing a release** (manual, not scripted — `gh` CLI required):
+**Publishing a release** is automated by `.github/workflows/release.yml`, triggered by pushing a `vX.Y.Z` tag (a `workflow_dispatch` re-run against an already-pushed tag exists too, for retrying a failed step — it never creates tags or bumps versions itself). The only manual precondition:
 1. Bump `version` in `tauri.conf.json` (and `package.json`/`Cargo.toml` for consistency).
-2. `npx tauri build`, then stage a filtered copy of `src-tauri/target/release` (exclude build-artifact noise the same way `build-release.bat`'s own robocopy does) plus `assets/` into a scratch dir, and zip its contents — `stewrd.exe` and `assets/` must land at the zip root.
-3. Sign it: `npx tauri signer sign -k "$env:TAURI_SIGNING_PRIVATE_KEY" -p "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" stewrd-v<version>-windows.zip`. The private key lives outside the repo at `C:\Users\chris\.stewrd-signing\update-signing-key` (passwordless) — **back it up**; losing it means no future update can ever be verified again by installs that already have the embedded public key.
-4. `git tag v<version> && git push origin v<version>`, then `gh release create v<version> stewrd-v<version>-windows.zip stewrd-v<version>-windows.zip.sig --generate-notes`.
+2. Commit, then `git tag v<version> && git push origin v<version>`.
+
+The workflow then builds, Authenticode-signs both the NSIS installer and `stewrd.exe` via Azure Artifact Signing (`src-tauri/tauri.release.conf.json`'s `bundle.windows.signCommand`, using `artifact-signing-cli`), packages and minisign-signs the self-update zip (`scripts/package-update-zip.mjs`, same zip layout as before — `stewrd.exe` and `assets/` at the root), and publishes the GitHub Release with the installer, the zip, and its `.sig` attached.
+
+Required GitHub repo secrets (Settings → Secrets and variables → Actions): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` (a service principal scoped to the `topher-birth` Azure Artifact Signing account's certificate profile, role `Artifact Signing Certificate Profile Signer`) and `TAURI_SIGNING_PRIVATE_KEY` (contents of `C:\Users\chris\.stewrd-signing\update-signing-key`, passwordless — **back it up**; losing it means no future update can ever be verified again by installs that already have the embedded public key). Account/endpoint/profile names are not secret and are inlined in `src-tauri/tauri.release.conf.json`.
 
 ---
 

@@ -8,13 +8,7 @@ set RELEASE=%REPO%src-tauri\target\release
 echo Closing running stewrd...
 taskkill /IM stewrd.exe /F >nul 2>&1
 
-echo Building release...
 cd /d "%REPO%"
-call npx tauri build
-if errorlevel 1 (
-    echo Build failed.
-    exit /b 1
-)
 
 echo Building plugin bundles...
 for /d %%P in ("%REPO%plugins\*") do (
@@ -34,6 +28,22 @@ if errorlevel 1 (
 exit /b 0
 
 :afterplugins
+
+rem stages a filtered copy of the plugins that ship bundled in the installer
+rem (see tauri.conf.json's bundle.resources) - must run after plugin builds
+rem above (needs dist/index.js) and before tauri build below.
+call node "%REPO%scripts\stage-bundled-plugins.mjs"
+if errorlevel 1 (
+    echo Plugin staging failed.
+    exit /b 1
+)
+
+echo Building release...
+call npx tauri build
+if errorlevel 1 (
+    echo Build failed.
+    exit /b 1
+)
 
 echo Deploying to %DEPLOY%...
 if not exist "%DEPLOY%" mkdir "%DEPLOY%"

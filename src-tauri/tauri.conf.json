@@ -33,7 +33,8 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../src/assets/category-icons/*": "assets/category-icons/"
+      "../src/assets/category-icons/*": "assets/category-icons/",
+      "../bundled-plugins/notepad": "plugins/notepad"
     }
   }
 }
