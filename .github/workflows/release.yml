@@ -88,7 +88,17 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
-        run: npx tauri signer sign -k "$env:TAURI_SIGNING_PRIVATE_KEY" -p "$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD" stewrd-v${{ steps.version.outputs.version }}-windows.zip
+        # Deliberately not passed as -k/-p command-line flags: npx on Windows
+        # runs via npx.cmd, a batch-file wrapper that re-parses arguments
+        # through cmd.exe, which treats an embedded newline as a command
+        # separator - the minisign private key is multi-line text
+        # ("untrusted comment: ..." + the key on a second line), so passing
+        # it inline silently truncates the command after the newline,
+        # dropping the zip filename argument. Both flags are auto-read from
+        # these env vars by the CLI itself (confirmed via `tauri signer sign
+        # --help`: "[env: TAURI_SIGNING_PRIVATE_KEY=]" / "[env:
+        # TAURI_SIGNING_PRIVATE_KEY_PASSWORD=]"), so no flags are needed.
+        run: npx tauri signer sign stewrd-v${{ steps.version.outputs.version }}-windows.zip
         shell: pwsh
 
       - name: Publish GitHub Release
