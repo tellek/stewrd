@@ -75,3 +75,65 @@ pub(crate) fn sanitize_dir_name(raw: &str) -> Option<String> {
     }
     Some(raw.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_clean_resolves_dot_and_dotdot_components() {
+        assert_eq!(path_clean(Path::new("a/./b/../c")), PathBuf::from("a/c"));
+    }
+
+    #[test]
+    fn path_clean_pops_above_root_when_given_extra_parent_dirs() {
+        assert_eq!(path_clean(Path::new("../../a")), PathBuf::from("a"));
+    }
+
+    #[test]
+    fn is_valid_dir_segment_rejects_empty_dot_dotdot_and_separators() {
+        assert!(!is_valid_dir_segment(""));
+        assert!(!is_valid_dir_segment("."));
+        assert!(!is_valid_dir_segment(".."));
+        assert!(!is_valid_dir_segment("a/b"));
+        assert!(!is_valid_dir_segment("a\\b"));
+    }
+
+    #[test]
+    fn is_valid_dir_segment_accepts_a_normal_name() {
+        assert!(is_valid_dir_segment("my-plugin"));
+    }
+
+    #[test]
+    fn sanitize_dir_name_rejects_windows_reserved_names_case_insensitively_with_or_without_extension() {
+        assert!(sanitize_dir_name("CON").is_none());
+        assert!(sanitize_dir_name("con").is_none());
+        assert!(sanitize_dir_name("Con.txt").is_none());
+        assert!(sanitize_dir_name("NUL").is_none());
+        assert!(sanitize_dir_name("com1").is_none());
+        assert!(sanitize_dir_name("COM1.tar.gz").is_none());
+    }
+
+    #[test]
+    fn sanitize_dir_name_rejects_names_over_100_chars() {
+        let long = "a".repeat(101);
+        assert!(sanitize_dir_name(&long).is_none());
+        let ok = "a".repeat(100);
+        assert!(sanitize_dir_name(&ok).is_some());
+    }
+
+    #[test]
+    fn sanitize_dir_name_rejects_a_leading_dot() {
+        assert!(sanitize_dir_name(".hidden").is_none());
+    }
+
+    #[test]
+    fn sanitize_dir_name_rejects_a_drive_letter_style_input() {
+        assert!(sanitize_dir_name("C:").is_none());
+    }
+
+    #[test]
+    fn sanitize_dir_name_accepts_a_normal_plugin_id() {
+        assert_eq!(sanitize_dir_name("my-plugin_1.0").as_deref(), Some("my-plugin_1.0"));
+    }
+}

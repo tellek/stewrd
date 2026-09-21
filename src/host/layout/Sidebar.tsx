@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
+import { useAppStore } from "../state/appStore";
 import { SidebarCategory } from "./SidebarCategory";
 import { SidebarCategoryCollapsed } from "./SidebarCategoryCollapsed";
 import { SidebarLayouts } from "./SidebarLayouts";
@@ -8,7 +8,8 @@ import { SidebarFooter } from "./SidebarFooter";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { getCategoryIcon } from "./categoryIcons";
 import { countLeaves } from "../state/paneTree";
-import { LAYOUTS_CATEGORY_ID, resolveCategory, type CategoryDef } from "../../shared/category";
+import { groupPluginsByCategory } from "./sidebarGrouping";
+import { LAYOUTS_CATEGORY_ID } from "../../shared/category";
 
 const COLLAPSE_ICON_SIZE = 18;
 
@@ -26,29 +27,13 @@ export function Sidebar() {
   const palette = useAppStore((s) => s.palette);
   const [expandHovered, setExpandHovered] = useState(false);
 
-  // Plugins are grouped by resolving each entry's resolved category (from
-  // settings.json, falling back to plugin.json) against the app-controlled
-  // category list (Settings > Categories) - anything that doesn't match a
-  // known category id falls into Other. Categories with no matching plugins
-  // aren't rendered (no empty headers). LAYOUTS_CATEGORY_ID is excluded here -
-  // it's a built-in category (orderable in Settings > Categories like any
-  // other) but isn't a plugin bucket at all, so it's rendered specially below
-  // instead of going through this plugin-grouping pass.
-  const orderIndex = new Map(pluginOrder.map((id, i) => [id, i]));
-  const byCategory = new Map<string, { def: CategoryDef; entries: PluginSidebarEntry[] }>();
-  for (const entry of Object.values(plugins)) {
-    const def = resolveCategory(categories, entry.category);
-    if (def.id === LAYOUTS_CATEGORY_ID) continue;
-    const bucket = byCategory.get(def.id) ?? { def, entries: [] };
-    bucket.entries.push(entry);
-    byCategory.set(def.id, bucket);
-  }
-  // Categories render in the order set via Settings > Categories (see the
-  // render loop below); plugins within each render in the order set by
-  // dragging in the sidebar.
-  for (const bucket of byCategory.values()) {
-    bucket.entries.sort((a, b) => (orderIndex.get(a.manifest.id) ?? Infinity) - (orderIndex.get(b.manifest.id) ?? Infinity));
-  }
+  // LAYOUTS_CATEGORY_ID is excluded from this grouping - it's a built-in
+  // category (orderable in Settings > Categories like any other) but isn't a
+  // plugin bucket at all, so it's rendered specially below instead. Categories
+  // render in the order set via Settings > Categories (see the render loop
+  // below); plugins within each render in the order set by dragging in the
+  // sidebar.
+  const byCategory = groupPluginsByCategory(plugins, categories, pluginOrder);
 
   return (
     <nav

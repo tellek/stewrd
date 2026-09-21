@@ -42,7 +42,7 @@ Output ONLY a raw JSON object - no markdown fences, no commentary, nothing else 
 This is for a dark-mode-first developer tool UI theme: background should be dark, text should be light, with WCAG-AA-ish contrast. accent and the status colors should be tinted toward the media's dominant colors while status.success/warning/error still read as green/yellow/red-ish.`;
 }
 
-function parsePaletteJson(stdout: string): { name: string; colors: Palette } {
+export function parsePaletteJson(stdout: string): { name: string; colors: Palette } {
   const start = stdout.indexOf("{");
   const end = stdout.lastIndexOf("}");
   if (start === -1 || end === -1 || end < start) {

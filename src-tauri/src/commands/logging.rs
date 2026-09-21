@@ -54,6 +54,64 @@ pub fn build_log_line(level: &str, plugin_id: Option<&str>, message: &str) -> St
     json!({ "ts": ts, "level": level, "pluginId": plugin_id, "message": message }).to_string()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_trips_a_message_with_a_quote_and_a_newline_as_a_single_line() {
+        let line = build_log_line("error", None, "bad \"input\"\nsecond line");
+        assert!(!line.contains('\n'));
+        let parsed: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(parsed["message"], "bad \"input\"\nsecond line");
+    }
+
+    #[test]
+    fn serializes_a_none_plugin_id_as_json_null() {
+        let line = build_log_line("info", None, "hello");
+        let parsed: serde_json::Value = serde_json::from_str(&line).unwrap();
+        assert!(parsed["pluginId"].is_null());
+    }
+
+    #[test]
+    fn creates_the_target_dir_if_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let log_dir = tmp.path().join("nested").join("logs");
+        assert!(!log_dir.exists());
+        append_log_line_internal(&log_dir, "line one").unwrap();
+        assert!(log_dir.join("stewrd.log").exists());
+    }
+
+    #[test]
+    fn appends_rather_than_truncates() {
+        let tmp = tempfile::tempdir().unwrap();
+        append_log_line_internal(tmp.path(), "line one").unwrap();
+        append_log_line_internal(tmp.path(), "line two").unwrap();
+        let contents = std::fs::read_to_string(tmp.path().join("stewrd.log")).unwrap();
+        assert!(contents.contains("line one"));
+        assert!(contents.contains("line two"));
+    }
+
+    #[test]
+    fn rotates_to_stewrd_log_old_once_the_file_exceeds_max_log_bytes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("stewrd.log");
+        // Pre-create a file already over MAX_LOG_BYTES so the next append
+        // triggers rotation without actually writing 2MB+ of lines.
+        std::fs::write(&path, vec![b'x'; (MAX_LOG_BYTES + 1) as usize]).unwrap();
+
+        append_log_line_internal(tmp.path(), "fresh line").unwrap();
+
+        let old_path = tmp.path().join("stewrd.log.old");
+        assert!(old_path.exists());
+        let old_len = std::fs::metadata(&old_path).unwrap().len();
+        assert!(old_len > MAX_LOG_BYTES);
+
+        let fresh = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(fresh.trim(), "fresh line");
+    }
+}
+
 /// Appends a Rust-originated error/panic line to the log file and, if an
 /// AppHandle is available, pushes it live to a running frontend via the
 /// `log-line` event - the same event used for both wrapped-command errors

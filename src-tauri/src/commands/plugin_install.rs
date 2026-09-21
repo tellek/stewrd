@@ -181,6 +181,164 @@ pub(crate) fn extract_entries(entries: &[ArchiveEntry], prefix: &Option<String>,
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn entry(path: &str, is_dir: bool) -> ArchiveEntry {
+        ArchiveEntry { path: path.to_string(), is_dir, contents: Vec::new() }
+    }
+
+    #[test]
+    fn detect_common_prefix_finds_a_shared_top_level_directory() {
+        let entries = vec![entry("pkg/", true), entry("pkg/plugin.json", false), entry("pkg/index.js", false)];
+        assert_eq!(detect_common_prefix(&entries), Some("pkg".to_string()));
+    }
+
+    #[test]
+    fn detect_common_prefix_does_not_misfire_on_a_single_root_level_file() {
+        // A single entry whose path has no `/` after its first segment must
+        // not be mistaken for a common directory prefix - stripping it would
+        // wrongly consume the file's own name.
+        let entries = vec![entry("plugin.json", false)];
+        assert_eq!(detect_common_prefix(&entries), None);
+    }
+
+    #[test]
+    fn detect_common_prefix_returns_none_for_multiple_distinct_top_level_segments() {
+        let entries = vec![entry("a/plugin.json", false), entry("b/index.js", false)];
+        assert_eq!(detect_common_prefix(&entries), None);
+    }
+
+    #[test]
+    fn strip_prefix_removes_the_common_prefix_and_leading_slash() {
+        assert_eq!(strip_prefix("pkg/plugin.json", &Some("pkg".to_string())), "plugin.json");
+    }
+
+    #[test]
+    fn strip_prefix_returns_the_path_unchanged_when_there_is_no_prefix() {
+        assert_eq!(strip_prefix("plugin.json", &None), "plugin.json");
+    }
+
+    #[test]
+    fn read_tar_entries_reads_files_and_directories_from_an_uncompressed_tar() {
+        let mut builder = tar::Builder::new(Vec::new());
+        let data = b"hello world";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_cksum();
+        builder.append_data(&mut header, "plugin.json", &data[..]).unwrap();
+        let bytes = builder.into_inner().unwrap();
+
+        let entries = read_tar_entries(&bytes, false).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].path, "plugin.json");
+        assert!(!entries[0].is_dir);
+        assert_eq!(entries[0].contents, data);
+    }
+
+    #[test]
+    fn read_archive_entries_rejects_an_unsupported_extension() {
+        assert!(read_archive_entries(&[], "plugin.rar").is_err());
+    }
+
+    #[test]
+    fn read_archive_entries_drops_macos_archive_noise() {
+        let mut builder = tar::Builder::new(Vec::new());
+        let data = b"junk";
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_cksum();
+        builder.append_data(&mut header, "__MACOSX/plugin.json", &data[..]).unwrap();
+        let bytes = builder.into_inner().unwrap();
+
+        let entries = read_archive_entries(&bytes, "pkg.tar").unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn extract_entries_rejects_a_relative_path_escaping_the_plugin_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target_dir = tmp.path().join("plugin");
+        std::fs::create_dir_all(&target_dir).unwrap();
+        let entries = vec![ArchiveEntry { path: "../escape.js".to_string(), is_dir: false, contents: b"evil".to_vec() }];
+
+        let err = extract_entries(&entries, &None, &target_dir).unwrap_err();
+        assert!(err.contains("escapes the plugin folder"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn extract_entries_rejects_an_absolute_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target_dir = tmp.path().join("plugin");
+        std::fs::create_dir_all(&target_dir).unwrap();
+        #[cfg(windows)]
+        let absolute = "C:\\Windows\\evil.js".to_string();
+        #[cfg(not(windows))]
+        let absolute = "/etc/evil.js".to_string();
+        let entries = vec![ArchiveEntry { path: absolute, is_dir: false, contents: b"evil".to_vec() }];
+
+        let err = extract_entries(&entries, &None, &target_dir).unwrap_err();
+        assert!(err.contains("escapes the plugin folder"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn verify_installed_plugin_succeeds_when_manifest_and_entry_exist() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("plugin.json"), "{}").unwrap();
+        std::fs::write(tmp.path().join("index.js"), "console.log('hi')").unwrap();
+        let manifest = super::super::plugins::PluginManifest {
+            id: "my-plugin".to_string(),
+            name: "My Plugin".to_string(),
+            version: None,
+            category: None,
+            icon: "icon.png".to_string(),
+            entry: "index.js".to_string(),
+            description: "desc".to_string(),
+            api_version: "1".to_string(),
+            background: false,
+        };
+        assert!(verify_installed_plugin(tmp.path(), &manifest).is_ok());
+    }
+
+    #[test]
+    fn verify_installed_plugin_fails_when_the_entry_file_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("plugin.json"), "{}").unwrap();
+        let manifest = super::super::plugins::PluginManifest {
+            id: "my-plugin".to_string(),
+            name: "My Plugin".to_string(),
+            version: None,
+            category: None,
+            icon: "icon.png".to_string(),
+            entry: "index.js".to_string(),
+            description: "desc".to_string(),
+            api_version: "1".to_string(),
+            background: false,
+        };
+        let err = verify_installed_plugin(tmp.path(), &manifest).unwrap_err();
+        assert!(err.contains("missing after install"));
+    }
+
+    #[test]
+    fn verify_installed_plugin_fails_when_plugin_json_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let manifest = super::super::plugins::PluginManifest {
+            id: "my-plugin".to_string(),
+            name: "My Plugin".to_string(),
+            version: None,
+            category: None,
+            icon: "icon.png".to_string(),
+            entry: "index.js".to_string(),
+            description: "desc".to_string(),
+            api_version: "1".to_string(),
+            background: false,
+        };
+        let err = verify_installed_plugin(tmp.path(), &manifest).unwrap_err();
+        assert!(err.contains("plugin.json missing"));
+    }
+}
+
 fn verify_installed_plugin(target_dir: &Path, manifest: &super::plugins::PluginManifest) -> Result<(), String> {
     let manifest_path = target_dir.join("plugin.json");
     if !manifest_path.exists() {

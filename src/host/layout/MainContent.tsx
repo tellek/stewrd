@@ -11,15 +11,29 @@ import type { Palette } from "../../shared/palette";
 // divider drag from collapsing a pane to unusable size.
 const MIN_PANE_PERCENT = 15;
 
-function detectEdge(e: React.DragEvent, rect: DOMRect): PaneEdge | "center" {
-  const x = (e.clientX - rect.left) / rect.width;
-  const y = (e.clientY - rect.top) / rect.height;
+/** Pure edge-detection math: given a point (already relative to `rect`'s
+ * origin, in client coordinates) and the drop target's bounding rect, which
+ * of the 4 edges (or center) the point falls in, using a 20% margin band on
+ * each side. */
+export function detectEdgeAt(clientX: number, clientY: number, rect: DOMRect): PaneEdge | "center" {
+  const x = (clientX - rect.left) / rect.width;
+  const y = (clientY - rect.top) / rect.height;
   const margin = 0.2;
   if (x < margin) return "left";
   if (x > 1 - margin) return "right";
   if (y < margin) return "top";
   if (y > 1 - margin) return "bottom";
   return "center";
+}
+
+function detectEdge(e: React.DragEvent, rect: DOMRect): PaneEdge | "center" {
+  return detectEdgeAt(e.clientX, e.clientY, rect);
+}
+
+/** Pure clamp for a divider drag position (percent, 0-100) so neither side of
+ * a split can shrink below MIN_PANE_PERCENT. */
+export function clampPanePercent(pct: number): number {
+  return Math.max(MIN_PANE_PERCENT, Math.min(100 - MIN_PANE_PERCENT, pct));
 }
 
 function zoneOverlayStyle(zone: PaneEdge | "center", palette: Palette): React.CSSProperties {
@@ -191,7 +205,7 @@ function PaneSplitView({
         node.direction === "row"
           ? ((ev.clientX - rect.left) / rect.width) * 100
           : ((ev.clientY - rect.top) / rect.height) * 100;
-      const clamped = Math.max(MIN_PANE_PERCENT, Math.min(100 - MIN_PANE_PERCENT, pct));
+      const clamped = clampPanePercent(pct);
       resizePane(node.id, [clamped, 100 - clamped]);
     }
     function onUp() {

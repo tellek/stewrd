@@ -46,6 +46,53 @@ fn write_store_atomic(path: &PathBuf, data: &HashMap<String, Value>) -> Result<(
     std::fs::rename(&tmp, path).map_err(|e| format!("could not finalize {}: {e}", path.display()))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn round_trips_a_value_through_write_then_read() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("storage.json");
+        let mut data = HashMap::new();
+        data.insert("key".to_string(), json!("value"));
+        write_store_atomic(&path, &data).unwrap();
+
+        let read = read_store(&path);
+        assert_eq!(read.get("key"), Some(&json!("value")));
+    }
+
+    #[test]
+    fn returns_an_empty_map_for_corrupt_non_json_content() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("storage.json");
+        std::fs::write(&path, "not json at all {{{").unwrap();
+
+        let read = read_store(&path);
+        assert!(read.is_empty());
+    }
+
+    #[test]
+    fn returns_an_empty_map_for_a_missing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("does-not-exist.json");
+
+        let read = read_store(&path);
+        assert!(read.is_empty());
+    }
+
+    #[test]
+    fn leaves_no_leftover_tmp_file_after_a_successful_write() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("storage.json");
+        let data = HashMap::new();
+        write_store_atomic(&path, &data).unwrap();
+
+        assert!(!tmp.path().join("storage.json.tmp").exists());
+    }
+}
+
 #[tauri::command]
 pub fn storage_get(app: AppHandle, plugin_id: String, key: String) -> Result<Option<Value>, String> {
     let store = read_store(&storage_path(&app, &plugin_id)?);

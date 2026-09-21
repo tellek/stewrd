@@ -150,3 +150,27 @@ pub fn kill_command(state: tauri::State<'_, AppState>, process_id: String) -> Re
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn run_command_returns_exit_code_zero_and_stdout_for_a_successful_command() {
+        let result = match run_command("cmd".to_string(), vec!["/c".to_string(), "echo".to_string(), "hi".to_string()], None, None).await {
+            Ok(r) => r,
+            Err(e) => panic!("expected Ok, got Err({e})"),
+        };
+        assert_eq!(result.code, 0);
+        assert!(result.stdout.contains("hi"));
+    }
+
+    #[tokio::test]
+    async fn run_command_errors_when_the_program_does_not_exist() {
+        let err = match run_command("this-program-does-not-exist-anywhere".to_string(), vec![], None, None).await {
+            Ok(_) => panic!("expected Err, got Ok"),
+            Err(e) => e,
+        };
+        assert!(err.starts_with("failed to spawn"), "unexpected error: {err}");
+    }
+}

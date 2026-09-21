@@ -28,6 +28,41 @@ fn resolve_scoped_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(normalized)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolve_scoped_path_rejects_a_dotdot_escape_to_another_plugin() {
+        let root = Path::new("/plugins/foo/data");
+        assert!(resolve_scoped_path(root, "../../other-plugin/x").is_err());
+    }
+
+    #[test]
+    fn resolve_scoped_path_rejects_an_escape_that_dips_below_root_and_back() {
+        let root = Path::new("/plugins/foo/data");
+        assert!(resolve_scoped_path(root, "a/../../b").is_err());
+    }
+
+    #[test]
+    fn resolve_scoped_path_rejects_a_leading_slash() {
+        let root = Path::new("/plugins/foo/data");
+        assert!(resolve_scoped_path(root, "/etc/passwd").is_err());
+    }
+
+    #[test]
+    fn resolve_scoped_path_rejects_a_windows_drive_prefixed_path() {
+        let root = Path::new("/plugins/foo/data");
+        assert!(resolve_scoped_path(root, "C:\\Windows").is_err());
+    }
+
+    #[test]
+    fn resolve_scoped_path_accepts_a_normal_relative_path() {
+        let root = Path::new("/plugins/foo/data");
+        assert!(resolve_scoped_path(root, "sub/file.txt").is_ok());
+    }
+}
+
 #[tauri::command]
 pub fn fs_read_text_file(app: AppHandle, plugin_id: String, path: String) -> Result<String, String> {
     let root = plugin_fs_root(&app, &plugin_id)?;

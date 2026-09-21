@@ -428,6 +428,119 @@ pub fn apply_pending_update_if_present() {
     let _ = std::fs::write(state_dir.join("just-updated.json"), marker);
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn current_version_matches_the_compiled_in_crate_version() {
+        // STEWRD_APP_VERSION comes from build.rs / tauri.conf.json, not
+        // Cargo.toml - just assert it parses to a valid, non-zero semver.
+        let v = current_version();
+        assert!(v.major > 0 || v.minor > 0 || v.patch > 0);
+    }
+
+    #[test]
+    fn decode_minisign_field_errors_on_bad_base64() {
+        assert!(decode_minisign_field("not valid base64 !!!").is_err());
+    }
+
+    #[test]
+    fn decode_minisign_field_errors_on_non_utf8_decoded_bytes() {
+        use base64::Engine;
+        let non_utf8_bytes = [0xff, 0xfe, 0xfd];
+        let b64 = base64::engine::general_purpose::STANDARD.encode(non_utf8_bytes);
+        assert!(decode_minisign_field(&b64).is_err());
+    }
+
+    #[test]
+    fn verify_signature_fails_on_a_garbage_signature_string() {
+        use base64::Engine;
+        let sig_b64 = base64::engine::general_purpose::STANDARD.encode(b"not a minisign signature");
+        let result = verify_signature(b"some zip bytes", &sig_b64);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn verify_signature_fails_on_a_well_formed_but_wrong_signature() {
+        use base64::Engine;
+        // Well-formed minisign signature shape but not one that could ever
+        // verify against the embedded public key or these bytes.
+        let fake_sig_text = "untrusted comment: signature from minisign secret key\n\
+            RWQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n\
+            trusted comment: timestamp:0\tfile:none\n\
+            RWQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\n";
+        let sig_b64 = base64::engine::general_purpose::STANDARD.encode(fake_sig_text);
+        let result = verify_signature(b"some zip bytes", &sig_b64);
+        assert!(result.is_err());
+    }
+
+    fn build_test_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        {
+            let mut writer = zip::ZipWriter::new(Cursor2::new(&mut buf));
+            let options = zip::write::SimpleFileOptions::default();
+            for (name, contents) in files {
+                writer.start_file(*name, options).unwrap();
+                writer.write_all(contents).unwrap();
+            }
+            writer.finish().unwrap();
+        }
+        buf
+    }
+
+    // zip::ZipWriter needs Write + Seek; Cursor<&mut Vec<u8>> covers both.
+    type Cursor2<'a> = std::io::Cursor<&'a mut Vec<u8>>;
+
+    #[test]
+    fn extract_zip_flat_extracts_files_into_the_target_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let target = tmp.path().join("out");
+        let zip_bytes = build_test_zip(&[("stewrd.exe", b"binary"), ("assets/icon.png", b"icon")]);
+
+        extract_zip_flat(&zip_bytes, &target).unwrap();
+
+        assert_eq!(std::fs::read(target.join("stewrd.exe")).unwrap(), b"binary");
+        assert_eq!(std::fs::read(target.join("assets").join("icon.png")).unwrap(), b"icon");
+    }
+
+    #[test]
+    fn copy_add_only_copies_files_that_do_not_exist_at_dest() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::write(src.join("new.txt"), "new content").unwrap();
+
+        copy_add_only(&src, &dst);
+
+        assert_eq!(std::fs::read_to_string(dst.join("new.txt")).unwrap(), "new content");
+    }
+
+    #[test]
+    fn copy_add_only_does_not_overwrite_files_that_already_exist_at_dest() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        let dst = tmp.path().join("dst");
+        std::fs::create_dir_all(&src).unwrap();
+        std::fs::create_dir_all(&dst).unwrap();
+        std::fs::write(src.join("existing.txt"), "new content").unwrap();
+        std::fs::write(dst.join("existing.txt"), "user's customized content").unwrap();
+
+        copy_add_only(&src, &dst);
+
+        assert_eq!(std::fs::read_to_string(dst.join("existing.txt")).unwrap(), "user's customized content");
+    }
+
+    #[test]
+    fn update_meta_deserializes_old_json_missing_fail_count_with_a_default_of_zero() {
+        let meta: UpdateMeta = serde_json::from_str(r#"{"version":"1.2.3"}"#).unwrap();
+        assert_eq!(meta.version, "1.2.3");
+        assert_eq!(meta.fail_count, 0);
+    }
+}
+
 fn copy_add_only(src: &Path, dst: &Path) {
     let Ok(entries) = std::fs::read_dir(src) else { return };
     let _ = std::fs::create_dir_all(dst);

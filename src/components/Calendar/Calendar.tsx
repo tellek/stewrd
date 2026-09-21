@@ -1,12 +1,9 @@
 import { useState } from "react";
 import type { CalendarProps } from "../../shared/plugin-api.d.ts";
 import { useAppStore } from "../../host/state/appStore";
+import { buildMonthGrid, stepMonth, toIso } from "./calendarGrid";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-function toIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 /** Plugin-facing primitive, exposed via api.ui.Calendar. Month-grid date
  * picker; `value`/`onChange` use ISO "YYYY-MM-DD" date strings so callers
@@ -18,24 +15,28 @@ export function Calendar({ value, onChange }: CalendarProps) {
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = toIso(new Date());
 
-  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  const cells = buildMonthGrid(year, month);
 
   return (
     <div style={{ color: palette.text, width: 240 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <button
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          onClick={() => {
+            const next = stepMonth(year, month, -1);
+            setViewDate(new Date(next.year, next.month, 1));
+          }}
           style={{ background: "none", border: "none", color: palette.text, cursor: "pointer", fontSize: 14 }}
         >
           {"<"}
         </button>
         <strong>{viewDate.toLocaleString(undefined, { month: "long", year: "numeric" })}</strong>
         <button
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          onClick={() => {
+            const next = stepMonth(year, month, 1);
+            setViewDate(new Date(next.year, next.month, 1));
+          }}
           style={{ background: "none", border: "none", color: palette.text, cursor: "pointer", fontSize: 14 }}
         >
           {">"}

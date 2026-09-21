@@ -24,6 +24,44 @@ fn changed_plugin_dirs(paths: &[PathBuf], plugins_root: &Path) -> HashSet<String
     ids
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ignores_paths_outside_the_plugins_root() {
+        let root = Path::new("/plugins");
+        let paths = vec![PathBuf::from("/somewhere/else/file.txt")];
+        assert!(changed_plugin_dirs(&paths, root).is_empty());
+    }
+
+    #[test]
+    fn maps_a_nested_path_to_its_top_level_plugin_segment() {
+        let root = Path::new("/plugins");
+        let paths = vec![PathBuf::from("/plugins/foo/dist/index.js")];
+        let ids = changed_plugin_dirs(&paths, root);
+        assert_eq!(ids, HashSet::from(["foo".to_string()]));
+    }
+
+    #[test]
+    fn dedupes_duplicate_results_from_multiple_paths_in_the_same_plugin() {
+        let root = Path::new("/plugins");
+        let paths = vec![
+            PathBuf::from("/plugins/foo/dist/index.js"),
+            PathBuf::from("/plugins/foo/plugin.json"),
+        ];
+        let ids = changed_plugin_dirs(&paths, root);
+        assert_eq!(ids, HashSet::from(["foo".to_string()]));
+    }
+
+    #[test]
+    fn the_root_directory_itself_yields_nothing() {
+        let root = Path::new("/plugins");
+        let paths = vec![PathBuf::from("/plugins")];
+        assert!(changed_plugin_dirs(&paths, root).is_empty());
+    }
+}
+
 pub fn start_watching(
     app: AppHandle,
     plugins_dir: PathBuf,

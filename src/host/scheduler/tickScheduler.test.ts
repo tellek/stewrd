@@ -169,4 +169,62 @@ describe("TickScheduler", () => {
     expect(fn).not.toHaveBeenCalled();
     expect(scheduler.hasActiveTimer).toBe(false);
   });
+
+  it("requestWake coalesces to the earlier of two requested deadlines", async () => {
+    const scheduler = new TickScheduler();
+    const handle = scheduler.createHandle();
+    const fn = vi.fn();
+    handle.register(fn);
+    handle.requestWake(200);
+    handle.requestWake(50);
+    await wait(80);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it("unregister() stops an active recurring interval", async () => {
+    const scheduler = new TickScheduler();
+    const handle = scheduler.createHandle();
+    const fn = vi.fn();
+    handle.register(fn);
+    handle.setInterval(10);
+    await wait(15);
+    handle.unregister();
+    const callsAtUnregister = fn.mock.calls.length;
+    await wait(60);
+    expect(fn.mock.calls.length).toBe(callsAtUnregister);
+    expect(scheduler.hasActiveTimer).toBe(false);
+  });
+
+  it("applies a mutation queued during a running tick once the pass completes", async () => {
+    const scheduler = new TickScheduler();
+    const handle = scheduler.createHandle();
+    const fn = vi.fn(() => {
+      handle.setInterval(10);
+    });
+    handle.register(fn);
+    handle.requestWake(5);
+    await wait(40);
+    expect(fn.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("destroyHandle called from inside a running tick handler doesn't throw and cleans up", async () => {
+    const scheduler = new TickScheduler();
+    const handle = scheduler.createHandle();
+    const fn = vi.fn(() => {
+      scheduler.destroyHandle(handle);
+    });
+    handle.register(fn);
+    handle.requestWake(5);
+    await wait(30);
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(scheduler.hasActiveTimer).toBe(false);
+  });
+
+  it("clamps a negative requestWake delay to fire immediately", () => {
+    const scheduler = new TickScheduler();
+    const handle = scheduler.createHandle();
+    handle.register(() => {});
+    handle.requestWake(-100);
+    expect(scheduler.hasActiveTimer).toBe(true);
+  });
 });

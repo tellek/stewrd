@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
+import { mergePalettes } from "./mergePalettes";
 import { createModalApi } from "../api/modals";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { TextButton } from "../../components/TextButton/TextButton";
@@ -85,12 +86,7 @@ export function SettingsThemes() {
   const spinnerFrame = useBrailleSpinner(generating);
   const generationRef = useRef<PaletteGeneration | null>(null);
 
-  const overrideMap = new Map(customPalettes.map((c) => [c.id, c] as const));
-  const mergedPremade = premadePalettes
-    .filter((pp) => overrideMap.has(pp.id) || !hiddenPaletteIds.includes(pp.id))
-    .map((pp) => overrideMap.get(pp.id) ?? pp);
-  const pureCustom = customPalettes.filter((c) => !premadePalettes.some((pp) => pp.id === c.id));
-  const allPalettes = [...mergedPremade, ...pureCustom].sort((a, b) => a.name.localeCompare(b.name));
+  const allPalettes = mergePalettes(customPalettes, hiddenPaletteIds);
 
   function startCreate() {
     setDraftName("");

@@ -1,30 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { PluginApi, PluginManifest, PluginModule } from "../../shared/plugin-api.d.ts";
+import type { PluginManifest } from "../../shared/plugin-api.d.ts";
 import { isSafeMode, listPlugins, reconcileBootMarks } from "./pluginDiscovery";
 import { loadPlugin, unloadPlugin, type LoadedPlugin } from "./pluginLoader";
+import { decidePluginChange, partitionDiscovered, type PluginRegistryEntry, type DiscoveryError } from "./pluginRegistryReducer";
 
-export interface PluginRegistryEntry {
-  manifest: PluginManifest;
-  Component: PluginModule["Component"];
-  api: PluginApi | null;
-  generation: number;
-  loadError?: string;
-  /** false = discovered but not yet activated (lazy, background: false,
-   * waiting for first sidebar selection - see ensureLoaded). */
-  loaded: boolean;
-  /** Discovery directory name - needed to reverse-lookup an entry on
-   * hot-remove even if it was never actually loaded (lazy). */
-  dir: string;
-  /** Resolved category from discovery (settings.json, falling back to
-   * plugin.json) - see pluginDiscovery.ts's PluginDiscoveryEntry. */
-  category: string;
-}
-
-export interface DiscoveryError {
-  dir: string;
-  message: string;
-}
+export type { PluginRegistryEntry, DiscoveryError };
 
 export function usePluginRegistry() {
   const [entries, setEntries] = useState<Record<string, PluginRegistryEntry>>({});
@@ -84,24 +65,17 @@ export function usePluginRegistry() {
     async function discoverAndLoadAll() {
       const discovered = await listPlugins();
       if (cancelled) return;
-      setDiscoveryErrors(
-        discovered
-          .filter((d): d is Extract<typeof d, { status: "error" }> => d.status === "error")
-          .map((d) => ({ dir: d.dir, message: d.message })),
-      );
+      const { errors, eager, lazy } = partitionDiscovered(discovered);
+      setDiscoveryErrors(errors);
       const safe = await isSafeMode();
       if (cancelled) return;
       setSafeMode(safe);
       if (safe) return; // manual escape hatch: load nothing
 
-      const ok = discovered.filter((d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && !d.disabled);
-
       // background: true activates eagerly now; everything else is merely
       // listed (so the sidebar can show it) and stays lazy until first
       // selected - see ensureLoaded. This shrinks eager-activation blast
       // radius to only the plugins that actually declare they need it.
-      const eager = ok.filter((d) => d.manifest.background);
-      const lazy = ok.filter((d) => !d.manifest.background);
 
       setEntries((e) => {
         const next = { ...e };
@@ -137,62 +111,62 @@ export function usePluginRegistry() {
         (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.dir === changedDir,
       );
 
-      if (!match || match.disabled) {
-        // Hot-remove: the plugin's folder/dist output is gone (or now
-        // disabled) - unload it if it was actually loaded, and remove its
-        // entry entirely (including a lazy entry that was only ever listed,
-        // never loaded, which loadedByDir never tracked) so a stale sidebar
-        // entry doesn't linger until the app restarts.
-        const previouslyLoaded = loadedByDir.current.get(changedDir);
-        if (previouslyLoaded) {
-          unloadPlugin(previouslyLoaded);
-          loadedByDir.current.delete(changedDir);
-        }
-        setEntries((e) => {
-          const staleId = Object.keys(e).find((id) => e[id].dir === changedDir);
-          if (!staleId) return e;
-          const next = { ...e };
-          delete next[staleId];
-          return next;
-        });
-        return;
-      }
+      const known = match ? entriesRef.current[match.manifest.id] : undefined;
+      const decision = decidePluginChange(match, known);
 
-      const known = entriesRef.current[match.manifest.id];
-      if (known?.loaded) {
-        // Already loaded (eager, or a previously-selected lazy one) - hot-reload it.
-        await loadOne(match.dir, match.manifest, match.source, match.category);
-      } else if (!known) {
-        // Hot-add: a brand-new plugin folder appeared while running.
-        if (match.manifest.background) {
-          await loadOne(match.dir, match.manifest, match.source, match.category);
-        } else {
+      switch (decision.kind) {
+        case "remove": {
+          // The plugin's folder/dist output is gone (or now disabled) -
+          // unload it if it was actually loaded, and remove its entry
+          // entirely (including a lazy entry that was only ever listed,
+          // never loaded, which loadedByDir never tracked) so a stale
+          // sidebar entry doesn't linger until the app restarts.
+          const previouslyLoaded = loadedByDir.current.get(changedDir);
+          if (previouslyLoaded) {
+            unloadPlugin(previouslyLoaded);
+            loadedByDir.current.delete(changedDir);
+          }
+          setEntries((e) => {
+            const staleId = Object.keys(e).find((id) => e[id].dir === changedDir);
+            if (!staleId) return e;
+            const next = { ...e };
+            delete next[staleId];
+            return next;
+          });
+          break;
+        }
+        case "hot-reload":
+        case "hot-add-eager":
+          await loadOne(match!.dir, match!.manifest, match!.source, match!.category);
+          break;
+        case "hot-add-lazy":
           setEntries((e) => ({
             ...e,
-            [match.manifest.id]: {
-              manifest: match.manifest,
+            [match!.manifest.id]: {
+              manifest: match!.manifest,
               Component: () => null,
               api: null,
               generation: -1,
               loaded: false,
-              dir: match.dir,
-              category: match.category,
+              dir: match!.dir,
+              category: match!.category,
             },
           }));
-        }
-      } else {
-        // Known but not loaded (untouched lazy plugin) - the plugin itself
-        // isn't being (re)activated, but a settings.json edit (e.g. category)
-        // still needs to reach this entry so the sidebar doesn't show stale
-        // grouping until the plugin is eventually selected or the app restarts.
-        setEntries((e) => ({
-          ...e,
-          [match.manifest.id]: {
-            ...e[match.manifest.id],
-            manifest: match.manifest,
-            category: match.category,
-          },
-        }));
+          break;
+        case "metadata-refresh":
+          // The plugin itself isn't being (re)activated, but a settings.json
+          // edit (e.g. category) still needs to reach this entry so the
+          // sidebar doesn't show stale grouping until the plugin is
+          // eventually selected or the app restarts.
+          setEntries((e) => ({
+            ...e,
+            [match!.manifest.id]: {
+              ...e[match!.manifest.id],
+              manifest: match!.manifest,
+              category: match!.category,
+            },
+          }));
+          break;
       }
     });
 

@@ -313,3 +313,128 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
 
     Ok(entries)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn read_id_set_write_id_set_round_trips() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("ids.json");
+        let mut ids = HashSet::new();
+        ids.insert("plugin-a".to_string());
+        ids.insert("plugin-b".to_string());
+        write_id_set(&path, &ids).unwrap();
+
+        let read = read_id_set(&path);
+        assert_eq!(read, ids);
+    }
+
+    #[test]
+    fn read_id_set_returns_empty_for_a_missing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("missing.json");
+        assert!(read_id_set(&path).is_empty());
+    }
+
+    #[test]
+    fn read_id_set_returns_empty_for_corrupt_json() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("ids.json");
+        std::fs::write(&path, "not json").unwrap();
+        assert!(read_id_set(&path).is_empty());
+    }
+
+    #[test]
+    fn resolve_settings_string_prefers_the_settings_file_value() {
+        let settings = Some(serde_json::json!({ "category": "Games" }));
+        let manifest_fallback = Some("Other".to_string());
+        assert_eq!(resolve_settings_string(&settings, "category", &manifest_fallback), "Games");
+    }
+
+    #[test]
+    fn resolve_settings_string_falls_back_to_the_manifest_value() {
+        let settings = Some(serde_json::json!({}));
+        let manifest_fallback = Some("Other".to_string());
+        assert_eq!(resolve_settings_string(&settings, "category", &manifest_fallback), "Other");
+    }
+
+    #[test]
+    fn resolve_settings_string_falls_back_to_empty_string_when_neither_exists() {
+        assert_eq!(resolve_settings_string(&None, "category", &None), "");
+    }
+
+    #[test]
+    fn read_plugin_settings_value_reads_a_valid_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("settings.json"), r#"{"category":"Games"}"#).unwrap();
+        let value = read_plugin_settings_value(tmp.path()).unwrap();
+        assert_eq!(value["category"], "Games");
+    }
+
+    #[test]
+    fn read_plugin_settings_value_returns_none_for_a_missing_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(read_plugin_settings_value(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn read_plugin_settings_value_returns_none_for_malformed_json() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("settings.json"), "not json").unwrap();
+        assert!(read_plugin_settings_value(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn plugin_manifest_deserializes_without_the_optional_default_fields() {
+        let json = r#"{
+            "id": "my-plugin",
+            "name": "My Plugin",
+            "icon": "icon.png",
+            "entry": "dist/index.js",
+            "description": "desc",
+            "apiVersion": "1"
+        }"#;
+        let manifest: PluginManifest = serde_json::from_str(json).unwrap();
+        assert_eq!(manifest.version, None);
+        assert_eq!(manifest.category, None);
+        assert_eq!(manifest.background, false);
+        assert_eq!(manifest.api_version, "1");
+    }
+
+    #[test]
+    fn plugin_discovery_entry_ok_variant_serializes_with_camel_case_fields() {
+        let entry = PluginDiscoveryEntry::Ok {
+            dir: "my-plugin".to_string(),
+            manifest: PluginManifest {
+                id: "my-plugin".to_string(),
+                name: "My Plugin".to_string(),
+                version: None,
+                category: None,
+                icon: "icon.png".to_string(),
+                entry: "dist/index.js".to_string(),
+                description: "desc".to_string(),
+                api_version: "1".to_string(),
+                background: false,
+            },
+            source: "console.log('hi')".to_string(),
+            disabled: false,
+            category: "Other".to_string(),
+            version: "1.0.0".to_string(),
+        };
+        let value = serde_json::to_value(&entry).unwrap();
+        assert_eq!(value["status"], "ok");
+        assert_eq!(value["dir"], "my-plugin");
+        assert_eq!(value["manifest"]["apiVersion"], "1");
+    }
+
+    #[test]
+    fn plugin_discovery_entry_error_variant_serializes_with_camel_case_fields() {
+        let entry = PluginDiscoveryEntry::Error { dir: "broken-plugin".to_string(), message: "boom".to_string() };
+        let value = serde_json::to_value(&entry).unwrap();
+        assert_eq!(value["status"], "error");
+        assert_eq!(value["dir"], "broken-plugin");
+        assert_eq!(value["message"], "boom");
+    }
+}
