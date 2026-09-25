@@ -16,9 +16,22 @@ fn changed_plugin_dirs(paths: &[PathBuf], plugins_root: &Path) -> HashSet<String
     let mut ids = HashSet::new();
     for path in paths {
         if let Ok(relative) = path.strip_prefix(plugins_root) {
-            if let Some(std::path::Component::Normal(name)) = relative.components().next() {
-                ids.insert(name.to_string_lossy().to_string());
+            let mut components = relative.components();
+            let Some(std::path::Component::Normal(name)) = components.next() else {
+                continue;
+            };
+            // `<plugin>/data/` is the plugin's own runtime storage (see
+            // fs.rs's fs_plugin_data_dir) - notes, caches, etc a plugin
+            // writes at runtime, not source it was built from. A save in
+            // there shouldn't trigger the same hot-reload as an edited
+            // source file, which would remount the plugin and lose
+            // in-progress UI state (cursor position, unsaved local state).
+            if let Some(std::path::Component::Normal(next)) = components.next() {
+                if next == "data" {
+                    continue;
+                }
             }
+            ids.insert(name.to_string_lossy().to_string());
         }
     }
     ids
@@ -59,6 +72,24 @@ mod tests {
         let root = Path::new("/plugins");
         let paths = vec![PathBuf::from("/plugins")];
         assert!(changed_plugin_dirs(&paths, root).is_empty());
+    }
+
+    #[test]
+    fn ignores_a_plugins_own_runtime_data_dir() {
+        let root = Path::new("/plugins");
+        let paths = vec![PathBuf::from("/plugins/notepad/data/note.md")];
+        assert!(changed_plugin_dirs(&paths, root).is_empty());
+    }
+
+    #[test]
+    fn still_reacts_to_source_changes_alongside_ignored_data_changes() {
+        let root = Path::new("/plugins");
+        let paths = vec![
+            PathBuf::from("/plugins/notepad/data/note.md"),
+            PathBuf::from("/plugins/notepad/dist/index.js"),
+        ];
+        let ids = changed_plugin_dirs(&paths, root);
+        assert_eq!(ids, HashSet::from(["notepad".to_string()]));
     }
 }
 
