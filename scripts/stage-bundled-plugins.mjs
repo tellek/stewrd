@@ -20,7 +20,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 
 // Plugins that ship bundled with fresh installs. Keep in sync with
 // tauri.conf.json's bundle.resources entries.
-const BUNDLED_PLUGINS = ["notepad"];
+const BUNDLED_PLUGINS = ["notepad", "_template"];
 
 const ALLOWED_ENTRIES = new Set(["plugin.json", "dist", "icon.png"]);
 

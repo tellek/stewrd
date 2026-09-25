@@ -34,7 +34,8 @@
     ],
     "resources": {
       "../src/assets/category-icons/*": "assets/category-icons/",
-      "../bundled-plugins/notepad": "plugins/notepad"
+      "../bundled-plugins/notepad": "plugins/notepad",
+      "../bundled-plugins/_template": "plugins/_template"
     }
   }
 }

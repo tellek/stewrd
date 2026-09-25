@@ -11,6 +11,12 @@ const SUPPORTED_API_VERSION: &str = "1";
 const DISABLED_PLUGINS_FILE: &str = "disabled-plugins.json";
 const BOOT_MARKS_FILE: &str = "boot-marks.json";
 const SAFE_MODE_FILE: &str = "SAFE_MODE";
+const SEEDED_DEFAULTS_FILE: &str = "seeded-default-disabled.json";
+/// Plugins that ship bundled but should start out disabled on a fresh
+/// install. Seeded into `disabled-plugins.json` at most once per id (see
+/// `reconcile_boot_marks`) - a user re-enabling one of these later must not
+/// have it silently re-disabled again after an app update.
+const DEFAULT_DISABLED_PLUGINS: &[&str] = &["_template"];
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PluginManifest {
@@ -124,7 +130,36 @@ pub fn reconcile_boot_marks(app: AppHandle) -> Result<Vec<String>, String> {
     }
 
     write_id_set(&marks_path, &HashSet::new())?;
+
+    seed_default_disabled_plugins(&dir)?;
+
     Ok(stale.into_iter().collect())
+}
+
+/// Seeds `DEFAULT_DISABLED_PLUGINS` into `disabled-plugins.json`, at most
+/// once per plugin id (tracked via `SEEDED_DEFAULTS_FILE`) so a user who
+/// re-enables one of these later doesn't have it silently re-disabled again
+/// after an app update.
+fn seed_default_disabled_plugins(dir: &Path) -> Result<(), String> {
+    let seeded_path = dir.join(SEEDED_DEFAULTS_FILE);
+    let mut seeded = read_id_set(&seeded_path);
+    let to_seed: Vec<&str> = DEFAULT_DISABLED_PLUGINS
+        .iter()
+        .filter(|id| !seeded.contains(**id))
+        .copied()
+        .collect();
+    if to_seed.is_empty() {
+        return Ok(());
+    }
+
+    let disabled_path = dir.join(DISABLED_PLUGINS_FILE);
+    let mut disabled = read_id_set(&disabled_path);
+    for id in &to_seed {
+        disabled.insert(id.to_string());
+        seeded.insert(id.to_string());
+    }
+    write_id_set(&disabled_path, &disabled)?;
+    write_id_set(&seeded_path, &seeded)
 }
 
 #[tauri::command]
@@ -329,6 +364,24 @@ mod tests {
 
         let read = read_id_set(&path);
         assert_eq!(read, ids);
+    }
+
+    #[test]
+    fn seed_default_disabled_plugins_seeds_once_and_respects_re_enabling() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+
+        seed_default_disabled_plugins(dir).unwrap();
+        let disabled = read_id_set(&dir.join(DISABLED_PLUGINS_FILE));
+        assert!(disabled.contains("_template"));
+
+        // User re-enables it (removes from disabled set) after the seed.
+        write_id_set(&dir.join(DISABLED_PLUGINS_FILE), &HashSet::new()).unwrap();
+
+        // Re-running must not re-disable it: the seeded marker sticks.
+        seed_default_disabled_plugins(dir).unwrap();
+        let disabled = read_id_set(&dir.join(DISABLED_PLUGINS_FILE));
+        assert!(!disabled.contains("_template"));
     }
 
     #[test]
