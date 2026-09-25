@@ -15,7 +15,6 @@ type Mode = "source" | "live-preview" | "reading";
 const PLUGIN_ID = "notepad";
 
 export function activate(ctx: PluginContext) {
-  ctx.api.log.info("notepad activated");
   ctx.api.statusIcon.set("idle");
   new Harvester(ctx).start();
 }
