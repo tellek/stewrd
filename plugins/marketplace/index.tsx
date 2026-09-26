@@ -255,7 +255,7 @@ export function Component({ api }: { api: PluginApi }) {
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Name</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Description</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Version</th>
-            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Downloads</th>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Installs</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}></th>
           </tr>
         </thead>
