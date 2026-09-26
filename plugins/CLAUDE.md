@@ -22,6 +22,112 @@ below — uncomment what you need. `_template/README.md` covers the same ground
 as this file with a live component-library coverage table; `_template/demos/`
 has one file per UI component category.
 
+## Host Integrations & Enforced Styles (Checklist)
+
+Everything the host provides or enforces for a plugin. Look up the named
+API/file before building anything that touches one of these.
+
+**Sidebar & status indicators**
+- Sidebar name: `plugin.json` `name`.
+- Sidebar icon: drop `icon.png` in the plugin folder. It renders as a
+  theme-tinted CSS mask (source colors ignored, transparency required). If
+  it's missing, the host shows the fallback "more" icon. Idle tint is
+  `palette.text` (`palette.accent` on hover) in the expanded sidebar and
+  `palette.textMuted` in the collapsed rail.
+- Sidebar icon alert/status color: `api.statusIcon.set(color, tooltip?)`
+  recolors the whole sidebar icon (`idle | in-progress | success | warning |
+  error`).
+  - It's a silent no-op before the sidebar entry exists (early `activate()`
+    in `background: true` plugins).
+  - Status persists across hot-reload and the host never clears it. Call
+    `statusIcon.set("idle")` in `activate()` (see `_template/index.tsx`).
+  - A load/activate failure auto-sets `error` and the pane shows an error
+    message.
+- Category icon tint: the worst status among a category's plugins
+  (error > warning > in-progress > success) tints the category icon
+  automatically.
+- Taskbar overlay dot (Windows): shows the worst status across all plugins
+  once it reaches the Settings > General threshold. It's driven only by
+  `statusIcon`.
+- Tick watchdog: a tick handler hung for more than 30s sets status
+  `warning`. A throwing tick is logged as an error but does not change the
+  icon, so set `error` yourself.
+- Sidebar sub-items: `api.sidebar.setItems([{ id, label, icon?, color?,
+  onClick }])` / `setSelected(id)`.
+  - `color` is a `StatusColor` dot. If you omit it, the host still draws a
+    `textMuted` dot.
+  - `setItems([])` hides them. They never render in the collapsed rail.
+  - The host owns and persists the expand/collapse state.
+- Sidebar category: the `settings.json` `"category"` value must match a
+  Settings > Categories id or the plugin lands in "Other". Dragging a plugin
+  to another category rewrites that key.
+- Status bar: plugins get no direct slot. `api.log.info/warn/error` lines
+  appear there (idle/warning/error colors) and in `stewrd.log`. Uncaught
+  errors and unhandled rejections are routed there automatically.
+- Toasts: `api.toast.show({ title?, message, kind?, durationMs? })`. `kind`
+  maps to `palette.status`.
+- Modals: `api.modal.error/info/question/confirm`. They're host-rendered and
+  queued one at a time.
+- Error boundary: a render throw shows an inline card with a "Reload this
+  plugin" button.
+- Settings > Plugins > Configure edits the plugin's `settings.json` as raw
+  JSON.
+
+**Pane container (forced by the host)**
+- A plugin renders in only one pane at a time.
+- The pane is a flex column with `padding: 16`, so don't add your own outer
+  padding.
+- The active pane gets a 2px `palette.accent` outline.
+- With more than one pane open, a close "✕" button sits at the pane's
+  top-right (`top: 4, right: 4`). Keep that corner clear.
+- `Blanket`/`Drawer`/`InlineDialog` are scoped to the pane's content area.
+
+**Styles**
+- Colors: take them only from `api.theme.palette` (`background, surface,
+  surfaceHover, text, textMuted, border, accent, status.*`). Use `subscribe`
+  for live theme switches. Never use a literal hex.
+- Title Case for all titles and button text.
+- Use only `api.ui.*` components, never raw `<button>`/`<input>`/`<select>`.
+  Check `_template/demos/` and `_template/index.tsx` for an existing example
+  first.
+- Buttons: `TextButton` / `IconButton` / `IconTextButton`, with
+  `variant: "primary" | "secondary"`.
+- Icons/images: pass `data:` URLs (`import` or `api.fs.readDataUrl`). Use
+  `MaskIcon` for theme-tinted icons.
+- `Banner.tone`: only `StatusColor | "accent" | "surface"`.
+- Typography: inherit the host font (Inter stack, 16px / 24px line-height,
+  `box-sizing: border-box`). Don't override it globally.
+- Hover convention: text turns `palette.accent` and the background turns
+  `palette.surfaceHover`.
+- Scrollbars: the host pane is `overflow: auto` with an unstyled scrollbar.
+  Make your root `flex: 1; minHeight: 0`, put `overflow: auto` on your own
+  container, and style it with `scrollbarStyle(palette)` from
+  `_template/demos/TextAreaDemo.tsx`.
+
+**Runtime hooks & limits**
+- `ctx.tick` handles scheduled work. It's throttled while the window is
+  minimized.
+- For work that must survive a minimized window, use Rust `start_interval` /
+  `interval-tick:<key>` (see the `ctx.tick` row below). Key it by a
+  per-activation value, not the plugin id: hot-reload runs the new
+  `activate()` before the old `onDispose`, which would stop a shared key.
+- Cleanup: use `ctx.signal` / `ctx.onDispose`. Spawned processes are not
+  auto-killed.
+- `api.statusIcon`/`log`/`toast`/`sidebar` throw after deactivation or
+  hot-reload. Check `ctx.signal.aborted` before calling them from async
+  callbacks.
+- The only importable bare specifiers are `react`, `react-dom`,
+  `react-dom/client`, `react/jsx-runtime`, `@tauri-apps/api/core` and
+  `@tauri-apps/api/event`.
+  - Other `@tauri-apps/api/*` imports build fine but fail at load.
+  - Raw `invoke` reaches only host-registered commands. Plugins can't add
+    Rust commands.
+- Other surfaces:
+  - `api.storage`: per-plugin JSON, no secrets.
+  - `api.fs`: sandboxed to `data/`. `watchFile` is a no-op stub.
+  - `api.shell`: pass the program and args separately, never a shell string.
+  - `api.ai`: headless `claude` CLI.
+
 ## `plugin.json`
 
 ```json
@@ -121,7 +227,7 @@ plugin that spawns a process or opens a watch must clean it up itself (e.g.
 | `api.fs` | `{ readTextFile, writeTextFile, readDataUrl, listDir, getRootPath, deleteFile, renameFile, watchFile }` | Raw file access scoped to your plugin's own sandboxed folder (`watchFile` is currently a no-op stub). For files *outside* your sandbox (e.g. editing a dotfile in the user's home dir), use `api.shell.exec` instead. |
 | `api.log` | `{ info(msg), warn(msg), error(msg) }` | Writes to the status bar and a persistent log file. |
 | `api.ai` | `{ run(prompt, opts?) }` → `{ pid, kill(), done }` | Launch point for headless `claude` CLI invocations. |
-| `ctx.tick` | `{ register(fn), unregister(), requestWake(afterMs?), setInterval(ms\|null) }` | Scheduled work while your plugin is loaded (independent of whether it's mounted). Throttled when the window is minimized — for background work that must survive that, use the raw `invoke("start_interval", ...)` / `listen("interval-tick:...")` escape hatch instead (see `plugins/git-tracker/index.tsx` in the source repo for the pattern, or ask your assistant — it's a small, self-contained snippet). |
+| `ctx.tick` | `{ register(fn), unregister(), requestWake(afterMs?), setInterval(ms\|null) }` | Scheduled work while your plugin is loaded (independent of whether it's mounted). Throttled when the window is minimized — for background work that must survive that, use the raw escape hatch instead: `invoke("start_interval", { key, intervalMs })` (clamps to >= 1000ms) + `listen("interval-tick:" + key, fn)`, and `invoke("stop_interval", { key })` in `ctx.onDispose`. |
 
 Icon/image props (`IconButton.icon`, etc.) take a `data:` URL: use
 `import icon from "./assets/foo.png"` for a bundled asset (esbuild inlines it
