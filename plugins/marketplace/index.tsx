@@ -4,7 +4,7 @@
 // updates entries via the host's install_plugin_from_url command. See
 // docs/plan-phases/03-marketplace-plugin.md and the master plan it links for
 // the full design rationale - this file follows it closely.
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PluginContext, PluginApi } from "stewrd-plugin-api";
 
@@ -154,10 +154,10 @@ export function Component({ api }: { api: PluginApi }) {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [catalogStale, setCatalogStale] = useState(false);
   const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [releaseByRepo, setReleaseByRepo] = useState<Map<string, ReleaseState>>(new Map());
   const [installed, setInstalled] = useState<Map<string, InstalledEntry>>(new Map());
   const [busyRepo, setBusyRepo] = useState<string | null>(null);
+  const palette = api.theme.palette;
 
   useEffect(() => {
     loadCatalog(api)
@@ -169,15 +169,18 @@ export function Component({ api }: { api: PluginApi }) {
     loadInstalled().then(setInstalled);
   }, [api]);
 
-  async function expandRow(entry: CatalogEntry) {
-    if (expanded === entry.repo) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(entry.repo);
-    const state = await fetchLatestRelease(entry.repo);
-    setReleaseByRepo((prev) => new Map(prev).set(entry.repo, state));
-  }
+  useEffect(() => {
+    if (!entries) return;
+    let active = true;
+    entries.forEach((entry) => {
+      fetchLatestRelease(entry.repo).then((state) => {
+        if (active) setReleaseByRepo((prev) => new Map(prev).set(entry.repo, state));
+      });
+    });
+    return () => {
+      active = false;
+    };
+  }, [entries]);
 
   function findInstalled(entry: CatalogEntry): InstalledEntry | undefined {
     for (const inst of installed.values()) {
@@ -246,103 +249,69 @@ export function Component({ api }: { api: PluginApi }) {
       <h2>Marketplace</h2>
       {catalogStale && <api.ui.Banner message="Showing a cached catalog - could not reach the network." tone="warning" />}
       <api.ui.TextBox value={search} onChange={setSearch} placeholder="Search plugins..." rows={1} />
-      <div style={{ marginTop: 12 }}>
-        {filtered.map((entry) => {
-          const existing = findInstalled(entry);
-          const apiVersionMismatch = entry.apiVersion !== SUPPORTED_API_VERSION;
-          const updateAvailable =
-            existing && existing.version && !existing.broken
-              ? (() => {
-                  const state = releaseByRepo.get(entry.repo);
-                  if (!state?.release) return false;
-                  const cmp = compareSemver(state.release.tag_name, existing.version!);
-                  return cmp === 1;
-                })()
-              : false;
+      <table style={{ width: "100%", marginTop: 12, borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ borderBottom: `1px solid ${palette.border}` }}>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Name</th>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Description</th>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Version</th>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>↓</th>
+            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Get</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filtered.map((entry) => {
+            const existing = findInstalled(entry);
+            const state = releaseByRepo.get(entry.repo);
+            const asset = state?.release ? findZipAsset(state.release) : undefined;
+            const updateAvailable =
+              existing && existing.version && !existing.broken && state?.release
+                ? compareSemver(state.release.tag_name, existing.version!) === 1
+                : false;
+            const label = existing?.broken ? "Repair" : existing ? "Update" : "Install";
+            const busy = busyRepo === entry.repo;
 
-          return (
-            <div key={entry.id} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <api.ui.Link label={entry.name} onClick={() => expandRow(entry)} />
-                <span>{entry.description}</span>
-                {existing?.broken && <api.ui.StatusDot color="error" />}
-                {updateAvailable && <api.ui.StatusDot color="warning" />}
-              </div>
+            let versionCell: ReactNode = <api.ui.Spinner />;
+            if (state) {
+              if (state.error === "rate-limited") {
+                versionCell = <span style={{ color: palette.status.warning }}>Rate limited</span>;
+              } else if (state.error === "offline" || !state.release) {
+                versionCell = <span style={{ color: palette.status.error }}>Offline</span>;
+              } else {
+                versionCell = <span>{state.release.tag_name}</span>;
+              }
+            }
 
-              {expanded === entry.repo && (
-                <div style={{ marginTop: 4, marginLeft: 12 }}>
-                  {apiVersionMismatch && (
+            return (
+              <tr key={entry.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
+                <td style={{ padding: 6, color: palette.text }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {entry.name}
+                    {existing?.broken && <api.ui.StatusDot color="error" />}
+                    {updateAvailable && <api.ui.StatusDot color="warning" />}
+                  </div>
+                  {entry.apiVersion !== SUPPORTED_API_VERSION && (
                     <api.ui.Banner
-                      message={`This plugin declares apiVersion ${entry.apiVersion}, host supports ${SUPPORTED_API_VERSION}.`}
+                      message={`Declares apiVersion ${entry.apiVersion}, host supports ${SUPPORTED_API_VERSION}.`}
                       tone="warning"
                     />
                   )}
-                  <ReleasePanel
-                    api={api}
-                    entry={entry}
-                    existing={existing}
-                    busy={busyRepo === entry.repo}
-                    onInstall={(release) => installOrUpdate(entry, release, existing)}
+                </td>
+                <td style={{ padding: 6, color: palette.textMuted }}>{entry.description}</td>
+                <td style={{ padding: 6 }}>{versionCell}</td>
+                <td style={{ padding: 6, color: palette.textMuted }}>{asset ? asset.download_count : "—"}</td>
+                <td style={{ padding: 6 }}>
+                  <api.ui.IconTextButton
+                    label={busy ? "Working..." : label}
+                    onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
+                    disabled={busy || !asset}
                   />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function ReleasePanel({
-  api,
-  entry,
-  existing,
-  busy,
-  onInstall,
-}: {
-  api: PluginApi;
-  entry: CatalogEntry;
-  existing: InstalledEntry | undefined;
-  busy: boolean;
-  onInstall: (release: GhRelease) => void;
-}) {
-  const [state, setState] = useState<ReleaseState | null>(releaseCache.get(entry.repo) ?? null);
-
-  useEffect(() => {
-    let active = true;
-    fetchLatestRelease(entry.repo).then((s) => {
-      if (active) setState(s);
-    });
-    return () => {
-      active = false;
-    };
-  }, [entry.repo]);
-
-  if (!state) return <api.ui.Spinner />;
-
-  if (state.error === "rate-limited") {
-    const resetText = state.rateLimitResetAt ? new Date(state.rateLimitResetAt).toLocaleTimeString() : "later";
-    return <api.ui.Banner message={`GitHub API rate limit hit - try again after ${resetText}.`} tone="warning" />;
-  }
-  if (state.error === "offline" || !state.release) {
-    return <api.ui.Banner message="Could not reach GitHub for this plugin's release info." tone="error" />;
-  }
-
-  const asset = findZipAsset(state.release);
-  const label = existing?.broken ? "Repair" : existing ? "Update" : "Install";
-
-  return (
-    <div>
-      <p>
-        Latest: {state.release.tag_name}
-        {asset ? ` — ${asset.download_count} downloads` : " — no .zip asset found"}
-      </p>
-      <api.ui.IconTextButton
-        label={busy ? "Working..." : label}
-        onClick={() => state.release && onInstall(state.release)}
-        disabled={busy || !asset}
-      />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

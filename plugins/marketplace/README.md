@@ -10,10 +10,11 @@ that repo's own latest GitHub release.
 1. Fetches the catalog JSON (cached under this plugin's own `data/` folder,
    via `api.fs`, so a stale copy still shows something if offline - never via
    `api.storage`, which would fire a hot-reload on every write).
-2. Per-entry release metadata (`api.github.com/.../releases/latest`) is only
-   fetched when a row is expanded or Install is clicked, cached in-memory
-   with a 15-minute TTL, to stay well under GitHub's 60/hour unauthenticated
-   rate limit.
+2. Per-entry release metadata (`api.github.com/.../releases/latest`) is
+   fetched for every visible catalog row as soon as the catalog loads, so the
+   table's Version/↓ columns populate without an extra click. It's cached
+   in-memory with a 15-minute TTL to stay well under GitHub's 60/hour
+   unauthenticated rate limit.
 3. Installing/updating downloads happen server-side, via the host's
    `install_plugin_from_url` Rust command (invoked directly via
    `@tauri-apps/api/core`'s `invoke`, the same raw-invoke tier as
