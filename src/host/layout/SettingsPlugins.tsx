@@ -107,7 +107,8 @@ export function SettingsPlugins() {
     await setPluginDisabled(entry.manifest.id, entry.dir, !entry.disabled);
   }
 
-  async function onRemove(dir: string, name: string) {
+  async function onRemove(dir: string, name: string, id: string) {
+    if (id === "marketplace") return;
     const confirmed = await modal.confirm({
       title: "Remove plugin",
       message: `Delete "${name}"? This removes its folder from disk and cannot be undone.`,
@@ -185,7 +186,11 @@ export function SettingsPlugins() {
                         onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
                       />
                       <TextButton label={disabled ? "Activate" : "Deactivate"} onClick={() => onToggleDisabled(entry)} />
-                      <TextButton label="Remove" onClick={() => onRemove(dir, manifest.name)} />
+                      <TextButton
+                        label="Remove"
+                        disabled={manifest.id === "marketplace"}
+                        onClick={() => onRemove(dir, manifest.name, manifest.id)}
+                      />
                     </div>
                   </td>
                 </tr>
