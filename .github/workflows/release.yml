@@ -67,6 +67,9 @@ jobs:
       - name: Build Template plugin bundle
         run: npm run plugin:build -- plugins/_template
 
+      - name: Build Marketplace plugin bundle
+        run: npm run plugin:build -- plugins/marketplace
+
       - name: Stage bundled plugins
         run: node scripts/stage-bundled-plugins.mjs
 

@@ -36,6 +36,7 @@
       "../src/assets/category-icons/*": "assets/category-icons/",
       "../bundled-plugins/notepad": "plugins/notepad",
       "../bundled-plugins/_template": "plugins/_template",
+      "../bundled-plugins/marketplace": "plugins/marketplace",
       "../ARCHITECTURE.md": "ARCHITECTURE.md",
       "../plugins/CLAUDE.md": "plugins/CLAUDE.md",
       "../plugins/build-plugin.mjs": "plugins/build-plugin.mjs",
