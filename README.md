@@ -5,13 +5,17 @@ In the age of AI, it's never been easier to spin up a custom one-off app to do e
 ![Stewrd screenshot](docs/screenshot.png)
   
 A personal, cross-platform (Windows/macOS/Linux) desktop app whose functionality is delivered almost entirely by **hot-loadable plugins**. The host app is a shell — a sidebar of installed plugins grouped by category, a main content area split into resizable panes so multiple plugins can be visible at once (dashboard-style, with saveable/recallable named layouts), and a status bar for logs/errors.
-  
+ 
 ## Features
 
 - Hot-loadable plugins — trusted, unsandboxed JS/TS bundles with full shell/filesystem/storage access through a host-provided API
 - Split-pane, dashboard-style layout with saved/recallable named layouts
 - Theming — switch between premade or custom color palettes, applied live across the host and every plugin
 - Self-updating (checks GitHub Releases, downloads and verifies signed updates)
+
+### Planned
+- macOS and Linux support
+- Additional integrated LLMs
 
 ## Tech stack
 
