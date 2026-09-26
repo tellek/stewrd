@@ -47,6 +47,6 @@ For the full plugin API, lifecycle, and host internals, see [ARCHITECTURE.md](AR
 
 ## License
 
-Stewrd is source-available under the [Business Source License 1.1](LICENSE). Personal, non-commercial use is free. Commercial/company use requires a paid license — contact chrisbirth@gmail.com. On 2030-01-01 (or 4 years after each version's release, whichever is first), that version converts to Apache 2.0.
+Stewrd is source-available under the [Business Source License 1.1](LICENSE). Free to use, copy, modify, and self-host — including commercially. The only restriction: you can't sell, resell, or host it (or a modified version) as a competing product/service without a paid license — contact chrisbirth@gmail.com. On 2030-01-01 (or 4 years after each version's release, whichever is first), that version converts to Apache 2.0.
 
 Donations are welcome and appreciated if you find this useful — see the ko-fi button above.
