@@ -9,6 +9,7 @@ A personal, cross-platform (Windows/macOS/Linux) desktop app whose functionality
 ## Features
 
 - Hot-loadable plugins — trusted, unsandboxed JS/TS bundles with full shell/filesystem/storage access through a host-provided API
+- Marketplace plugin — browse a community plugin catalog and install/update entries with one click, no git or GitHub account needed
 - Split-pane, dashboard-style layout with saved/recallable named layouts
 - Theming — switch between premade or custom color palettes, applied live across the host and every plugin
 - Self-updating (checks GitHub Releases, downloads and verifies signed updates)
@@ -29,6 +30,7 @@ Download a prebuilt release from the [Releases page](../../releases) (Windows/ma
 npm install
 npm run plugin:build -- plugins/_template   # dist/ is gitignored — build each plugin at least once
 npm run plugin:build -- plugins/notepad
+npm run plugin:build -- plugins/marketplace
 npm run tauri dev                            # full app in dev mode
 npm run tauri build                          # packaged app for the current OS
 ```

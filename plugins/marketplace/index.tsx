@@ -60,7 +60,7 @@ export function activate(ctx: PluginContext) {
 
 export function deactivate() {}
 
-async function loadCatalog(api: PluginApi): Promise<{ entries: CatalogEntry[]; stale: boolean }> {
+export async function loadCatalog(api: PluginApi): Promise<{ entries: CatalogEntry[]; stale: boolean }> {
   try {
     const resp = await fetch(CATALOG_URL);
     if (!resp.ok) throw new Error(`catalog fetch returned ${resp.status}`);
@@ -109,11 +109,11 @@ async function fetchLatestRelease(repo: string): Promise<ReleaseState> {
   return state;
 }
 
-function findZipAsset(release: GhRelease): GhAsset | undefined {
+export function findZipAsset(release: GhRelease): GhAsset | undefined {
   return release.assets.find((a) => a.name.toLowerCase().endsWith(".zip"));
 }
 
-function parseSemver(raw: string): [number, number, number] | null {
+export function parseSemver(raw: string): [number, number, number] | null {
   const cleaned = raw.trim().replace(/^v/i, "");
   const match = cleaned.match(/^(\d+)\.(\d+)\.(\d+)/);
   if (!match) return null;
@@ -121,7 +121,7 @@ function parseSemver(raw: string): [number, number, number] | null {
 }
 
 /** `1` if `a` is newer than `b`, `0` if equal, `-1` if older, `null` if either fails to parse. */
-function compareSemver(a: string, b: string): number | null {
+export function compareSemver(a: string, b: string): number | null {
   const pa = parseSemver(a);
   const pb = parseSemver(b);
   if (!pa || !pb) return null;
