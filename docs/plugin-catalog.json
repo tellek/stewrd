@@ -9,7 +9,7 @@
   },
   {
     "id": "stewrd-terminal",
-    "name": "Stewrd Terminal",
+    "name": "Terminal",
     "description": "Launch terminal sessions inside Stewrd to make the experience working with various tools more seemless.",
     "repo": "tellek/stewrd-terminal",
     "apiVersion": "1",
