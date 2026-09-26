@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": "claude-control",
+    "name": "Claude Control",
+    "description": "Blank placeholder plugin for Claude Control.",
+    "repo": "tellek/claude-control",
+    "apiVersion": "1",
+    "category": "Utilities"
+  },
+  {
+    "id": "stewrd-terminal",
+    "name": "Stewrd Terminal",
+    "description": "Blank placeholder plugin for Stewrd Terminal.",
+    "repo": "tellek/stewrd-terminal",
+    "apiVersion": "1",
+    "category": "Utilities"
+  }
+]
