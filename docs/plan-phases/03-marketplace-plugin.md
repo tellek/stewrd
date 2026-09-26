@@ -1,6 +1,21 @@
 # Phase 03 — `plugins/marketplace` Scaffold & UI
 
-Status: Not started. Depends on Phase 01 (done) for the `install_plugin_from_url` command it calls.
+Status: **Scaffold DONE.** `plugins/marketplace/{plugin.json,settings.json,index.tsx,README.md}` written, builds cleanly (`node scripts/stewrd-plugin-build.mjs plugins/marketplace`), type-checks cleanly (`npx tsc -p plugins/tsconfig.json` after adding `marketplace/**/*` to its `include`). Depends on Phase 01 (done) for the `install_plugin_from_url` command it calls.
+
+## What's implemented
+- Catalog fetch from `raw.githubusercontent.com` with `data/catalog-cache.json` fallback via `api.fs` (never `api.storage` - avoids the hot-reload-loop trap).
+- Per-repo `releases/latest` fetch, in-memory cache with 15min TTL, only on row-expand/install (not eager per-row).
+- Rate-limit (403 + `X-RateLimit-Remaining: 0`) vs. offline distinguished as separate Banner states.
+- Install/update via raw `invoke("install_plugin_from_url", ...)`, confirm modal naming repo+tag before every call.
+- Update detection matches installed plugins by `manifest.id` via `invoke("list_plugins")`, with a `dir`-based fallback for broken/`Error`-variant entries (repair path).
+- Semver comparison (`compareSemver`) treats unparseable versions as "unknown ETA", never "always offer update".
+- apiVersion mismatch shown as a UX-nicety Banner (Rust already enforces the real guard, phase 01).
+
+## What's NOT done yet
+- No icon.png (optional per plugin.json's `icon` field being "unused - reserved"; skipped, not required).
+- No automated tests yet for this plugin's logic - deferred to Phase 05 (depends on the `vitest.config.ts` include-glob decision made there).
+- Manual/live verification (real webview CORS check, rate-limit banner, no-hot-reload-loop, full end-to-end install of a real test entry) not yet done - see this phase's Verification section below and Phase 05.
+- Not yet committed as of writing this file.
 
 Read master plan Design sections 1-5 in full before starting — this file summarizes structure/checklist only, not the UX/security rationale.
 

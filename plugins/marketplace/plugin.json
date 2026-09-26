@@ -1,0 +1,9 @@
+{
+  "id": "marketplace",
+  "name": "Marketplace",
+  "icon": "default",
+  "entry": "dist/index.js",
+  "description": "Browse and install community plugins from the stewrd plugin catalog.",
+  "apiVersion": "1",
+  "background": false
+}
