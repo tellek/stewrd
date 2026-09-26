@@ -48,7 +48,7 @@ function App() {
   useEffect(() => {
     hydrateHostSettings();
     loadCategoryIcons();
-    hydrateStatusLog();
+    hydrateStatusLog().then(() => logMessage("idle", "Stewrd started and ready"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

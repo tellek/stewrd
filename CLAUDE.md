@@ -16,9 +16,9 @@
 ## General
 - When changes are completed in this project **ALWAYS** do the following:
     1. Always update ARCHITECTURE.md to reflect the change (architecture, API surfaces, mechanisms); only touch README.md if the change is significant enough to affect the human-facing overview (new feature, changed usage/getting-started steps, etc.)
-    2. Extecute all tests, fix any that are broken by fixing the related code, not the test(unless the test code truly is broken)
+    2. If it was a code change: Extecute all tests, fix any that are broken by fixing the related code, not the test(unless the test code truly is broken)
     3. Commit and push directly to main branch (do **NOT** create a pull request)
-    4. Execute ./build-release.bat
+    4. If it was a code change: Execute ./build-release.bat
 - ARCHITECTURE.md is a good source to look for details around this project
 - Plugins exist in ./plugins and should contain a README.md in their individual folders
 
