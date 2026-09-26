@@ -87,6 +87,7 @@ pub fn run() {
             commands::plugins::set_plugin_disabled,
             commands::plugins::remove_plugin,
             commands::logged::install_plugin_from_archive_logged,
+            commands::logged::install_plugin_from_url_logged,
             commands::plugin_settings::read_plugin_settings_file,
             commands::plugin_settings::write_plugin_settings_file,
             commands::logged::storage_get_logged,

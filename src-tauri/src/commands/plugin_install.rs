@@ -5,10 +5,22 @@
 // picked file itself (`<input type="file">` + `file.arrayBuffer()`) and hands
 // the bytes over - no Tauri dialog plugin needed either.
 use super::path_util::{path_clean, sanitize_dir_name};
-use super::plugins::resolve_plugins_dir;
+use super::plugins::{resolve_plugins_dir, SUPPORTED_API_VERSION};
 use std::io::{Cursor, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tauri::AppHandle;
+
+/// `"install"` errors if the target folder already exists (today's exact
+/// behavior of `install_plugin_from_archive`, unchanged). `"update"` requires
+/// the target folder to already exist, extracts to a throwaway temp dir
+/// first, verifies there, and only then copies a safe subset of files into
+/// the live folder - see `install_from_bytes` below for why.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InstallMode {
+    Install,
+    Update,
+}
 
 /// One file pulled out of an archive, path already relative to the archive
 /// root. Both supported archive kinds (zip, tar/tar.gz) are normalized into
@@ -121,7 +133,56 @@ pub(crate) fn strip_prefix(path: &str, prefix: &Option<String>) -> String {
 
 #[tauri::command]
 pub fn install_plugin_from_archive(app: AppHandle, bytes: Vec<u8>, file_name: String) -> Result<String, String> {
-    let entries = read_archive_entries(&bytes, &file_name)?;
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    install_from_bytes(&plugins_dir, &bytes, &file_name, InstallMode::Install, None)
+}
+
+/// Downloads a plugin archive from a URL (used by the Marketplace plugin,
+/// which can't do this itself - a release asset's `browser_download_url`
+/// redirects with no CORS header, so plugin-side `fetch()` fails; this
+/// command does the download in Rust, where CORS doesn't apply) and installs
+/// or updates it via the same core as the file-upload path.
+#[tauri::command]
+pub async fn install_plugin_from_url(
+    app: AppHandle,
+    url: String,
+    file_name: String,
+    mode: InstallMode,
+    expected_dir: Option<String>,
+) -> Result<String, String> {
+    if !url.starts_with("https://github.com/") {
+        return Err("only github.com release asset URLs are supported".to_string());
+    }
+    let client = reqwest::Client::builder()
+        .user_agent("stewrd-marketplace")
+        .build()
+        .map_err(|e| format!("could not build http client: {e}"))?;
+    let resp = client.get(&url).send().await.map_err(|e| format!("download failed: {e}"))?;
+    if !resp.status().is_success() {
+        return Err(format!("download returned {}", resp.status()));
+    }
+    let bytes = resp.bytes().await.map_err(|e| format!("download body failed: {e}"))?.to_vec();
+    let plugins_dir = resolve_plugins_dir(&app)?;
+    install_from_bytes(&plugins_dir, &bytes, &file_name, mode, expected_dir)
+}
+
+/// Shared core behind both `install_plugin_from_archive` (always
+/// `InstallMode::Install`, `expected_dir: None` - today's exact behavior) and
+/// `install_plugin_from_url` (either mode).
+///
+/// `InstallMode::Update` never touches the live target folder except via a
+/// targeted, ordered copy of specific files, written through a `.tmp` +
+/// rename - it never `remove_dir_all`s the live folder, on success or
+/// failure, so a verify failure or a mid-copy crash can't destroy the user's
+/// live `storage.json`/`data/`/custom `settings.json` keys.
+pub(crate) fn install_from_bytes(
+    plugins_dir: &Path,
+    bytes: &[u8],
+    file_name: &str,
+    mode: InstallMode,
+    expected_dir: Option<String>,
+) -> Result<String, String> {
+    let entries = read_archive_entries(bytes, file_name)?;
     if entries.is_empty() {
         return Err("archive is empty".to_string());
     }
@@ -134,28 +195,149 @@ pub fn install_plugin_from_archive(app: AppHandle, bytes: Vec<u8>, file_name: St
     let manifest: super::plugins::PluginManifest = serde_json::from_slice(&manifest_entry.contents)
         .map_err(|e| format!("archive's plugin.json is malformed: {e}"))?;
 
+    if manifest.api_version != SUPPORTED_API_VERSION {
+        return Err(format!(
+            "unsupported apiVersion '{}' (host supports '{}')",
+            manifest.api_version, SUPPORTED_API_VERSION
+        ));
+    }
+
     let Some(dir_name) = sanitize_dir_name(&manifest.id) else {
         return Err(format!("plugin id '{}' is not a valid folder name", manifest.id));
     };
 
-    let plugins_dir = resolve_plugins_dir(&app)?;
-    let target_dir = plugins_dir.join(&dir_name);
-    if target_dir.exists() {
-        return Err(format!("a plugin folder named '{dir_name}' already exists"));
-    }
-    std::fs::create_dir_all(&target_dir).map_err(|e| format!("could not create {}: {e}", target_dir.display()))?;
+    match mode {
+        InstallMode::Install => {
+            let target_dir = plugins_dir.join(&dir_name);
+            if target_dir.exists() {
+                return Err(format!("a plugin folder named '{dir_name}' already exists"));
+            }
+            std::fs::create_dir_all(&target_dir).map_err(|e| format!("could not create {}: {e}", target_dir.display()))?;
 
-    if let Err(e) = extract_entries(&entries, &prefix, &target_dir) {
-        let _ = std::fs::remove_dir_all(&target_dir);
-        return Err(e);
+            if let Err(e) = extract_entries(&entries, &prefix, &target_dir) {
+                let _ = std::fs::remove_dir_all(&target_dir);
+                return Err(e);
+            }
+            if let Err(e) = verify_installed_plugin(&target_dir, &manifest) {
+                let _ = std::fs::remove_dir_all(&target_dir);
+                return Err(e);
+            }
+            Ok(dir_name)
+        }
+        InstallMode::Update => {
+            let Some(expected) = expected_dir else {
+                return Err("expected_dir is required for mode: \"update\"".to_string());
+            };
+            if expected != dir_name {
+                return Err(format!(
+                    "archive's plugin id '{dir_name}' does not match the plugin being updated ('{expected}')"
+                ));
+            }
+            let live_dir = plugins_dir.join(&dir_name);
+            if !live_dir.exists() {
+                return Err(format!("no installed plugin folder named '{dir_name}' to update"));
+            }
+
+            let temp_dir = unique_temp_dir(plugins_dir)?;
+            std::fs::create_dir_all(&temp_dir).map_err(|e| format!("could not create {}: {e}", temp_dir.display()))?;
+
+            let result = (|| -> Result<(), String> {
+                extract_entries(&entries, &prefix, &temp_dir)?;
+                verify_installed_plugin(&temp_dir, &manifest)?;
+                apply_update_copy(&temp_dir, &live_dir, &manifest)
+            })();
+
+            let _ = std::fs::remove_dir_all(&temp_dir);
+            result.map(|_| dir_name)
+        }
+    }
+}
+
+/// A throwaway extraction dir, uniquely named and created as a *sibling* of
+/// the plugins folder (never inside it, so it's never mistaken for an
+/// installed plugin by discovery) - removed again once the update completes,
+/// success or failure. No new dependency: `tempfile` is dev-only today, so
+/// uniqueness is hand-rolled from the process id plus a monotonic counter,
+/// which is enough to avoid a collision between two concurrent update calls.
+fn unique_temp_dir(plugins_dir: &Path) -> Result<PathBuf, String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let parent = plugins_dir
+        .parent()
+        .ok_or_else(|| "plugins dir has no parent".to_string())?;
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid = std::process::id();
+    Ok(parent.join(format!(".stewrd-plugin-update-{pid}-{n}")))
+}
+
+/// Copies exactly the files an update should touch - the manifest's declared
+/// `entry` file, `icon.png` if present, `plugin.json`, and a merged
+/// `settings.json` - from a verified temp extraction into the live plugin
+/// folder. Never touches `storage.json` or `data/`. Each file is written to
+/// a `.tmp` sibling first, then renamed over the real target, so a mid-copy
+/// crash never leaves `plugin.json` claiming a version whose code isn't
+/// actually present (worst case: old code + old manifest, or new code + old
+/// manifest - both self-healing, never the reverse).
+fn apply_update_copy(temp_dir: &Path, live_dir: &Path, manifest: &super::plugins::PluginManifest) -> Result<(), String> {
+    let entry_relative = path_clean(Path::new(&manifest.entry));
+    let entry_temp_path = temp_dir.join(&entry_relative);
+    if !entry_temp_path.starts_with(temp_dir) {
+        return Err(format!("plugin.json entry '{}' escapes the plugin folder", manifest.entry));
     }
 
-    if let Err(e) = verify_installed_plugin(&target_dir, &manifest) {
-        let _ = std::fs::remove_dir_all(&target_dir);
-        return Err(e);
+    copy_via_tmp_rename(&entry_temp_path, &live_dir.join(&entry_relative))?;
+
+    let icon_temp_path = temp_dir.join("icon.png");
+    if icon_temp_path.exists() {
+        copy_via_tmp_rename(&icon_temp_path, &live_dir.join("icon.png"))?;
     }
 
-    Ok(dir_name)
+    copy_via_tmp_rename(&temp_dir.join("plugin.json"), &live_dir.join("plugin.json"))?;
+
+    merge_and_write_settings(temp_dir, live_dir)?;
+
+    Ok(())
+}
+
+fn copy_via_tmp_rename(src: &Path, dst: &Path) -> Result<(), String> {
+    if let Some(parent) = dst.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("could not create {}: {e}", parent.display()))?;
+    }
+    let tmp = dst.with_extension("tmp");
+    std::fs::copy(src, &tmp).map_err(|e| format!("could not copy {}: {e}", src.display()))?;
+    std::fs::rename(&tmp, dst).map_err(|e| format!("could not finalize {}: {e}", dst.display()))
+}
+
+/// Mirrors `scripts/merge-plugin-settings.mjs`'s rule: the live
+/// `settings.json` (`category` and anything else user-editable) is kept
+/// as-is, only its `"version"` key is replaced with the new archive's. If the
+/// new archive ships no `settings.json`, or one with no `"version"` key, the
+/// live file (if any) is left completely untouched - never invent a version.
+fn merge_and_write_settings(temp_dir: &Path, live_dir: &Path) -> Result<(), String> {
+    let new_settings_path = temp_dir.join("settings.json");
+    let Ok(new_text) = std::fs::read_to_string(&new_settings_path) else {
+        return Ok(());
+    };
+    let Ok(new_value) = serde_json::from_str::<serde_json::Value>(&new_text) else {
+        return Ok(());
+    };
+    let Some(new_version) = new_value.get("version").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
+
+    let live_settings_path = live_dir.join("settings.json");
+    let mut merged: serde_json::Value = std::fs::read_to_string(&live_settings_path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = merged.as_object_mut() {
+        obj.insert("version".to_string(), serde_json::Value::String(new_version.to_string()));
+    }
+    let merged_text = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
+
+    let tmp = live_settings_path.with_extension("tmp");
+    std::fs::write(&tmp, merged_text).map_err(|e| format!("could not write {}: {e}", tmp.display()))?;
+    std::fs::rename(&tmp, &live_settings_path).map_err(|e| format!("could not finalize {}: {e}", live_settings_path.display()))
 }
 
 pub(crate) fn extract_entries(entries: &[ArchiveEntry], prefix: &Option<String>, target_dir: &Path) -> Result<(), String> {
@@ -336,6 +518,126 @@ mod tests {
         };
         let err = verify_installed_plugin(tmp.path(), &manifest).unwrap_err();
         assert!(err.contains("plugin.json missing"));
+    }
+
+
+    fn build_test_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+        use std::io::Write as _;
+        let mut buf = Vec::new();
+        {
+            let mut writer = zip::ZipWriter::new(Cursor::new(&mut buf));
+            let options = zip::write::SimpleFileOptions::default();
+            for (name, contents) in files {
+                writer.start_file(*name, options).unwrap();
+                writer.write_all(contents).unwrap();
+            }
+            writer.finish().unwrap();
+        }
+        buf
+    }
+
+    #[test]
+    fn install_from_bytes_update_mode_never_removes_the_live_folder_on_verify_failure() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins_dir = tmp.path().join("plugins");
+        std::fs::create_dir_all(&plugins_dir).unwrap();
+        let live_dir = plugins_dir.join("my-plugin");
+        std::fs::create_dir_all(&live_dir).unwrap();
+        std::fs::write(live_dir.join("storage.json"), "sentinel").unwrap();
+        std::fs::create_dir_all(live_dir.join("data")).unwrap();
+        std::fs::write(live_dir.join("data").join("user.txt"), "user data").unwrap();
+
+        // Manifest declares an entry file the archive never provides, so
+        // verify_installed_plugin fails after extraction into the temp dir.
+        let manifest = serde_json::json!({
+            "id": "my-plugin", "name": "My Plugin", "icon": "icon.png",
+            "entry": "index.js", "description": "desc", "apiVersion": "1"
+        });
+        let zip_bytes = build_test_zip(&[("plugin.json", serde_json::to_string(&manifest).unwrap().as_bytes())]);
+
+        let result = install_from_bytes(&plugins_dir, &zip_bytes, "update.zip", InstallMode::Update, Some("my-plugin".to_string()));
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read_to_string(live_dir.join("storage.json")).unwrap(), "sentinel");
+        assert_eq!(std::fs::read_to_string(live_dir.join("data").join("user.txt")).unwrap(), "user data");
+    }
+
+    #[test]
+    fn install_from_bytes_update_mode_preserves_storage_and_data_on_success() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins_dir = tmp.path().join("plugins");
+        std::fs::create_dir_all(&plugins_dir).unwrap();
+        let live_dir = plugins_dir.join("my-plugin");
+        std::fs::create_dir_all(&live_dir).unwrap();
+        std::fs::write(live_dir.join("storage.json"), "sentinel").unwrap();
+        std::fs::create_dir_all(live_dir.join("data")).unwrap();
+        std::fs::write(live_dir.join("data").join("user.txt"), "user data").unwrap();
+        std::fs::write(live_dir.join("settings.json"), r#"{"category":"Utilities","version":"0.1.0"}"#).unwrap();
+
+        let manifest = serde_json::json!({
+            "id": "my-plugin", "name": "My Plugin", "icon": "icon.png",
+            "entry": "index.js", "description": "desc", "apiVersion": "1"
+        });
+        let settings = serde_json::json!({ "version": "0.2.0" });
+        let zip_bytes = build_test_zip(&[
+            ("plugin.json", serde_json::to_string(&manifest).unwrap().as_bytes()),
+            ("index.js", b"console.log('v2')"),
+            ("settings.json", serde_json::to_string(&settings).unwrap().as_bytes()),
+        ]);
+
+        let result = install_from_bytes(&plugins_dir, &zip_bytes, "update.zip", InstallMode::Update, Some("my-plugin".to_string()));
+
+        assert_eq!(result.unwrap(), "my-plugin");
+        assert_eq!(std::fs::read_to_string(live_dir.join("storage.json")).unwrap(), "sentinel");
+        assert_eq!(std::fs::read_to_string(live_dir.join("data").join("user.txt")).unwrap(), "user data");
+        assert_eq!(std::fs::read_to_string(live_dir.join("index.js")).unwrap(), "console.log('v2')");
+        let merged: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(live_dir.join("settings.json")).unwrap()).unwrap();
+        assert_eq!(merged["category"], "Utilities");
+        assert_eq!(merged["version"], "0.2.0");
+    }
+
+    #[test]
+    fn install_from_bytes_update_mode_rejects_a_mismatched_plugin_id() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins_dir = tmp.path().join("plugins");
+        std::fs::create_dir_all(&plugins_dir).unwrap();
+        std::fs::create_dir_all(plugins_dir.join("other-plugin")).unwrap();
+
+        let manifest = serde_json::json!({
+            "id": "my-plugin", "name": "My Plugin", "icon": "icon.png",
+            "entry": "index.js", "description": "desc", "apiVersion": "1"
+        });
+        let zip_bytes = build_test_zip(&[
+            ("plugin.json", serde_json::to_string(&manifest).unwrap().as_bytes()),
+            ("index.js", b"console.log('v2')"),
+        ]);
+
+        let result = install_from_bytes(&plugins_dir, &zip_bytes, "update.zip", InstallMode::Update, Some("other-plugin".to_string()));
+
+        let err = result.unwrap_err();
+        assert!(err.contains("does not match"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn install_from_bytes_rejects_an_unsupported_api_version_in_both_modes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins_dir = tmp.path().join("plugins");
+        std::fs::create_dir_all(&plugins_dir).unwrap();
+
+        let manifest = serde_json::json!({
+            "id": "my-plugin", "name": "My Plugin", "icon": "icon.png",
+            "entry": "index.js", "description": "desc", "apiVersion": "999"
+        });
+        let zip_bytes = build_test_zip(&[
+            ("plugin.json", serde_json::to_string(&manifest).unwrap().as_bytes()),
+            ("index.js", b"console.log('hi')"),
+        ]);
+
+        let result = install_from_bytes(&plugins_dir, &zip_bytes, "plugin.zip", InstallMode::Install, None);
+
+        let err = result.unwrap_err();
+        assert!(err.contains("unsupported apiVersion"), "unexpected error: {err}");
+        assert!(!plugins_dir.join("my-plugin").exists());
     }
 }
 

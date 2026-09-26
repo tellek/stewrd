@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 
-const SUPPORTED_API_VERSION: &str = "1";
+pub(crate) const SUPPORTED_API_VERSION: &str = "1";
 const DISABLED_PLUGINS_FILE: &str = "disabled-plugins.json";
 const BOOT_MARKS_FILE: &str = "boot-marks.json";
 const SAFE_MODE_FILE: &str = "SAFE_MODE";

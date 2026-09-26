@@ -148,3 +148,18 @@ pub fn install_plugin_from_archive_logged(
     }
     result
 }
+
+#[tauri::command(rename = "install_plugin_from_url")]
+pub async fn install_plugin_from_url_logged(
+    app: AppHandle,
+    url: String,
+    file_name: String,
+    mode: plugin_install_cmd::InstallMode,
+    expected_dir: Option<String>,
+) -> Result<String, String> {
+    let result = plugin_install_cmd::install_plugin_from_url(app.clone(), url, file_name, mode, expected_dir).await;
+    if let Err(e) = &result {
+        log_command_error(&app, "install_plugin_from_url", e);
+    }
+    result
+}
