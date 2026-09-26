@@ -51,14 +51,14 @@ describe("SidebarSubItems", () => {
     useAppStore.setState({
       sidebarItemsByPlugin: { notepad: [{ id: "a", label: "Item A", onClick }] },
     });
-    const setPaneTool = vi.spyOn(useAppStore.getState(), "setPaneTool");
+    const focusOrOpenPlugin = vi.spyOn(useAppStore.getState(), "focusOrOpenPlugin");
     const user = userEvent.setup();
     render(<SidebarSubItems pluginId="notepad" />);
 
     await user.click(screen.getByText("Item A"));
 
     expect(onClick).toHaveBeenCalled();
-    expect(setPaneTool).toHaveBeenCalledWith("pane-1", "notepad");
+    expect(focusOrOpenPlugin).toHaveBeenCalledWith("pane-1", "notepad");
     expect(useAppStore.getState().sidebarSelectedByPlugin.notepad).toBe("a");
   });
 });

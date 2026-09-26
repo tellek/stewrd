@@ -3,7 +3,7 @@ import { useAppStore } from "../state/appStore";
 import { PluginErrorBoundary } from "../errors/PluginErrorBoundary";
 import type { PluginRegistryEntry } from "../loader/usePluginRegistry";
 import type { PaneEdge, PaneNode } from "../state/paneTree";
-import { countLeaves, findLeafForPlugin } from "../state/paneTree";
+import { countLeaves } from "../state/paneTree";
 import { SettingsPage } from "./SettingsPage";
 import type { Palette } from "../../shared/palette";
 
@@ -69,7 +69,6 @@ function PaneLeafView({
   const palette = useAppStore((s) => s.palette);
   const activePaneId = useAppStore((s) => s.activePaneId);
   const paneTree = useAppStore((s) => s.paneTree);
-  const draggingPluginId = useAppStore((s) => s.draggingPluginId);
   const setActivePane = useAppStore((s) => s.setActivePane);
   const setPaneTool = useAppStore((s) => s.setPaneTool);
   const splitPane = useAppStore((s) => s.splitPane);
@@ -80,14 +79,6 @@ function PaneLeafView({
   const active = node.pluginId ? entries.find((e) => e.manifest.id === node.pluginId) : undefined;
   const isActivePane = node.id === activePaneId;
   const canClose = countLeaves(paneTree) > 1;
-  // A plugin already open elsewhere can only ever move focus there (v1
-  // restricts a plugin to one pane) - reject the drop here so dragging it
-  // over another pane doesn't show a split/replace preview that then
-  // silently does nothing.
-  const draggedElsewhere =
-    draggingPluginId != null && findLeafForPlugin(paneTree, draggingPluginId)?.id !== node.id
-      ? findLeafForPlugin(paneTree, draggingPluginId) != null
-      : false;
 
   return (
     <div
@@ -95,11 +86,6 @@ function PaneLeafView({
       onClick={() => setActivePane(node.id)}
       onDragOver={(e) => {
         e.preventDefault();
-        if (draggedElsewhere) {
-          e.dataTransfer.dropEffect = "none";
-          setDropZone(null);
-          return;
-        }
         const rect = e.currentTarget.getBoundingClientRect();
         setDropZone(detectEdge(e, rect));
       }}

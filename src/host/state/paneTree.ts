@@ -61,20 +61,22 @@ export function setPluginInTree(node: PaneNode, paneId: string, pluginId: string
   return children[0] === node.children[0] && children[1] === node.children[1] ? node : { ...node, children };
 }
 
-/** Splits leaf `paneId` in the given edge direction, putting a new leaf for
- * `pluginId` on that side. left/right => side-by-side ("row", vertical
- * divider); top/bottom => stacked ("column", horizontal divider). */
-export function splitLeafInTree(node: PaneNode, paneId: string, edge: PaneEdge, pluginId: string): PaneNode {
+/** Splits leaf `paneId` in the given edge direction, putting `newLeaf` on
+ * that side. left/right => side-by-side ("row", vertical divider); top/bottom
+ * => stacked ("column", horizontal divider). Caller creates `newLeaf` (e.g.
+ * via createLeaf) so it can reliably focus its id afterwards - a lookup by
+ * plugin id after the fact would pick the tree-order-first leaf instead,
+ * which is wrong when the plugin already occupies another pane. */
+export function splitLeafInTree(node: PaneNode, paneId: string, edge: PaneEdge, newLeaf: PaneLeaf): PaneNode {
   if (node.type === "leaf") {
     if (node.id !== paneId) return node;
-    const newLeaf = createLeaf(pluginId);
     const direction: "row" | "column" = edge === "left" || edge === "right" ? "row" : "column";
     const children: [PaneNode, PaneNode] = edge === "left" || edge === "top" ? [newLeaf, node] : [node, newLeaf];
     return { type: "split", id: crypto.randomUUID(), direction, children, sizes: [50, 50] };
   }
   const children: [PaneNode, PaneNode] = [
-    splitLeafInTree(node.children[0], paneId, edge, pluginId),
-    splitLeafInTree(node.children[1], paneId, edge, pluginId),
+    splitLeafInTree(node.children[0], paneId, edge, newLeaf),
+    splitLeafInTree(node.children[1], paneId, edge, newLeaf),
   ];
   return children[0] === node.children[0] && children[1] === node.children[1] ? node : { ...node, children };
 }

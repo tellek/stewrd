@@ -54,14 +54,14 @@ describe("SidebarCategoryCollapsed", () => {
     expect(screen.queryByTitle("Notepad")).toBeNull();
   });
 
-  it("calls setPaneTool with the plugin id when a plugin button is clicked", async () => {
+  it("calls focusOrOpenPlugin with the plugin id when a plugin button is clicked", async () => {
     resetStore();
-    const setPaneTool = vi.spyOn(useAppStore.getState(), "setPaneTool");
+    const focusOrOpenPlugin = vi.spyOn(useAppStore.getState(), "focusOrOpenPlugin");
     const user = userEvent.setup();
     render(<SidebarCategoryCollapsed category={category} entries={[makeEntry("notepad", "Notepad")]} />);
 
     await user.click(screen.getByTitle("Notepad"));
 
-    expect(setPaneTool).toHaveBeenCalledWith("pane-1", "notepad");
+    expect(focusOrOpenPlugin).toHaveBeenCalledWith("pane-1", "notepad");
   });
 });

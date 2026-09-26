@@ -45,9 +45,9 @@ describe("SidebarPluginItem", () => {
     expect(screen.getByText("Notepad")).toBeTruthy();
   });
 
-  it("calls setPaneTool when clicked while not active", async () => {
+  it("calls focusOrOpenPlugin when clicked while not active", async () => {
     resetStore();
-    const setPaneTool = vi.spyOn(useAppStore.getState(), "setPaneTool");
+    const focusOrOpenPlugin = vi.spyOn(useAppStore.getState(), "focusOrOpenPlugin");
     const user = userEvent.setup();
     render(
       <SidebarPluginItem entry={makeEntry("notepad", "Notepad")} onDragOverItem={vi.fn()} onDropItem={vi.fn()} onDragEndItem={vi.fn()} />,
@@ -55,7 +55,7 @@ describe("SidebarPluginItem", () => {
 
     await user.click(screen.getByText("Notepad"));
 
-    expect(setPaneTool).toHaveBeenCalledWith("pane-1", "notepad");
+    expect(focusOrOpenPlugin).toHaveBeenCalledWith("pane-1", "notepad");
   });
 
   it("toggles sub-items expansion when clicked while already active", async () => {
@@ -72,10 +72,10 @@ describe("SidebarPluginItem", () => {
     expect(toggle).toHaveBeenCalledWith("notepad");
   });
 
-  it("calls setPaneTool (not toggle) when clicked while in settings view, even though it occupies the active pane", async () => {
+  it("calls focusOrOpenPlugin (not toggle) when clicked while in settings view, even though it occupies the active pane", async () => {
     resetStore();
     useAppStore.setState({ paneTree: { type: "leaf", id: "pane-1", pluginId: "notepad" }, view: "settings" });
-    const setPaneTool = vi.spyOn(useAppStore.getState(), "setPaneTool");
+    const focusOrOpenPlugin = vi.spyOn(useAppStore.getState(), "focusOrOpenPlugin");
     const toggle = vi.spyOn(useAppStore.getState(), "toggleSidebarSubItemsExpanded");
     const user = userEvent.setup();
     render(
@@ -84,9 +84,32 @@ describe("SidebarPluginItem", () => {
 
     await user.click(screen.getByText("Notepad"));
 
-    expect(setPaneTool).toHaveBeenCalledWith("pane-1", "notepad");
+    expect(focusOrOpenPlugin).toHaveBeenCalledWith("pane-1", "notepad");
     expect(toggle).not.toHaveBeenCalled();
     expect(useAppStore.getState().view).toBe("plugin");
+  });
+
+  it("highlights the row when the active pane holds this plugin even if another pane also does", () => {
+    resetStore();
+    useAppStore.setState({
+      paneTree: {
+        type: "split",
+        id: "split-1",
+        direction: "row",
+        sizes: [50, 50],
+        children: [
+          { type: "leaf", id: "pane-other", pluginId: "notepad" },
+          { type: "leaf", id: "pane-1", pluginId: "notepad" },
+        ],
+      },
+      activePaneId: "pane-1",
+    });
+    render(
+      <SidebarPluginItem entry={makeEntry("notepad", "Notepad")} onDragOverItem={vi.fn()} onDropItem={vi.fn()} onDragEndItem={vi.fn()} />,
+    );
+
+    const button = screen.getByText("Notepad").closest("button") as HTMLElement;
+    expect(button.style.background).not.toBe("transparent");
   });
 
   it("sets dataTransfer to the plugin id and updates draggingPluginId on drag start, and clears on drag end", () => {

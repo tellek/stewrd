@@ -4,7 +4,7 @@ import { getCategoryIcon } from "./categoryIcons";
 import { categoryStatusColor } from "./categoryStatus";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { usePluginIcon } from "./usePluginIcon";
-import { findLeafForPlugin } from "../state/paneTree";
+import { findLeaf } from "../state/paneTree";
 import type { CategoryDef } from "../../shared/category";
 
 export function SidebarCategoryCollapsed({ category, entries }: { category: CategoryDef; entries: PluginSidebarEntry[] }) {
@@ -12,7 +12,7 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: Cate
   const toggleCategory = useAppStore((s) => s.toggleCategory);
   const activePaneId = useAppStore((s) => s.activePaneId);
   const paneTree = useAppStore((s) => s.paneTree);
-  const setPaneTool = useAppStore((s) => s.setPaneTool);
+  const focusOrOpenPlugin = useAppStore((s) => s.focusOrOpenPlugin);
   const palette = useAppStore((s) => s.palette);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const icon = getCategoryIcon(categoryIconFiles, category.icon);
@@ -45,8 +45,8 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: Cate
           <CollapsedPluginButton
             key={entry.manifest.id}
             entry={entry}
-            isActive={findLeafForPlugin(paneTree, entry.manifest.id)?.id === activePaneId}
-            onClick={() => setPaneTool(activePaneId, entry.manifest.id)}
+            isActive={findLeaf(paneTree, activePaneId)?.pluginId === entry.manifest.id}
+            onClick={() => focusOrOpenPlugin(activePaneId, entry.manifest.id)}
           />
         ))}
     </div>

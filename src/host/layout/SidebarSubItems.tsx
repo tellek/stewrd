@@ -16,7 +16,7 @@ export function SidebarSubItems({ pluginId }: { pluginId: string }) {
   const selectedId = useAppStore((s) => s.sidebarSelectedByPlugin[pluginId] ?? null);
   const expanded = useAppStore((s) => s.sidebarSubItemsExpanded[pluginId] ?? true);
   const activePaneId = useAppStore((s) => s.activePaneId);
-  const setPaneTool = useAppStore((s) => s.setPaneTool);
+  const focusOrOpenPlugin = useAppStore((s) => s.focusOrOpenPlugin);
   const setSidebarSelected = useAppStore((s) => s.setSidebarSelected);
   const palette = useAppStore((s) => s.palette);
 
@@ -31,7 +31,7 @@ export function SidebarSubItems({ pluginId }: { pluginId: string }) {
             key={item.id}
             onClick={(e) => {
               e.stopPropagation();
-              setPaneTool(activePaneId, pluginId);
+              focusOrOpenPlugin(activePaneId, pluginId);
               setSidebarSelected(pluginId, item.id);
               item.onClick();
             }}

@@ -169,6 +169,42 @@ describe("MainContent", () => {
     expect(tree.pluginId).toBe("notepad");
   });
 
+  it("opens a second independent instance when a plugin already open elsewhere is dropped on another pane", () => {
+    resetStore();
+    useAppStore.setState({
+      paneTree: {
+        type: "split",
+        id: "split-1",
+        direction: "row",
+        sizes: [50, 50],
+        children: [
+          { type: "leaf", id: "pane-1", pluginId: "notepad" },
+          { type: "leaf", id: "pane-2", pluginId: null },
+        ],
+      },
+    });
+    const dataTransfer = makeDataTransfer();
+    dataTransfer.setData("text/plain", "notepad");
+    const { container } = render(<MainContent entries={[makeEntry("notepad", "Notepad")]} onReload={vi.fn()} />);
+    const dropTarget = container.querySelectorAll("main > div > div > div")[1] as HTMLElement;
+    vi.spyOn(dropTarget, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 100,
+      width: 100,
+      height: 100,
+    } as DOMRect);
+
+    fireDragEvent(dropTarget, "dragover", { dataTransfer, clientX: 50, clientY: 50 });
+    fireDragEvent(dropTarget, "drop", { dataTransfer, clientX: 50, clientY: 50 });
+
+    const tree = useAppStore.getState().paneTree as Extract<PaneNode, { type: "split" }>;
+    expect(tree.children[0]).toMatchObject({ id: "pane-1", pluginId: "notepad" });
+    expect(tree.children[1]).toMatchObject({ id: "pane-2", pluginId: "notepad" });
+    expect(useAppStore.getState().activePaneId).toBe("pane-2");
+  });
+
   it("closes a pane via the close button when more than one pane exists", () => {
     resetStore();
     useAppStore.setState({

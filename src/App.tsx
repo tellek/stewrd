@@ -67,7 +67,7 @@ function App() {
   // returns every render - App.tsx has a documented history of an infinite
   // reload loop from exactly that "new array/object each render" shape (see
   // the worstPluginStatus comment above).
-  const paneToolIdsKey = collectPaneToolIds(paneTree).join("|");
+  const paneToolIdsKey = [...new Set(collectPaneToolIds(paneTree))].join("|");
   useEffect(() => {
     for (const id of paneToolIdsKey ? paneToolIdsKey.split("|") : []) ensureLoaded(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps

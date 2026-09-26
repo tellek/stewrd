@@ -144,25 +144,68 @@ describe("setPlugins", () => {
   });
 });
 
-describe("setPaneTool / splitPane", () => {
-  it("setPaneTool focuses the pane a plugin is already open in instead of opening it in a second pane", () => {
+describe("focusOrOpenPlugin", () => {
+  it("focuses the pane a plugin is already open in instead of opening it in a second pane", () => {
     const leafA = createLeaf("pluginA");
     const leafB = createLeaf(null);
     const tree = { type: "split" as const, id: "split1", direction: "row" as const, children: [leafA, leafB] as [typeof leafA, typeof leafB], sizes: [50, 50] as [number, number] };
     useAppStore.setState({ paneTree: tree, activePaneId: leafB.id, view: "settings" });
-    useAppStore.getState().setPaneTool(leafB.id, "pluginA");
+    useAppStore.getState().focusOrOpenPlugin(leafB.id, "pluginA");
+    expect(useAppStore.getState().activePaneId).toBe(leafA.id);
+    expect(useAppStore.getState().view).toBe("plugin");
+    expect(useAppStore.getState().paneTree).toBe(tree);
+  });
+
+  it("just switches out of settings when the plugin is already in the target pane", () => {
+    const leafA = createLeaf("pluginA");
+    useAppStore.setState({ paneTree: leafA, activePaneId: leafA.id, view: "settings" });
+    useAppStore.getState().focusOrOpenPlugin(leafA.id, "pluginA");
     expect(useAppStore.getState().activePaneId).toBe(leafA.id);
     expect(useAppStore.getState().view).toBe("plugin");
   });
+});
 
-  it("splitPane focuses the pane a plugin is already open in instead of splitting", () => {
+describe("setPaneTool / splitPane", () => {
+  it("setPaneTool always opens a new instance in the target pane, even if the plugin is open elsewhere", () => {
     const leafA = createLeaf("pluginA");
     const leafB = createLeaf(null);
     const tree = { type: "split" as const, id: "split1", direction: "row" as const, children: [leafA, leafB] as [typeof leafA, typeof leafB], sizes: [50, 50] as [number, number] };
-    useAppStore.setState({ paneTree: tree, activePaneId: leafB.id });
-    useAppStore.getState().splitPane(leafB.id, "left", "pluginA");
-    expect(useAppStore.getState().activePaneId).toBe(leafA.id);
-    expect(useAppStore.getState().paneTree).toBe(tree);
+    useAppStore.setState({ paneTree: tree, activePaneId: leafA.id, view: "settings" });
+    useAppStore.getState().setPaneTool(leafB.id, "pluginA");
+    expect(useAppStore.getState().activePaneId).toBe(leafB.id);
+    expect(useAppStore.getState().view).toBe("plugin");
+    const result = useAppStore.getState().paneTree;
+    if (result.type !== "split") throw new Error("expected split");
+    expect(result.children[0]).toMatchObject({ id: leafA.id, pluginId: "pluginA" });
+    expect(result.children[1]).toMatchObject({ id: leafB.id, pluginId: "pluginA" });
+  });
+
+  it("splitPane always splits and opens a new instance, even if the plugin is open elsewhere", () => {
+    const leafA = createLeaf("pluginA");
+    const leafB = createLeaf(null);
+    const tree = { type: "split" as const, id: "split1", direction: "row" as const, children: [leafA, leafB] as [typeof leafA, typeof leafB], sizes: [50, 50] as [number, number] };
+    useAppStore.setState({ paneTree: tree, activePaneId: leafA.id });
+    useAppStore.getState().splitPane(leafB.id, "right", "pluginA");
+    const result = useAppStore.getState().paneTree;
+    expect(result).not.toBe(tree);
+    if (result.type !== "split") throw new Error("expected split");
+    const innerB = result.children[1];
+    if (innerB.type !== "split") throw new Error("expected nested split at leafB");
+    // "right" puts the pre-existing pane first, the new instance second -
+    // focus must land on the new leaf specifically, not the first match in
+    // tree order (that would wrongly be leafA here).
+    expect(innerB.children[0]).toMatchObject({ id: leafB.id, pluginId: null });
+    expect(innerB.children[1]).toMatchObject({ pluginId: "pluginA" });
+    expect(useAppStore.getState().activePaneId).toBe(innerB.children[1].id);
+    expect(useAppStore.getState().activePaneId).not.toBe(leafA.id);
+  });
+
+  it("splitPane is a no-op when paneId isn't found, focusing paneId as a fallback", () => {
+    const leafA = createLeaf("pluginA");
+    useAppStore.setState({ paneTree: leafA, activePaneId: leafA.id });
+    useAppStore.getState().splitPane("missing-id", "left", "pluginB");
+    expect(useAppStore.getState().paneTree).toBe(leafA);
+    expect(useAppStore.getState().activePaneId).toBe("missing-id");
   });
 });
 

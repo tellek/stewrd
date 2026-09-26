@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
-import { findLeafForPlugin } from "../state/paneTree";
+import { findLeaf } from "../state/paneTree";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 
 const EMPTY_ITEMS: SidebarItem[] = [];
@@ -26,7 +26,7 @@ export function SidebarPluginItem({
   const activePaneId = useAppStore((s) => s.activePaneId);
   const view = useAppStore((s) => s.view);
   const paneTree = useAppStore((s) => s.paneTree);
-  const setPaneTool = useAppStore((s) => s.setPaneTool);
+  const focusOrOpenPlugin = useAppStore((s) => s.focusOrOpenPlugin);
   const setDraggingPlugin = useAppStore((s) => s.setDraggingPlugin);
   const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
   const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id] ?? EMPTY_ITEMS);
@@ -36,8 +36,7 @@ export function SidebarPluginItem({
   // shows at startup even before it's activated this session.
   const knownExpandable = useAppStore((s) => s.pluginsWithSidebarItems.includes(entry.manifest.id));
   const palette = useAppStore((s) => s.palette);
-  const occupiedLeaf = findLeafForPlugin(paneTree, entry.manifest.id);
-  const isActive = view === "plugin" && occupiedLeaf?.id === activePaneId;
+  const isActive = view === "plugin" && findLeaf(paneTree, activePaneId)?.pluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
   const [hovered, setHovered] = useState(false);
 
@@ -64,7 +63,9 @@ export function SidebarPluginItem({
         if (draggedId) onDropItem(draggedId);
       }}
       onClick={() =>
-        isActive ? toggleSidebarSubItemsExpanded(entry.manifest.id) : setPaneTool(activePaneId, entry.manifest.id)
+        isActive
+          ? toggleSidebarSubItemsExpanded(entry.manifest.id)
+          : focusOrOpenPlugin(activePaneId, entry.manifest.id)
       }
       style={{
         display: "flex",
@@ -106,7 +107,7 @@ export function SidebarPluginItem({
         <span
           onClick={(e) => {
             e.stopPropagation();
-            if (!isActive) setPaneTool(activePaneId, entry.manifest.id);
+            if (!isActive) focusOrOpenPlugin(activePaneId, entry.manifest.id);
             toggleSidebarSubItemsExpanded(entry.manifest.id);
           }}
           style={{ color: palette.textMuted, cursor: "pointer", padding: "0 4px" }}

@@ -12,6 +12,7 @@ import {
   closeLeafInTree,
   countLeaves,
   createLeaf,
+  findLeaf,
   findLeafForPlugin,
   firstLeafId,
   resizeSplitInTree,
@@ -172,15 +173,23 @@ interface AppState {
   setPlugins(plugins: PluginSidebarEntry[]): void;
   setDraggingPlugin(id: string | null): void;
   setActivePane(id: string): void;
-  /** Opens `pluginId` in the pane addressed by `paneId` and switches out of
-   * Settings. If `pluginId` already occupies a different pane, this only
-   * moves focus there (v1 restricts a given plugin to at most one pane) -
-   * never a silent no-op, so a click on an already-open tool always at least
-   * switches away from Settings and focuses it. */
+  /** Opens `pluginId` in the pane addressed by `paneId`, replacing whatever
+   * was there, and switches out of Settings. Multiple panes may hold
+   * independent instances of the same plugin - this always opens/replaces in
+   * `paneId` and never redirects focus elsewhere. Used for pane drops (see
+   * MainContent.tsx); sidebar click uses focusOrOpenPlugin instead. */
   setPaneTool(paneId: string, pluginId: string): void;
-  /** Splits the pane addressed by `paneId` in `edge`'s direction and opens
-   * `pluginId` in the new half - or just moves focus there (see setPaneTool)
-   * if `pluginId` already occupies a different pane. */
+  /** Opens `pluginId` in the pane addressed by `paneId` and switches out of
+   * Settings, unless `pluginId` already occupies `paneId` or the active pane
+   * (in which case this just focuses/keeps that pane), or occupies some other
+   * pane (in which case this only moves focus there) - never a silent no-op,
+   * so a click on an already-open tool always at least switches away from
+   * Settings and focuses it. Used for sidebar click; drag-and-drop uses
+   * setPaneTool/splitPane instead, which always open a new instance. */
+  focusOrOpenPlugin(paneId: string, pluginId: string): void;
+  /** Splits the pane addressed by `paneId` in `edge`'s direction and opens a
+   * new instance of `pluginId` in the new half - always creates a new pane,
+   * even if `pluginId` already occupies another pane. */
   splitPane(paneId: string, edge: PaneEdge, pluginId: string): void;
   resizePane(splitId: string, sizes: [number, number]): void;
   /** No-ops if `paneId` is the tree's only pane. */
@@ -289,9 +298,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActivePane: (id) => set({ activePaneId: id }),
 
   setPaneTool: (paneId, pluginId) =>
+    set((state) => ({
+      paneTree: setPluginInTree(state.paneTree, paneId, pluginId),
+      activePaneId: paneId,
+      view: "plugin",
+    })),
+
+  focusOrOpenPlugin: (paneId, pluginId) =>
     set((state) => {
+      if (findLeaf(state.paneTree, paneId)?.pluginId === pluginId) {
+        return { activePaneId: paneId, view: "plugin" };
+      }
       const elsewhere = findLeafForPlugin(state.paneTree, pluginId);
-      if (elsewhere && elsewhere.id !== paneId) {
+      if (elsewhere) {
         return { activePaneId: elsewhere.id, view: "plugin" };
       }
       return { paneTree: setPluginInTree(state.paneTree, paneId, pluginId), activePaneId: paneId, view: "plugin" };
@@ -299,13 +318,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   splitPane: (paneId, edge, pluginId) =>
     set((state) => {
-      const elsewhere = findLeafForPlugin(state.paneTree, pluginId);
-      if (elsewhere) {
-        return { activePaneId: elsewhere.id, view: "plugin" };
-      }
-      const paneTree = splitLeafInTree(state.paneTree, paneId, edge, pluginId);
-      const newLeaf = findLeafForPlugin(paneTree, pluginId);
-      return { paneTree, activePaneId: newLeaf?.id ?? paneId, view: "plugin" };
+      const newLeaf = createLeaf(pluginId);
+      const paneTree = splitLeafInTree(state.paneTree, paneId, edge, newLeaf);
+      const activePaneId = paneTree !== state.paneTree ? newLeaf.id : paneId;
+      return { paneTree, activePaneId, view: "plugin" };
     }),
 
   resizePane: (splitId, sizes) =>

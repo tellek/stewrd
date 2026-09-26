@@ -74,7 +74,16 @@ API/file before building anything that touches one of these.
   JSON.
 
 **Pane container (forced by the host)**
-- A plugin renders in only one pane at a time.
+- A plugin can render in more than one pane at once - dragging it onto a
+  second pane opens an independent instance there (each gets its own
+  `Component` mount/state), not a focus jump to the existing one. Sidebar
+  single-click still just focuses an existing pane instead of opening a new
+  one. Known limitation: `api.sidebar` state and `api.storage` are shared
+  per-plugin-id, not per-pane-instance, so the most-recently-mounted instance
+  "wins" for sidebar items/registrations, and storage keys can collide across
+  instances - don't assume exactly one mounted `Component` per plugin.
+  Reloading/hot-reloading one instance remounts every open instance of that
+  plugin (they share one activation `generation`).
 - The pane is a flex column with `padding: 16`, so don't add your own outer
   padding.
 - The active pane gets a 2px `palette.accent` outline.
