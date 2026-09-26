@@ -14,5 +14,13 @@
     "repo": "tellek/stewrd-terminal",
     "apiVersion": "1",
     "category": "Utilities"
+  },
+  {
+    "id": "notepad",
+    "name": "Notepad",
+    "description": "Obsidian-style markdown notes with wikilinks, backlinks, and a background LLM-wiki harvester.",
+    "repo": "tellek/stewrd-notepad",
+    "apiVersion": "1",
+    "category": "Utilities"
   }
 ]
