@@ -33,6 +33,7 @@ reqwest = { version = "0.13", default-features = false, features = ["json", "rus
 semver = "1"
 self-replace = "1"
 minisign-verify = "0.2"
+portable-pty = "0.9"
 
 [dev-dependencies]
 tempfile = "3"

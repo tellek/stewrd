@@ -98,6 +98,10 @@ pub fn run() {
             commands::logged::run_command_logged,
             commands::logged::spawn_command_logged,
             commands::shell::kill_command,
+            commands::logged::pty_spawn_logged,
+            commands::logged::pty_write_logged,
+            commands::pty::pty_resize,
+            commands::pty::pty_kill,
             commands::logged::fs_read_text_file_logged,
             commands::logged::fs_write_text_file_logged,
             commands::fs::fs_read_data_url,
@@ -131,6 +135,15 @@ pub fn run() {
                         .status();
                     #[cfg(not(windows))]
                     let _ = std::process::Command::new("kill").args(["-9", &pid.to_string()]).status();
+                }
+                // Same reasoning for still-running PTY sessions: kill each
+                // one's tracked killer directly (a synchronous OS call, not
+                // a channel signal, so it doesn't need the tokio runtime
+                // still scheduled).
+                let mut pty_sessions = state.pty_sessions.lock().unwrap();
+                for (_id, session) in pty_sessions.drain() {
+                    let mut killer = session.killer;
+                    let _ = killer.kill();
                 }
             }
         });

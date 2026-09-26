@@ -9,6 +9,7 @@ pub mod plugin_icons;
 pub mod plugin_install;
 pub mod plugin_settings;
 pub mod plugins;
+pub mod pty;
 pub mod shell;
 pub mod storage;
 pub mod updates;

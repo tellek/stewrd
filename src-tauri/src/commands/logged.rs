@@ -21,6 +21,7 @@ use tauri::AppHandle;
 use super::fs as fs_cmd;
 use super::logging::log_command_error;
 use super::plugin_install as plugin_install_cmd;
+use super::pty as pty_cmd;
 use super::shell as shell_cmd;
 use super::storage as storage_cmd;
 use crate::state::AppState;
@@ -132,6 +133,35 @@ pub async fn spawn_command_logged(
     let result = shell_cmd::spawn_command(app.clone(), state, program, args, cwd, env).await;
     if let Err(e) = &result {
         log_command_error(&app, "spawn_command", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "pty_spawn")]
+#[allow(clippy::too_many_arguments)]
+pub fn pty_spawn_logged(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    cols: u16,
+    rows: u16,
+) -> Result<String, String> {
+    let result = pty_cmd::pty_spawn(app.clone(), state, id, program, args, cwd, env, cols, rows);
+    if let Err(e) = &result {
+        log_command_error(&app, "pty_spawn", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "pty_write")]
+pub async fn pty_write_logged(app: AppHandle, id: String, data: String) -> Result<(), String> {
+    let result = pty_cmd::pty_write(app.clone(), id, data).await;
+    if let Err(e) = &result {
+        log_command_error(&app, "pty_write", e);
     }
     result
 }
