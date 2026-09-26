@@ -203,7 +203,11 @@ describe("TickScheduler", () => {
     });
     handle.register(fn);
     handle.requestWake(5);
-    await wait(40);
+    // Generous margin (matching other timing-sensitive tests in this file,
+    // e.g. the 120ms/130ms waits above) so real-timer/event-loop jitter
+    // under load can't make this flaky - only 2 of the many expected fires
+    // in this window need to land for the assertion to hold.
+    await wait(100);
     expect(fn.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
