@@ -2,7 +2,7 @@
   {
     "id": "claude-control",
     "name": "Claude Control",
-    "description": "Blank placeholder plugin for Claude Control.",
+    "description": "Control various Claude files and get recommendations from AI on how they could be improved.",
     "repo": "tellek/claude-control",
     "apiVersion": "1",
     "category": "Utilities"
@@ -10,7 +10,7 @@
   {
     "id": "stewrd-terminal",
     "name": "Stewrd Terminal",
-    "description": "Blank placeholder plugin for Stewrd Terminal.",
+    "description": "Launch terminal sessions inside Stewrd to make the experience working with various tools more seemless.",
     "repo": "tellek/stewrd-terminal",
     "apiVersion": "1",
     "category": "Utilities"

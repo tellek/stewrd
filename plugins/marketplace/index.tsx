@@ -297,7 +297,9 @@ export function Component({ api }: { api: PluginApi }) {
                     />
                   )}
                 </td>
-                <td style={{ padding: 6, color: palette.textMuted }}>{entry.description}</td>
+                <td style={{ padding: 6, color: palette.textMuted, maxWidth: 320, whiteSpace: "normal" }}>
+                  {entry.description}
+                </td>
                 <td style={{ padding: 6 }}>{versionCell}</td>
                 <td style={{ padding: 6, color: palette.textMuted }}>{asset ? asset.download_count : "—"}</td>
                 <td style={{ padding: 6 }}>
