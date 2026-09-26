@@ -255,7 +255,7 @@ export function Component({ api }: { api: PluginApi }) {
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Name</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Description</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Version</th>
-            <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}>Installs</th>
+            <th style={{ textAlign: "right", padding: 6, color: palette.textMuted }}>Installs</th>
             <th style={{ textAlign: "left", padding: 6, color: palette.textMuted }}></th>
           </tr>
         </thead>
@@ -301,7 +301,9 @@ export function Component({ api }: { api: PluginApi }) {
                   {entry.description}
                 </td>
                 <td style={{ padding: 6 }}>{versionCell}</td>
-                <td style={{ padding: 6, color: palette.textMuted }}>{asset ? asset.download_count : "—"}</td>
+                <td style={{ padding: 6, color: palette.textMuted, textAlign: "right" }}>
+                  {asset ? asset.download_count : "—"}
+                </td>
                 <td style={{ padding: 6 }}>
                   <api.ui.IconTextButton
                     label={busy ? "Working..." : label}
