@@ -1,11 +1,11 @@
 # Stewrd
 
 In the age of AI, it's never been easier to spin up a custom one-off app to do exactly what you want. The problem is that habit leaves you with a pile of disconnected, one-off tools that all look and behave differently. Stewrd consolidates that instinct into a single host app: instead of a new standalone app every time, you build a plugin that follows one set of standards and slots into the same shell, sidebar, theming, and layout system as everything else you've made.
-
-A personal, cross-platform (Windows/macOS/Linux) desktop app whose functionality is delivered almost entirely by **hot-loadable plugins**. The host app is a shell — a sidebar of installed plugins grouped by category, a main content area split into resizable panes so multiple plugins can be visible at once (dashboard-style, with saveable/recallable named layouts), and a status bar for logs/errors.
-
+  
 ![Stewrd screenshot](docs/screenshot.png)
-
+  
+A personal, cross-platform (Windows/macOS/Linux) desktop app whose functionality is delivered almost entirely by **hot-loadable plugins**. The host app is a shell — a sidebar of installed plugins grouped by category, a main content area split into resizable panes so multiple plugins can be visible at once (dashboard-style, with saveable/recallable named layouts), and a status bar for logs/errors.
+  
 ## Features
 
 - Hot-loadable plugins — trusted, unsandboxed JS/TS bundles with full shell/filesystem/storage access through a host-provided API
@@ -36,7 +36,9 @@ Open a terminal in your Stewrd app folder, launch an AI coding assistant (e.g. C
 Plugins are portable and shareable: zip up a plugin's folder, hand the zip to someone else (or move it to another machine), and they can load it straight into their own Stewrd install.
 
 For the full plugin API, lifecycle, and host internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
-
+   
+---
+  
 <div align="center">
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/O0G227OHN1)
