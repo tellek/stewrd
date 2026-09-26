@@ -38,7 +38,7 @@ Stewrd is unusually well suited to this structurally: the host already treats pl
 
 ## 3. Hosted Sync / Cloud Add-On (Self-Host Free, Hosted Paid)
 
-Obsidian is the reference case: the app and its 1,000+ community plugins are entirely free, and revenue comes from **Sync** ($4-8/user/mo) and **Publish** ($8/site/mo). This sustains a small independent team. The key insight is that nothing inside the editor is paywalled — the paid products are *services*, which can't be pirated or compiled away.
+Some note-taking apps go this route: the app and its community plugins are entirely free, and revenue comes from hosted sync ($4-8/user/mo) and publish/hosting add-ons ($8/site/mo). This sustains a small independent team. The key insight is that nothing inside the editor is paywalled — the paid products are *services*, which can't be pirated or compiled away.
 
 For Stewrd, the analogue is syncing plugin settings, saved layouts, themes, and `storage/` JSON across machines.
 
@@ -53,7 +53,7 @@ For Stewrd, the analogue is syncing plugin settings, saved layouts, themes, and 
 
 ## 4. Sponsors / Donations
 
-GitHub Sponsors, Ko-fi, Open Collective. Also worth noting Obsidian's **Catalyst** tier — a pure donation dressed up as early access to insider builds, which converts far better than a naked "donate" button.
+GitHub Sponsors, Ko-fi, Open Collective. Also worth noting the "Catalyst" pattern seen in other indie apps — a pure donation dressed up as early access to insider builds, which converts far better than a naked "donate" button.
 
 The data is blunt: fewer than 12% of open source maintainers earn anything at all, and documented solo-maintainer Sponsors income tends to sit in the hundreds-of-dollars-per-year range. $1,000/mo is considered a notable milestone, and the six-figure cases (Caleb Porzio, Evan You) are audience-driven outliers who had large followings first.
 
@@ -70,7 +70,7 @@ The data is blunt: fewer than 12% of open source maintainers earn anything at al
 
 Host a marketplace, take 10-30% of paid third-party plugins.
 
-This only works with a large third-party developer ecosystem. Obsidian, with 1,400+ community plugins and millions of users, still hasn't built one — and users keep requesting it. Stewrd currently has one plugin author: you.
+This only works with a large third-party developer ecosystem. Even note-taking apps with 1,400+ community plugins and millions of users still haven't built one — and users keep requesting it. Stewrd currently has one plugin author: you.
 
 - **Pros:** Scales without you writing the plugins.
 - **Cons:** Requires payments, licensing, hosting, review, refunds, and chargeback handling — for other people's products. Meaningless below roughly 50 third-party plugins and tens of thousands of users.
@@ -85,7 +85,7 @@ This only works with a large third-party developer ecosystem. Obsidian, with 1,4
 
 Ship under a copyleft license (GPL/AGPL) and sell a separate commercial license to anyone who can't accept copyleft terms. Qt, MySQL, and Sidekiq are the well-known examples.
 
-A softer variant is Obsidian's: the app is free for everyone, and the **$50/user/yr commercial license is voluntary** — it's a donation with an invoice attached, unenforceable by design since they collect no telemetry. Some companies pay anyway because their procurement wants a receipt.
+A softer variant: the app is free for everyone, and a **$50/user/yr commercial license is voluntary** — it's a donation with an invoice attached, unenforceable by design if you collect no telemetry. Some companies pay anyway because their procurement wants a receipt.
 
 - **Pros:** Stays genuinely open source (GPL is OSI-approved). Real money per deal when it lands. The voluntary variant costs nothing to try.
 - **Cons:** Classic dual licensing only produces revenue from *businesses embedding your code*, which is unlikely for an end-user desktop app. Strict dual licensing also requires a Contributor License Agreement from every contributor, which deters contributions. Voluntary licensing yields nearly nothing at small scale.
@@ -142,7 +142,7 @@ For a side project seeking adoption first, the pushback costs more than the prot
 
 **1. License it now — Apache 2.0 or GPLv3.** Pick GPLv3 if you want forks to stay open and want the Ardour-style option of selling binaries later; Apache 2.0 if adoption matters more than control. Either way, add the `LICENSE` file this week. Also add a short `NOTICE`/trademark line reserving the "Stewrd" name — a trademark reservation stops rebranded resale far more cheaply than a restrictive license does, and costs you nothing in community goodwill.
 
-**2. Turn on GitHub Sponsors today.** Five minutes. Add an Obsidian-Catalyst-style tier ($5-10/mo for insider builds and a name in the app's Settings > General credits) rather than a bare donate button. Expect very little, but it's free and it stacks.
+**2. Turn on GitHub Sponsors today.** Five minutes. Add a Catalyst-style tier ($5-10/mo for insider builds and a name in the app's Settings > General credits) rather than a bare donate button. Expect very little, but it's free and it stacks.
 
 **3. Make paid plugins your actual revenue bet.** This is the only option that fits both your architecture and your constraints:
    - The plugin loader already installs `.zip` archives from an arbitrary source, so a paid plugin needs **no host changes at all** to ship.
@@ -163,9 +163,6 @@ For a side project seeking adoption first, the pushback costs more than the prot
 - [Aseprite — Wikipedia](https://en.wikipedia.org/wiki/Aseprite) (license history, paid-binary model)
 - [Paid vs. Open Source Aseprite: The Difference](https://en.bioerrorlog.work/entry/aseprite-open-vs-paid-version)
 - [HN discussion: Aseprite's sell-the-binaries model](https://news.ycombinator.com/item?id=32578049)
-- [Obsidian Pricing](https://obsidian.md/pricing)
-- [Obsidian as an example of thoughtful pricing strategy](https://www.robinlandy.com/blog/obsidian-as-an-example-of-thoughtful-pricing-strategy-and-the-power-of-product-tradeoffs)
-- [Obsidian forum — paid plugin market request](https://forum.obsidian.md/t/paid-plugin-market-and-how-to-solve-unmaintained-plugins/109137)
 - [A Comprehensive Guide to Source-Available Software Licenses — FOSSA](https://fossa.com/blog/comprehensive-guide-source-available-software-licenses/)
 - [Business Source License — Wikipedia](https://en.wikipedia.org/wiki/Business_Source_License)
 - [Why I Chose the PolyForm Shield License](https://devantler.tech/blog/why-i-chose-the-polyform-shield-license-for-ksail/)

@@ -11,11 +11,11 @@ Research notes and a recommendation for letting Stewrd users discover and instal
 
 **Key consequence:** the hard part (safe archive extraction into the plugins dir) is done. A marketplace is mostly "fetch a JSON index, show a list, download bytes, hand them to the existing install command."
 
-## Option 1: Static JSON Index In A GitHub Repo (Obsidian Model)
+## Option 1: Static JSON Index In A GitHub Repo
 
 A `stewrd-plugins` repo holds one file, `community-plugins.json`, listing `{ id, name, author, description, repo }`. The app fetches it over raw.githubusercontent/GitHub Pages. To install, the app resolves the plugin's own GitHub release (tag matching the version in its `plugin.json`) and downloads the asset. Authors submit a PR to add themselves; they host their own releases.
 
-This is exactly how Obsidian bootstrapped: the central repo is an index only, plugin binaries live in each author's GitHub releases, and the app matches the release tag to the manifest version.
+This keeps the central repo as an index only: plugin binaries live in each author's GitHub releases, and the app matches the release tag to the manifest version.
 
 **Pros**
 - Zero hosting cost and zero backend to operate or secure.
@@ -70,21 +70,20 @@ A real API: search endpoints, pagination, download counts, author accounts, toke
 
 ## Security And Trust At Indie Scale
 
-Be honest about the model rather than implying safety you cannot deliver. Obsidian's own docs state plainly that they cannot reliably restrict plugins to specific permissions — plugins can read files, hit the network, and launch programs — and that remains the most-criticized part of their model. Stewrd plugins run in the webview with access to the `api.*` surface and the host's Tauri commands, so the same applies here.
+Be honest about the model rather than implying safety you cannot deliver. There is no reliable way to restrict plugins to specific permissions — plugins can read files, hit the network, and launch programs. Stewrd plugins run in the webview with access to the `api.*` surface and the host's Tauri commands.
 
 Practical, cheap measures, roughly in order of value per hour spent:
 
 1. **Install-time consent.** A clear dialog on first install: "Plugins run with the same access as Stewrd itself. Only install plugins you trust." Non-negotiable, costs an afternoon.
 2. **Integrity pinning.** Put a SHA-256 of each published archive in the index and verify it in Rust before extraction. Catches a swapped release asset and is ~30 lines.
 3. **PR review + CI checks on the index.** Validate manifest schema, require a repo/license/description, check the `id` is unique and not squatting. GitHub Actions, free.
-4. **Manifest disclosures.** Have `plugin.json` declare what it uses (network, filesystem, shell, background) and show those badges before install. Even unenforced, this is the transparency users ask for — and it is the direction Obsidian is heading with disclosures and scorecards.
-5. **Enforce the disclosures later** by gating the `api.*` surface in `createPluginApi.ts` per-plugin. This is where Stewrd can genuinely beat Obsidian, because the plugin API is already a single chokepoint you control. Do not block v1 on it.
+4. **Manifest disclosures.** Have `plugin.json` declare what it uses (network, filesystem, shell, background) and show those badges before install. Even unenforced, this is the transparency users ask for.
+5. **Enforce the disclosures later** by gating the `api.*` surface in `createPluginApi.ts` per-plugin, since the plugin API is already a single chokepoint you control. Do not block v1 on it.
 6. **Safe mode / disable.** Already present (`is_safe_mode`, disabled flag) — surface it in the marketplace UI as "disable" and "uninstall."
 7. **Code signing plugins:** skip. Key management and revocation cost more than they buy at this scale; hash pinning plus a reviewed index covers the realistic threats.
 
 ## How The Precedents Bootstrapped
 
-- **Obsidian:** central repo holding `community-plugins.json` as an index; plugins downloaded from each author's GitHub release matching the manifest version; manual review of first submissions by a small team, later replaced with automated per-version checks (policy, vulnerabilities, malware scan) plus scorecards, because manual review did not scale.
 - **VS Code:** started with a simple publish CLI against a hosted gallery; the enduring lesson is that the *publishing tool* mattered more than the backend — authors need a one-command path from source to listed.
 - **Tauri itself:** no central marketplace at all; plugins are just crates/npm packages by naming convention, with security handled app-side via capabilities/permissions/scopes.
 
@@ -108,10 +107,6 @@ Migration path if it outgrows this: the index URL stays the same contract, so sw
 
 ## Sources
 
-- [obsidianmd/obsidian-releases](https://github.com/obsidianmd/obsidian-releases)
-- [Obsidian: Plugin security](https://obsidian.md/help/plugin-security)
-- [Obsidian: The future of plugins](https://obsidian.md/blog/future-of-plugins/)
-- [Obsidian's plugin security model faces community criticism](https://biggo.com/news/202509200713_Obsidian_Plugin_Security_Concerns)
 - [GitHub: Rate limits for the REST API](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)
 - [GitHub Changelog: Updated rate limits for unauthenticated requests](https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/)
 - [Tauri: Security and capabilities](https://v2.tauri.app/security/capabilities/)
