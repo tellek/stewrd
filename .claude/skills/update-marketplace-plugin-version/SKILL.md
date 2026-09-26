@@ -1,6 +1,6 @@
 ---
 name: update-marketplace-plugin-version
-description: Bump a marketplace plugin's version and cut a matching GitHub release, or add a new plugin repo to the marketplace catalog. Use PROACTIVELY and autonomously, without waiting to be asked by name, whenever Topher says anything about adding a plugin to the marketplace or updating/bumping/releasing a plugin's version in the marketplace. Trigger phrases include "update the marketplace version", "bump plugin version", "release a new version of <plugin>", "publish a plugin update", and "add <repo> to the marketplace".
+description: Bump a marketplace plugin's version and cut a matching GitHub release, add a new plugin repo to the marketplace catalog, or re-release a plugin after any change to its shipped files (rename, metadata edit, code change) so the update actually reaches installs. Use PROACTIVELY and autonomously, without waiting to be asked by name, whenever Topher says anything about adding a plugin to the marketplace, updating/bumping/releasing a plugin's version, or changing a plugin's name/description/metadata/code in its own repo. Trigger phrases include "update the marketplace version", "bump plugin version", "release a new version of <plugin>", "publish a plugin update", "add <repo> to the marketplace", "rename the <plugin> tool/plugin", and "change the name/description of <plugin>".
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 shell: powershell
 ---
@@ -42,6 +42,21 @@ Step 0: read `C:\Users\chris\.claude\skills\memory\creating-skills-memory.md` an
 3. Clone to `C:\GIT\<repo-name>` if not already present.
 4. Append an entry to `C:\git\stewrd\docs\plugin-catalog.json` matching the existing shape (`id`, `name`, `description`, `repo`, `apiVersion`, `category` — ask Topher for `category` if it can't be inferred; it must match a Settings > Categories id in the host). 2-space indent, no version field.
 5. Stage only `docs/plugin-catalog.json` by path (never `git add -A`/`commit -a`). Commit directly to `main` (`docs: add <plugin name> to marketplace catalog`) and push — no build/test/ARCHITECTURE.md update needed for a static catalog data entry.
+
+## Case C — any other change to a plugin's shipped files (rename, description/metadata edit, code fix)
+
+Any edit to a plugin's own repo (`plugin.json` name/description, `index.tsx`/source code, icon, README) is invisible to installed users until it ships inside a release zip — editing the repo alone does nothing for them. Treat this exactly like Case A:
+
+1. Locate `C:\GIT\<repo-name>` (clone if missing), confirm clean tracked tree, `git pull`.
+2. Make the requested edit (e.g. `plugin.json`'s `"name"`), and mirror any user-facing name/description change into `C:\git\stewrd\docs\plugin-catalog.json` too, since that's what the Marketplace list displays before install.
+3. Bump `settings.json`'s `"version"` (patch bump, per Case A step 4) — without a strictly-greater version, the Marketplace's semver check never offers the update to existing installs.
+4. Run the build step if one exists, per Case A step 6.
+5. Confirm with Topher before committing (Case A step 8), then commit + push both repos (the plugin repo's edit + version bump, and the catalog if its `name`/`description` changed) — commit each repo separately, never combine them in one commit.
+6. Build the zip and cut a new tagged release with it attached, per Case A steps 7, 9-13.
+
+## Recovering a release that's missing its zip
+
+If `gh api repos/<owner>/<repo>/releases/latest --jq '.assets'` comes back empty, there's no installable asset — GitHub's auto-generated "Source code" zipball/tarball links on the releases page are NOT release assets and don't satisfy this. Build one from the current repo (dist/ + plugin.json + settings.json + icon.png + README.md, matching an earlier release's layout if one exists) and `gh release upload <tag> <zip> -R <owner>/<repo> --clobber` — this doesn't require a version bump since the tag already exists, just attaches the missing asset.
 
 ## Implementation notes
 
