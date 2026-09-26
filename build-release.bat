@@ -63,10 +63,30 @@ if %errorlevel% geq 8 (
     exit /b 1
 )
 
-rem plugins: mirror source into deploy, excluding .stewrd and __host__ (host settings storage.json), replacing everything else
-robocopy "%REPO%plugins" "%DEPLOY%\plugins" /MIR /XD .stewrd __host__ /NFL /NDL /NJH /NJS
-if %errorlevel% geq 8 (
-    echo Plugin deploy failed.
+rem plugins: mirror each source plugin folder individually into deploy (not
+rem the whole plugins root) so plugins installed at runtime via the archive
+rem installer - which only ever exist in DEPLOY, never in source - aren't
+rem purged by /MIR. Skip .stewrd (dev-only type defs) and __host__ (host
+rem settings storage.json) entirely. Exclude data/ and storage.json from each
+rem plugin's mirror - those are runtime state (note.md, saved settings via
+rem api.storage) that only exists in DEPLOY and must survive rebuilds.
+for /d %%P in ("%REPO%plugins\*") do (
+    if /I not "%%~nxP"==".stewrd" if /I not "%%~nxP"=="__host__" (
+        robocopy "%%P" "%DEPLOY%\plugins\%%~nxP" /MIR /XD data /XF storage.json settings.json /NFL /NDL /NJH /NJS
+        if errorlevel 8 (
+            echo Plugin deploy failed: %%P
+            exit /b 1
+        )
+    )
+)
+
+rem settings.json mixes a host-owned "version" field with user-editable
+rem fields (category, Configure edits). Merge instead of copy or skip:
+rem version always comes from source, everything else is preserved from
+rem the existing deployed file.
+call node "%REPO%scripts\merge-plugin-settings.mjs"
+if errorlevel 1 (
+    echo Plugin settings merge failed.
     exit /b 1
 )
 

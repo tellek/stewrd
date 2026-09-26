@@ -323,6 +323,8 @@ Also still registered but unused by any `PluginApi` surface: the scaffold `greet
 
 A self-built check-and-self-replace mechanism, deliberately **not** `tauri-plugin-updater` (that assumes an NSIS-installed app; `build-release.bat` deploys loose files) and **not wired into `build-release.bat`** (that script is Topher's local dev-deploy tool only — publishing a release is a separate, manual step below). See `docs/auto-update-options.md` for the full option comparison this was scoped down from.
 
+`build-release.bat`'s plugin deploy step mirrors each source plugin folder into `DEPLOY\plugins\<id>\` individually (not the whole `plugins` root with one `/MIR`), so plugins installed at runtime via the archive installer — which only ever exist in the deploy folder, never in source — aren't purged. Each per-plugin mirror excludes `data/` (per-plugin `api.fs` files, e.g. notepad's `note.md`) and `storage.json` (per-plugin `api.storage` KV store) since those are runtime state with no source counterpart. `settings.json` is handled separately by `scripts/merge-plugin-settings.mjs`, which always takes `version` from source but preserves everything else (including `category`) from the deployed file, since those are user-editable at runtime.
+
 **Version source of truth** is `tauri.conf.json`'s `version` field, not `Cargo.toml`'s — `build.rs` reads it at compile time and exposes it as `env!("STEWRD_APP_VERSION")`, so the running app's self-comparison and the tag used to publish a release can never drift independently of each other.
 
 **On every launch** (release builds only — gated `#[cfg(not(debug_assertions))]` in `lib.rs`, since a dev build's `current_exe()` points at `target/debug/stewrd.exe`):
