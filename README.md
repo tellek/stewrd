@@ -31,7 +31,7 @@ npm run tauri build                          # packaged app for the current OS
 
 ## Creating plugins
 
-Open a terminal in your Stewrd app folder, launch an AI coding assistant (e.g. Claude Code), and just ask it to make a plugin — describe what it should do. The app folder ships with `CLAUDE.md` and [ARCHITECTURE.md](ARCHITECTURE.md), which teach the assistant the plugin API, host conventions, and where to find the `_template` plugin as a working example — it's enough context for it to build whatever plugin you describe without extra hand-holding.
+Open a terminal in your Stewrd app folder's `plugins/` subfolder, launch an AI coding assistant (e.g. Claude Code), and just ask it to make a plugin — describe what it should do. `plugins/` ships with its own `CLAUDE.md` (plus a root-level [ARCHITECTURE.md](ARCHITECTURE.md) for full host internals) and a working `_template` plugin to copy from — it's enough context for the assistant to build whatever plugin you describe without extra hand-holding. Building requires [Node.js](https://nodejs.org/); `plugins/CLAUDE.md` walks through the one-time `npm install esbuild` setup.
 
 Plugins are portable and shareable: zip up a plugin's folder, hand the zip to someone else (or move it to another machine), and they can load it straight into their own Stewrd install.
 

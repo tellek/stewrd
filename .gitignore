@@ -15,6 +15,12 @@ dist-ssr
 # Plugin build output (each plugin's own esbuild dist/, not the host's)
 plugins/*/dist
 
+# Generated if plugins/CLAUDE.md's standalone build steps are accidentally
+# run inside the repo instead of a real install (they're meant for the
+# latter - see the "which context am I in?" note at the top of that file)
+plugins/package.json
+plugins/package-lock.json
+
 # Staged filtered copies of plugins bundled into installer builds (see
 # scripts/stage-bundled-plugins.mjs) - build-time only, never committed
 bundled-plugins/

@@ -35,7 +35,11 @@
     "resources": {
       "../src/assets/category-icons/*": "assets/category-icons/",
       "../bundled-plugins/notepad": "plugins/notepad",
-      "../bundled-plugins/_template": "plugins/_template"
+      "../bundled-plugins/_template": "plugins/_template",
+      "../ARCHITECTURE.md": "ARCHITECTURE.md",
+      "../plugins/CLAUDE.md": "plugins/CLAUDE.md",
+      "../plugins/build-plugin.mjs": "plugins/build-plugin.mjs",
+      "../plugins/.stewrd/plugin-api.d.ts": "plugins/.stewrd/plugin-api.d.ts"
     }
   }
 }

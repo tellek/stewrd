@@ -22,13 +22,20 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 // tauri.conf.json's bundle.resources entries.
 const BUNDLED_PLUGINS = ["notepad", "_template"];
 
+// _template is a teaching example, not a functional plugin - it also ships
+// its source (index.tsx, demos/, README.md, assets/) so an assistant working
+// in an install's plugins/ folder (see plugins/CLAUDE.md) has a real
+// reference to copy from, not just a working sidebar entry. Still never
+// settings.json - see the note above.
+const SOURCE_ENTRIES = new Set(["index.tsx", "demos", "README.md", "assets"]);
+
 const ALLOWED_ENTRIES = new Set(["plugin.json", "dist", "icon.png"]);
 
-function copyAllowed(srcDir, destDir) {
+function copyAllowed(srcDir, destDir, allowedEntries) {
   fs.rmSync(destDir, { recursive: true, force: true });
   fs.mkdirSync(destDir, { recursive: true });
   for (const entry of fs.readdirSync(srcDir)) {
-    if (!ALLOWED_ENTRIES.has(entry)) continue;
+    if (!allowedEntries.has(entry)) continue;
     const src = path.join(srcDir, entry);
     const dest = path.join(destDir, entry);
     fs.cpSync(src, dest, { recursive: true });
@@ -43,6 +50,7 @@ for (const id of BUNDLED_PLUGINS) {
     process.exit(1);
   }
   const destDir = path.join(repoRoot, "bundled-plugins", id);
-  copyAllowed(srcDir, destDir);
+  const allowedEntries = id === "_template" ? new Set([...ALLOWED_ENTRIES, ...SOURCE_ENTRIES]) : ALLOWED_ENTRIES;
+  copyAllowed(srcDir, destDir, allowedEntries);
   console.log(`stage-bundled-plugins: staged ${id} -> ${path.relative(repoRoot, destDir)}`);
 }

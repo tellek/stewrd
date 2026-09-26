@@ -422,6 +422,14 @@ pub fn apply_pending_update_if_present() {
     // own deploy step, so a user's customized icons survive.
     copy_add_only(&pending_dir.join("assets"), &deploy_dir.join("assets"));
 
+    // ARCHITECTURE.md / plugins/CLAUDE.md / plugins/build-plugin.mjs are
+    // host-owned reference docs and scripts, not user data - unlike assets/,
+    // always overwrite them with the newly staged version so an in-app
+    // update (not just a fresh/re-run installer) keeps them current.
+    for rel in ["ARCHITECTURE.md", "plugins/CLAUDE.md", "plugins/build-plugin.mjs"] {
+        overwrite_copy_if_present(&pending_dir.join(rel), &deploy_dir.join(rel));
+    }
+
     let _ = std::fs::remove_dir_all(&pending_dir);
 
     let marker = serde_json::json!({ "version": meta.version }).to_string();
@@ -534,11 +542,54 @@ mod tests {
     }
 
     #[test]
+    fn overwrite_copy_if_present_overwrites_an_existing_dest_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src").join("ARCHITECTURE.md");
+        let dst = tmp.path().join("dst").join("ARCHITECTURE.md");
+        std::fs::create_dir_all(src.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        std::fs::write(&src, "new docs").unwrap();
+        std::fs::write(&dst, "stale docs").unwrap();
+
+        overwrite_copy_if_present(&src, &dst);
+
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "new docs");
+    }
+
+    #[test]
+    fn overwrite_copy_if_present_is_a_noop_when_src_is_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("does-not-exist.md");
+        let dst = tmp.path().join("dst").join("ARCHITECTURE.md");
+        std::fs::create_dir_all(dst.parent().unwrap()).unwrap();
+        std::fs::write(&dst, "unchanged").unwrap();
+
+        overwrite_copy_if_present(&src, &dst);
+
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "unchanged");
+    }
+
+    #[test]
     fn update_meta_deserializes_old_json_missing_fail_count_with_a_default_of_zero() {
         let meta: UpdateMeta = serde_json::from_str(r#"{"version":"1.2.3"}"#).unwrap();
         assert_eq!(meta.version, "1.2.3");
         assert_eq!(meta.fail_count, 0);
     }
+}
+
+/// Overwrites `dst` with `src` if `src` exists in the staged update; a no-op
+/// if the staged update predates this file (older zip) so applying an old
+/// backlog update doesn't fail. Unlike `copy_add_only`, always replaces an
+/// existing `dst` - for host-owned docs/scripts where staying current
+/// matters more than preserving local edits (there are none expected here).
+fn overwrite_copy_if_present(src: &Path, dst: &Path) {
+    if !src.exists() {
+        return;
+    }
+    if let Some(parent) = dst.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::copy(src, dst);
 }
 
 fn copy_add_only(src: &Path, dst: &Path) {
