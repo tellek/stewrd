@@ -271,7 +271,7 @@ App.tsx
  │   └─ SidebarFooter.tsx (expanded: "Settings" + "<<"; collapsed: just ">>") — pinned to the bottom of the sidebar, height-matched to StatusBar's summary row
  └─ content column (flex: 1)
      ├─ MainContent.tsx → `view === "settings"` renders SettingsPage.tsx, else recursively renders `appStore.paneTree` (PaneView → PaneLeafView/PaneSplitView, see §1a), each occupied leaf wrapping its plugin in PluginErrorBoundary → <Component api={...} />
-     └─ StatusBar.tsx (bounded 500-entry ring buffer + severity color; also persisted to <exe-dir>/stewrd.log; expanded log renders as an overlay above the fixed-height summary row, not by growing it) — spans only the content column's width, not the sidebar
+     └─ StatusBar.tsx (bounded 500-entry ring buffer + severity color; also persisted to <exe-dir>/stewrd.log; expanded log renders as an overlay above the fixed-height summary row, not by growing it) — spans only the content column's width, not the sidebar; collapses on an outside click; a Clear Log button (MaskIcon of clear.png) sits right of the summary row and clears `appStore.statusLog` in memory only (the on-disk log file is untouched)
 Modal.tsx / ToastContainer.tsx — rendered once at app root, driven by appStore's modalQueue/toasts
 ```
 

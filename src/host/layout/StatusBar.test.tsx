@@ -50,4 +50,14 @@ describe("StatusBar", () => {
 
     expect(screen.getByText("No log entries yet.")).toBeTruthy();
   });
+
+  it("clears the log when the clear button is clicked", async () => {
+    resetStore([{ id: 1, timestamp: 1000, level: "idle", message: "First" }]);
+    const user = userEvent.setup();
+    render(<StatusBar />);
+
+    await user.click(screen.getByRole("button", { name: "Clear Log" }));
+
+    expect(useAppStore.getState().statusLog).toEqual([]);
+  });
 });

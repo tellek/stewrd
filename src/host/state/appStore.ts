@@ -199,6 +199,7 @@ interface AppState {
   deleteLayout(id: string): void;
   setPluginStatus(id: string, status: StatusColor, tooltip?: string): void;
   logMessage(level: StatusColor, message: string, pluginId?: string): void;
+  clearStatusLog(): void;
   /** One-shot, StrictMode-safe: reads the on-disk log tail and merges it into
    * `statusLog` (deduped, sorted by timestamp) so history survives a
    * restart. Safe to call more than once - later calls are no-ops once
@@ -372,6 +373,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (log.length > MAX_LOG_ENTRIES) log.shift();
       return { statusLog: log };
     }),
+
+  clearStatusLog: () => set({ statusLog: [] }),
 
   hydrateStatusLog: async () => {
     if (statusLogHydrated) return;

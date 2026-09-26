@@ -1,14 +1,30 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
+import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
+import clearIcon from "../../assets/category-icons/clear.png";
 
 export function StatusBar() {
   const statusLog = useAppStore((s) => s.statusLog);
   const palette = useAppStore((s) => s.palette);
+  const clearStatusLog = useAppStore((s) => s.clearStatusLog);
   const [expanded, setExpanded] = useState(false);
   const latest = statusLog[statusLog.length - 1];
+  const footerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (footerRef.current && !footerRef.current.contains(event.target as Node)) {
+        setExpanded(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [expanded]);
 
   return (
     <footer
+      ref={footerRef}
       style={{
         position: "relative",
         borderTop: `1px solid ${palette.border}`,
@@ -43,25 +59,44 @@ export function StatusBar() {
             ))}
         </div>
       )}
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        style={{
-          display: "flex",
-          width: "100%",
-          height: 32,
-          alignItems: "center",
-          gap: 8,
-          padding: "0 12px",
-          border: "none",
-          background: "transparent",
-          color: latest ? palette.status[latest.level] : palette.textMuted,
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        <span>{expanded ? "▾" : "▸"}</span>
-        <span>{latest ? latest.message : "Ready"}</span>
-      </button>
+      <div style={{ display: "flex", alignItems: "center", height: 32 }}>
+        <button
+          onClick={() => setExpanded((e) => !e)}
+          style={{
+            display: "flex",
+            flex: 1,
+            minWidth: 0,
+            height: "100%",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 12px",
+            border: "none",
+            background: "transparent",
+            color: latest ? palette.status[latest.level] : palette.textMuted,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          <span>{expanded ? "▾" : "▸"}</span>
+          <span>{latest ? latest.message : "Ready"}</span>
+        </button>
+        <button
+          onClick={() => clearStatusLog()}
+          title="Clear Log"
+          style={{
+            display: "flex",
+            flexShrink: 0,
+            height: "100%",
+            alignItems: "center",
+            padding: "0 12px",
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+          }}
+        >
+          <MaskIcon png={clearIcon} alt="Clear Log" size={14} color={palette.textMuted} />
+        </button>
+      </div>
     </footer>
   );
 }
