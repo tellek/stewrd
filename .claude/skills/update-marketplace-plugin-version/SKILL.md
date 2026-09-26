@@ -1,6 +1,6 @@
 ---
 name: update-marketplace-plugin-version
-description: Bump a marketplace plugin's version and cut a matching GitHub release, or add a new plugin repo to the marketplace catalog. Use when Topher asks to "update the marketplace version", "bump plugin version", "release a new version of <plugin>", "publish a plugin update", or "add <repo> to the marketplace".
+description: Bump a marketplace plugin's version and cut a matching GitHub release, or add a new plugin repo to the marketplace catalog. Use PROACTIVELY and autonomously, without waiting to be asked by name, whenever Topher says anything about adding a plugin to the marketplace or updating/bumping/releasing a plugin's version in the marketplace. Trigger phrases include "update the marketplace version", "bump plugin version", "release a new version of <plugin>", "publish a plugin update", and "add <repo> to the marketplace".
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 shell: powershell
 ---
