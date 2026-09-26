@@ -264,7 +264,7 @@ Framework-agnostic singleton (no Tauri/React deps — independently unit-tested 
 ```
 App.tsx
  ├─ Sidebar.tsx (width 220, or 48 when collapsed)
- │   ├─ expanded: SidebarCategory.tsx[] (grouped by each entry's resolved `category` - settings.json, falling back to plugin.json - resolved against appStore's categories, falling back to "Other") → SidebarPluginItem.tsx[] (indented, name + StatusIcon + optional plugin icon; click → setPaneTool) + SidebarSubItems.tsx (further-indented, plugin-registered sub-items via api.sidebar.setItems - hidden when empty, not rendered in the collapsed rail)
+ │   ├─ expanded: SidebarCategory.tsx[] (grouped by each entry's resolved `category` - settings.json, falling back to plugin.json - resolved against appStore's categories, falling back to "Other") → SidebarPluginItem.tsx[] (indented, name + StatusIcon + optional plugin icon; click → setPaneTool, unless already the active pane's plugin *and* `view === "plugin"`, in which case it toggles its sub-items instead - `view` is checked so that clicking a plugin's row from Settings always calls `setPaneTool`/returns to the plugin view, even when that plugin still occupies the active pane) + SidebarSubItems.tsx (further-indented, plugin-registered sub-items via api.sidebar.setItems - hidden when empty, not rendered in the collapsed rail)
  │   ├─ collapsed: SidebarCategoryCollapsed.tsx[] (category icon via categoryIcons.ts, or ▸/▾ fallback) → icon-only SidebarPluginItem row per plugin
  │   ├─ SidebarLayouts.tsx / SidebarLayoutsCollapsed.tsx — appears once a layout is saved or more than one pane is open (see §1a)
  │   └─ SidebarFooter.tsx (expanded: "Settings" + "<<"; collapsed: just ">>") — pinned to the bottom of the sidebar, height-matched to StatusBar's summary row

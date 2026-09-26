@@ -24,6 +24,7 @@ export function SidebarPluginItem({
   onDragEndItem: () => void;
 }) {
   const activePaneId = useAppStore((s) => s.activePaneId);
+  const view = useAppStore((s) => s.view);
   const paneTree = useAppStore((s) => s.paneTree);
   const setPaneTool = useAppStore((s) => s.setPaneTool);
   const setDraggingPlugin = useAppStore((s) => s.setDraggingPlugin);
@@ -36,7 +37,7 @@ export function SidebarPluginItem({
   const knownExpandable = useAppStore((s) => s.pluginsWithSidebarItems.includes(entry.manifest.id));
   const palette = useAppStore((s) => s.palette);
   const occupiedLeaf = findLeafForPlugin(paneTree, entry.manifest.id);
-  const isActive = occupiedLeaf?.id === activePaneId;
+  const isActive = view === "plugin" && occupiedLeaf?.id === activePaneId;
   const icon = usePluginIcon(entry.dir);
   const [hovered, setHovered] = useState(false);
 

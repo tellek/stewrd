@@ -72,6 +72,23 @@ describe("SidebarPluginItem", () => {
     expect(toggle).toHaveBeenCalledWith("notepad");
   });
 
+  it("calls setPaneTool (not toggle) when clicked while in settings view, even though it occupies the active pane", async () => {
+    resetStore();
+    useAppStore.setState({ paneTree: { type: "leaf", id: "pane-1", pluginId: "notepad" }, view: "settings" });
+    const setPaneTool = vi.spyOn(useAppStore.getState(), "setPaneTool");
+    const toggle = vi.spyOn(useAppStore.getState(), "toggleSidebarSubItemsExpanded");
+    const user = userEvent.setup();
+    render(
+      <SidebarPluginItem entry={makeEntry("notepad", "Notepad")} onDragOverItem={vi.fn()} onDropItem={vi.fn()} onDragEndItem={vi.fn()} />,
+    );
+
+    await user.click(screen.getByText("Notepad"));
+
+    expect(setPaneTool).toHaveBeenCalledWith("pane-1", "notepad");
+    expect(toggle).not.toHaveBeenCalled();
+    expect(useAppStore.getState().view).toBe("plugin");
+  });
+
   it("sets dataTransfer to the plugin id and updates draggingPluginId on drag start, and clears on drag end", () => {
     resetStore();
     const onDragEndItem = vi.fn();
