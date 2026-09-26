@@ -378,5 +378,9 @@ export interface PluginContext {
 export interface PluginModule {
   activate(ctx: PluginContext): void | Promise<void>;
   deactivate?(): void | Promise<void>;
-  Component: ComponentType<{ api: PluginApi }>;
+  /** `paneId` is the id of the pane leaf currently rendering this component -
+   * stable across splits and pane-close-collapses of surviving siblings, so a
+   * plugin placed in multiple panes at once can key its own per-pane state by
+   * it. Optional so existing plugins that ignore it keep working unchanged. */
+  Component: ComponentType<{ api: PluginApi; paneId?: string }>;
 }

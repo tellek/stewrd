@@ -155,7 +155,7 @@ function PaneLeafView({
             pluginId={active.manifest.id}
             onReload={() => onReload(active.manifest.id)}
           >
-            <active.Component api={active.api} />
+            <active.Component api={active.api} paneId={node.id} />
           </PluginErrorBoundary>
         ) : null)}
       {dropZone && <div style={zoneOverlayStyle(dropZone, palette)} />}

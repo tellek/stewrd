@@ -372,6 +372,6 @@ declare module "stewrd-plugin-api" {
   export interface PluginModule {
     activate(ctx: PluginContext): void | Promise<void>;
     deactivate?(): void | Promise<void>;
-    Component: ComponentType<{ api: PluginApi }>;
+    Component: ComponentType<{ api: PluginApi; paneId?: string }>;
   }
 }
