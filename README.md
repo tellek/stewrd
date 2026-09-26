@@ -29,7 +29,6 @@ Download a prebuilt release from the [Releases page](../../releases) (Windows/ma
 ```sh
 npm install
 npm run plugin:build -- plugins/_template   # dist/ is gitignored — build each plugin at least once
-npm run plugin:build -- plugins/notepad
 npm run plugin:build -- plugins/marketplace
 npm run tauri dev                            # full app in dev mode
 npm run tauri build                          # packaged app for the current OS

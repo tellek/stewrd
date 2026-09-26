@@ -1,8 +1,0 @@
-{
-  "category": "Utilities",
-  "version": "2.0.0",
-  "defaultMode": "live-preview",
-  "autosaveDebounceMs": 1000,
-  "harvesterEnabled": false,
-  "harvesterIntervalMs": 900000
-}

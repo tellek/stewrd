@@ -61,9 +61,6 @@ jobs:
       - name: npm ci
         run: npm ci
 
-      - name: Build Notepad plugin bundle
-        run: npm run plugin:build -- plugins/notepad
-
       - name: Build Template plugin bundle
         run: npm run plugin:build -- plugins/_template
 
