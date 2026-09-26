@@ -80,7 +80,7 @@ fn app_state_dir(_app: &AppHandle) -> Result<PathBuf, String> {
 
 /// Corrupt state must never brick boot: any read/parse failure here logs a
 /// warning and returns an empty set instead of erroring.
-fn read_id_set(path: &Path) -> HashSet<String> {
+pub(crate) fn read_id_set(path: &Path) -> HashSet<String> {
     match std::fs::read_to_string(path) {
         Ok(text) => match serde_json::from_str::<Vec<String>>(&text) {
             Ok(ids) => ids.into_iter().collect(),
@@ -96,7 +96,7 @@ fn read_id_set(path: &Path) -> HashSet<String> {
     }
 }
 
-fn write_id_set(path: &Path, ids: &HashSet<String>) -> Result<(), String> {
+pub(crate) fn write_id_set(path: &Path, ids: &HashSet<String>) -> Result<(), String> {
     let list: Vec<&String> = ids.iter().collect();
     let json = serde_json::to_string(&list).map_err(|e| e.to_string())?;
     std::fs::write(path, json).map_err(|e| format!("could not write {}: {e}", path.display()))

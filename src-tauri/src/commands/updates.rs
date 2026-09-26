@@ -12,6 +12,7 @@
 use crate::commands::logging::{append_log_line_internal, build_log_line, log_line_to_disk_and_ui};
 use crate::commands::path_util::exe_dir;
 use crate::commands::plugin_install::{detect_common_prefix, extract_entries, ArchiveEntry};
+use crate::commands::plugins::{read_id_set, write_id_set};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -19,6 +20,15 @@ use tauri::AppHandle;
 
 const REPO: &str = "tellek/stewrd";
 const USER_AGENT: &str = "stewrd-updater";
+
+/// Tracks which bundled-plugin ids (`plugins/<id>` in the staged update,
+/// mirroring `stage-bundled-plugins.mjs`'s `BUNDLED_PLUGINS`) have already
+/// been delivered to this deployment via an in-app update, at most once each
+/// - same seed-once pattern as `plugins.rs`'s `SEEDED_DEFAULTS_FILE`, so a
+/// bundled plugin a user deliberately removed (`remove_plugin` deletes a
+/// bundled plugin's folder the same as any other) is never resurrected by a
+/// later update.
+const SEEDED_BUNDLED_PLUGINS_FILE: &str = "seeded-bundled-plugins.json";
 
 /// Tauri's `signer generate`/`signer sign` output is itself base64-encoded
 /// text wrapping the standard two-line minisign format
@@ -430,10 +440,51 @@ pub fn apply_pending_update_if_present() {
         overwrite_copy_if_present(&pending_dir.join(rel), &deploy_dir.join(rel));
     }
 
+    seed_bundled_plugins(&pending_dir, &deploy_dir);
+
     let _ = std::fs::remove_dir_all(&pending_dir);
 
     let marker = serde_json::json!({ "version": meta.version }).to_string();
     let _ = std::fs::write(state_dir.join("just-updated.json"), marker);
+}
+
+/// Delivers any bundled plugin folder present in the staged update's
+/// `plugins/<id>` (the real path in the update zip - `bundled-plugins/` is
+/// only a build-time staging name, `tauri.conf.json`'s `bundle.resources`
+/// maps it to `plugins/<id>` in the actual build output the zip contains) to
+/// the live `plugins/` dir, add-only, at most once per id ever - never
+/// touching an id already recorded as seeded, so a bundled plugin the user
+/// removed on purpose stays removed. Best-effort throughout: a failure here
+/// must never fail the update apply that already succeeded.
+fn seed_bundled_plugins(pending_dir: &Path, deploy_dir: &Path) {
+    let staged_plugins_dir = pending_dir.join("plugins");
+    let Ok(entries) = std::fs::read_dir(&staged_plugins_dir) else { return };
+
+    let marker_path = deploy_dir.join(SEEDED_BUNDLED_PLUGINS_FILE);
+    let mut seeded = read_id_set(&marker_path);
+    let live_plugins_dir = deploy_dir.join("plugins");
+    let mut changed = false;
+
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else { continue };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        if seeded.contains(&id) {
+            continue;
+        }
+        let target = live_plugins_dir.join(&id);
+        if !target.exists() {
+            copy_add_only(&entry.path(), &target);
+        }
+        seeded.insert(id);
+        changed = true;
+    }
+
+    if changed {
+        let _ = write_id_set(&marker_path, &seeded);
+    }
 }
 
 #[cfg(test)]
@@ -574,6 +625,39 @@ mod tests {
         let meta: UpdateMeta = serde_json::from_str(r#"{"version":"1.2.3"}"#).unwrap();
         assert_eq!(meta.version, "1.2.3");
         assert_eq!(meta.fail_count, 0);
+    }
+
+    #[test]
+    fn seed_bundled_plugins_copies_a_new_bundled_plugin_folder_once() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pending_dir = tmp.path().join("pending");
+        let deploy_dir = tmp.path().join("deploy");
+        std::fs::create_dir_all(pending_dir.join("plugins").join("marketplace")).unwrap();
+        std::fs::write(pending_dir.join("plugins").join("marketplace").join("plugin.json"), "{}").unwrap();
+        std::fs::create_dir_all(&deploy_dir).unwrap();
+
+        seed_bundled_plugins(&pending_dir, &deploy_dir);
+
+        assert!(deploy_dir.join("plugins").join("marketplace").join("plugin.json").exists());
+    }
+
+    #[test]
+    fn seed_bundled_plugins_never_resurrects_a_bundled_plugin_the_user_deleted() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pending_dir = tmp.path().join("pending");
+        let deploy_dir = tmp.path().join("deploy");
+        std::fs::create_dir_all(pending_dir.join("plugins").join("marketplace")).unwrap();
+        std::fs::write(pending_dir.join("plugins").join("marketplace").join("plugin.json"), "{}").unwrap();
+        std::fs::create_dir_all(&deploy_dir).unwrap();
+
+        // First update: seeds it, user then deletes the installed folder.
+        seed_bundled_plugins(&pending_dir, &deploy_dir);
+        std::fs::remove_dir_all(deploy_dir.join("plugins").join("marketplace")).unwrap();
+
+        // Second update: must not resurrect it, since the id is already marked seeded.
+        seed_bundled_plugins(&pending_dir, &deploy_dir);
+
+        assert!(!deploy_dir.join("plugins").join("marketplace").exists());
     }
 }
 
