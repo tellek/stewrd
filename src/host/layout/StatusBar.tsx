@@ -8,6 +8,7 @@ export function StatusBar() {
   const palette = useAppStore((s) => s.palette);
   const clearStatusLog = useAppStore((s) => s.clearStatusLog);
   const [expanded, setExpanded] = useState(false);
+  const [clearHovered, setClearHovered] = useState(false);
   const latest = statusLog[statusLog.length - 1];
   const footerRef = useRef<HTMLElement>(null);
 
@@ -82,6 +83,8 @@ export function StatusBar() {
         </button>
         <button
           onClick={() => clearStatusLog()}
+          onMouseEnter={() => setClearHovered(true)}
+          onMouseLeave={() => setClearHovered(false)}
           title="Clear Log"
           style={{
             display: "flex",
@@ -94,7 +97,12 @@ export function StatusBar() {
             cursor: "pointer",
           }}
         >
-          <MaskIcon png={clearIcon} alt="Clear Log" size={14} color={palette.textMuted} />
+          <MaskIcon
+            png={clearIcon}
+            alt="Clear Log"
+            size={14}
+            color={clearHovered ? palette.status.error : palette.textMuted}
+          />
         </button>
       </div>
     </footer>
