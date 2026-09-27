@@ -26,6 +26,21 @@ export function TextAreaDemo({ api }: { api: PluginApi }) {
       <p>Markdown editor, same size but with a percentage height to show `height` also accepts a string:</p>
       <api.ui.CodeTextArea value={md} onChange={setMd} language="markdown" width={400} height={200} />
 
+      <p>
+        Seeded with `initialSelection`/`initialScrollTop` (applied once) and reporting cursor/scroll
+        via `onViewportChange` (debounced, logged below):
+      </p>
+      <api.ui.CodeTextArea
+        value={code}
+        onChange={setCode}
+        language="json"
+        width={400}
+        height={200}
+        initialSelection={{ anchor: 2, head: 2 }}
+        initialScrollTop={0}
+        onViewportChange={(state) => api.log.info(`viewport: ${JSON.stringify(state)}`)}
+      />
+
       <p>Palette-colored scrollbar on a plain scrollable div (see `scrollbarStyle` above):</p>
       <div style={{ ...scrollbarStyle(api.theme.palette), height: 100, overflow: "auto", border: `1px solid ${api.theme.palette.border}` }}>
         {Array.from({ length: 30 }, (_, i) => (

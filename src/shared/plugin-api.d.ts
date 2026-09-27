@@ -55,6 +55,9 @@ export interface TextButtonProps {
   onClick: () => void;
   variant?: "primary" | "secondary";
   disabled?: boolean;
+  /** Defaults to true. When false, renders as plain hover-text (no
+   * border/background at rest) instead of full button chrome. */
+  bordered?: boolean;
 }
 
 export interface IconButtonProps {
@@ -294,6 +297,15 @@ export interface CodeTextAreaProps {
   /** Editor height, e.g. "100%" or a px number. Defaults to 200. */
   height?: number | string;
   readOnly?: boolean;
+  /** Cursor/selection to restore once, the first time there's content to
+   * place it in (not re-applied on later prop changes). */
+  initialSelection?: { anchor: number; head: number };
+  /** Scroll position to restore once, alongside `initialSelection`. */
+  initialScrollTop?: number;
+  /** Debounced (~400ms) callback fired on real user selection/scroll
+   * changes - not on programmatic updates from `value` or the initial*
+   * props themselves. */
+  onViewportChange?: (state: { selection: { anchor: number; head: number }; scrollTop: number }) => void;
 }
 
 // --- Sidebar sub-items ---

@@ -13,6 +13,7 @@ export function ButtonsDemo({ api }: { api: PluginApi }) {
       <api.ui.TextButton label="Secondary" onClick={() => api.log.info("secondary clicked")} />
       <api.ui.TextButton label="Primary" variant="primary" onClick={() => api.log.info("primary clicked")} />
       <api.ui.TextButton label="Disabled" disabled onClick={() => {}} />
+      <api.ui.TextButton label="Borderless" bordered={false} onClick={() => api.log.info("borderless clicked")} />
       <api.ui.IconButton label="Idea" icon={ideaIcon} onClick={() => api.log.info("icon button clicked")} />
       <api.ui.IconTextButton
         label="Settings"

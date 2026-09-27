@@ -21,7 +21,7 @@ export const defaultPalette: Palette = {
   accent: "#3b82f6",
   status: {
     idle: "#6b7280",
-    "in-progress": "#3b82f6",
+    "in-progress": "#a855f7",
     success: "#22c55e",
     warning: "#eab308",
     error: "#ef4444",
@@ -38,7 +38,7 @@ const lightPalette: Palette = {
   accent: "#2563eb",
   status: {
     idle: "#6b7280",
-    "in-progress": "#2563eb",
+    "in-progress": "#9333ea",
     success: "#16a34a",
     warning: "#ca8a04",
     error: "#dc2626",
@@ -67,7 +67,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#a89b96",
       border: "#3a2828",
       accent: "#d92323",
-      status: { idle: "#8a8380", "in-progress": "#e6483f", success: "#4caf6e", warning: "#e0a83d", error: "#ff3b3b" },
+      status: { idle: "#8a8380", "in-progress": "#3f7fe0", success: "#4caf6e", warning: "#e0a83d", error: "#ff3b3b" },
     },
   },
   {
@@ -81,7 +81,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#8fa888",
       border: "#2c3b29",
       accent: "#3dff3d",
-      status: { idle: "#8a9188", "in-progress": "#5fe85f", success: "#4ade80", warning: "#e8a33d", error: "#e5484d" },
+      status: { idle: "#8a9188", "in-progress": "#3dafff", success: "#4ade80", warning: "#e8a33d", error: "#e5484d" },
     },
   },
   {
@@ -95,7 +95,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#9c8f78",
       border: "#3a2f1f",
       accent: "#d4a017",
-      status: { idle: "#8a8378", "in-progress": "#e0b23c", success: "#7a9450", warning: "#c9862f", error: "#a63d2f" },
+      status: { idle: "#8a8378", "in-progress": "#3c7ac9", success: "#7a9450", warning: "#c9862f", error: "#a63d2f" },
     },
   },
   {
@@ -151,7 +151,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#9c8c7c",
       border: "#34343c",
       accent: "#dc8d18",
-      status: { idle: "#6f6a63", "in-progress": "#dc8d18", success: "#7a9b76", warning: "#f4d136", error: "#b5453a" },
+      status: { idle: "#6f6a63", "in-progress": "#4a90c9", success: "#7a9b76", warning: "#f4d136", error: "#b5453a" },
     },
   },
   {
@@ -165,7 +165,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#8a8a90",
       border: "#232326",
       accent: "#b8c4cc",
-      status: { idle: "#6e6e74", "in-progress": "#9db0bc", success: "#7a9a7e", warning: "#c9a35c", error: "#b05f56" },
+      status: { idle: "#6e6e74", "in-progress": "#9a8ab8", success: "#7a9a7e", warning: "#c9a35c", error: "#b05f56" },
     },
   },
   {
@@ -515,7 +515,7 @@ export const premadePalettes: NamedPalette[] = [
       textMuted: "#616E68",
       border: "#B3C4B0",
       accent: "#88A0A8",
-      status: { idle: "#8E9A8E", "in-progress": "#7B9EA8", success: "#8FB388", warning: "#E0C097", error: "#C97C7C" },
+      status: { idle: "#8E9A8E", "in-progress": "#A98BC4", success: "#8FB388", warning: "#E0C097", error: "#C97C7C" },
     },
   },
   {

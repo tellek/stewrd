@@ -6,6 +6,7 @@ import type { PaneEdge, PaneNode } from "../state/paneTree";
 import { countLeaves } from "../state/paneTree";
 import { SettingsPage } from "./SettingsPage";
 import type { Palette } from "../../shared/palette";
+import { scrollbarStyle } from "../../components/shared/styles";
 
 // Minimum size (percent) either side of a split may shrink to - stops a
 // divider drag from collapsing a pane to unusable size.
@@ -303,7 +304,7 @@ export function MainContent({
       }}
     >
       {view === "settings" ? (
-        <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        <div style={{ flex: 1, overflow: "auto", padding: 16, ...scrollbarStyle(palette) }}>
           <SettingsPage />
         </div>
       ) : (

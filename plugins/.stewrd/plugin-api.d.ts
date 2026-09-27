@@ -49,6 +49,7 @@ declare module "stewrd-plugin-api" {
     onClick: () => void;
     variant?: "primary" | "secondary";
     disabled?: boolean;
+    bordered?: boolean;
   }
 
   export interface IconButtonProps {
@@ -258,6 +259,9 @@ declare module "stewrd-plugin-api" {
     width?: number | string;
     height?: number | string;
     readOnly?: boolean;
+    initialSelection?: { anchor: number; head: number };
+    initialScrollTop?: number;
+    onViewportChange?: (state: { selection: { anchor: number; head: number }; scrollTop: number }) => void;
   }
 
   export interface SidebarItem {

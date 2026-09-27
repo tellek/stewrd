@@ -55,4 +55,34 @@ describe("TextButton", () => {
 
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it("renders without a border when bordered is false", () => {
+    resetStore();
+    render(<TextButton label="Learn More" onClick={() => {}} bordered={false} />);
+    const button = screen.getByRole("button", { name: "Learn More" });
+    expect(button.style.borderStyle).toBe("none");
+    expect(button.style.background).toBe("transparent");
+    expect(button.style.color).toBe(hexToRgb(defaultPalette.text));
+  });
+
+  it("shows surfaceHover background and accent text on hover when bordered is false", () => {
+    resetStore();
+    render(<TextButton label="Learn More" onClick={() => {}} bordered={false} />);
+    const button = screen.getByRole("button", { name: "Learn More" });
+
+    fireEvent.mouseEnter(button);
+    expect(button.style.background).toBe(hexToRgb(defaultPalette.surfaceHover));
+    expect(button.style.color).toBe(hexToRgb(defaultPalette.accent));
+
+    fireEvent.mouseLeave(button);
+    expect(button.style.background).toBe("transparent");
+    expect(button.style.color).toBe(hexToRgb(defaultPalette.text));
+  });
+
+  it("keeps bordered chrome by default (backward compatible)", () => {
+    resetStore();
+    render(<TextButton label="Confirm" onClick={() => {}} variant="primary" />);
+    const button = screen.getByRole("button", { name: "Confirm" });
+    expect(button.style.borderStyle).not.toBe("none");
+  });
 });

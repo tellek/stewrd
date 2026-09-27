@@ -73,6 +73,116 @@ describe("CodeTextArea", () => {
     expect(container.textContent).toContain('{"b":2}');
   });
 
+  it("applies an out-of-range initialSelection without throwing (clamped to doc length)", () => {
+    resetStore();
+    expect(() =>
+      render(
+        <CodeTextArea
+          value="short"
+          onChange={vi.fn()}
+          language="json"
+          initialSelection={{ anchor: 9999, head: 9999 }}
+        />,
+      ),
+    ).not.toThrow();
+  });
+
+  it("applies initialSelection/initialScrollTop once content arrives asynchronously", () => {
+    resetStore();
+    expect(() => {
+      const { rerender } = render(
+        <CodeTextArea
+          value=""
+          onChange={vi.fn()}
+          language="json"
+          initialSelection={{ anchor: 3, head: 3 }}
+          initialScrollTop={50}
+        />,
+      );
+      rerender(
+        <CodeTextArea
+          value='{"a":1}'
+          onChange={vi.fn()}
+          language="json"
+          initialSelection={{ anchor: 3, head: 3 }}
+          initialScrollTop={50}
+        />,
+      );
+    }).not.toThrow();
+  });
+
+  it("fires onViewportChange (debounced) on a real scroll event, not immediately", () => {
+    resetStore();
+    vi.useFakeTimers();
+    try {
+      const onViewportChange = vi.fn();
+      const { container } = render(
+        <CodeTextArea value='{"a":1}' onChange={vi.fn()} language="json" onViewportChange={onViewportChange} />,
+      );
+      const scroller = container.querySelector(".cm-scroller") as HTMLElement;
+      scroller.scrollTop = 42;
+      scroller.dispatchEvent(new Event("scroll"));
+
+      expect(onViewportChange).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(500);
+      expect(onViewportChange).toHaveBeenCalledTimes(1);
+      expect(onViewportChange.mock.calls[0][0]).toMatchObject({ scrollTop: 42 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not fire onViewportChange from its own value-sync replace", () => {
+    resetStore();
+    vi.useFakeTimers();
+    try {
+      const onViewportChange = vi.fn();
+      const { rerender } = render(
+        <CodeTextArea value='{"a":1}' onChange={vi.fn()} language="json" onViewportChange={onViewportChange} />,
+      );
+      rerender(
+        <CodeTextArea value='{"b":2}' onChange={vi.fn()} language="json" onViewportChange={onViewportChange} />,
+      );
+      vi.advanceTimersByTime(500);
+
+      expect(onViewportChange).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves the last-known viewport across a readOnly toggle instead of resetting", () => {
+    resetStore();
+    vi.useFakeTimers();
+    try {
+      const onViewportChange = vi.fn();
+      const { container, rerender } = render(
+        <CodeTextArea value='{"a":1}' onChange={vi.fn()} language="json" onViewportChange={onViewportChange} />,
+      );
+      const scroller = container.querySelector(".cm-scroller") as HTMLElement;
+      scroller.scrollTop = 77;
+      scroller.dispatchEvent(new Event("scroll"));
+      vi.advanceTimersByTime(500);
+      expect(onViewportChange.mock.calls[0][0]).toMatchObject({ scrollTop: 77 });
+
+      rerender(
+        <CodeTextArea
+          value='{"a":1}'
+          onChange={vi.fn()}
+          language="json"
+          readOnly
+          onViewportChange={onViewportChange}
+        />,
+      );
+
+      vi.advanceTimersByTime(50);
+      const newScroller = container.querySelector(".cm-scroller") as HTMLElement;
+      expect(newScroller.scrollTop).toBe(77);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("styles the CodeMirror scroller with the palette-driven thin scrollbar", () => {
     resetStore();
     render(<CodeTextArea value="{}" onChange={vi.fn()} language="json" />);

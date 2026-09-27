@@ -29,6 +29,12 @@ export function hoverBackground(palette: Palette): CSSProperties {
   return { background: palette.surfaceHover };
 }
 
+/** Palette-driven thin scrollbar for any host-owned scrollable container,
+ * matching plugins/_template's scrollbarStyle() helper. */
+export function scrollbarStyle(palette: Palette): CSSProperties {
+  return { scrollbarWidth: "thin", scrollbarColor: `${palette.border} ${palette.surface}` };
+}
+
 /** Relative luminance (0-1) of a #rrggbb hex color, used to decide whether a
  * light or dark foreground/overlay reads better on a given background. */
 function luminance(hex: string): number {

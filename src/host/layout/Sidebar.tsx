@@ -10,6 +10,7 @@ import { getCategoryIcon } from "./categoryIcons";
 import { countLeaves } from "../state/paneTree";
 import { groupPluginsByCategory } from "./sidebarGrouping";
 import { LAYOUTS_CATEGORY_ID } from "../../shared/category";
+import { scrollbarStyle } from "../../components/shared/styles";
 
 const COLLAPSE_ICON_SIZE = 18;
 
@@ -46,7 +47,7 @@ export function Sidebar() {
         borderRight: `1px solid ${palette.border}`,
       }}
     >
-      <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", ...scrollbarStyle(palette) }}>
         {categories.map((def) => {
           if (def.id === LAYOUTS_CATEGORY_ID) {
             // Rendered at this category's own position in Settings > Categories'

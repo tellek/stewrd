@@ -194,7 +194,10 @@ export function SettingsThemes() {
               }}
             >
               <button
-                onClick={() => setPaletteId(p.id)}
+                onClick={() => {
+                  setPaletteId(p.id);
+                  if (creating && editingId && p.id !== editingId && !immutable) startEdit(p);
+                }}
                 style={{
                   display: "block",
                   background: "transparent",

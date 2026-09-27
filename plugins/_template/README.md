@@ -121,7 +121,7 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `TextBox` | Controlled multi-line textarea | `index.tsx` (commented) |
 | `StatusDot` | Small status-color indicator dot | `index.tsx` |
 | `MaskIcon` | Palette-tinted icon from a PNG data URL | `demos/ButtonsDemo.tsx` |
-| `TextButton` | Text-only button, `primary`/`secondary` variants | `demos/ButtonsDemo.tsx` |
+| `TextButton` | Text-only button, `primary`/`secondary` variants; `bordered={false}` renders it as plain hover-text instead of button chrome | `demos/ButtonsDemo.tsx` |
 | `IconButton` | Icon-only button | `demos/ButtonsDemo.tsx` |
 | `IconTextButton` | Icon + label button | `demos/ButtonsDemo.tsx` |
 | `Checkbox` | Single checkbox with label | `demos/FormControlsDemo.tsx` |
@@ -148,7 +148,7 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 | `DatePicker` | Text field + `Calendar` popover | `demos/CalendarDemo.tsx` |
 | `TimePicker` | Native time input, `"HH:MM"` (24h) value | `demos/CalendarDemo.tsx` |
 | `DateTimePicker` | `DatePicker` + `TimePicker` combined, `{ date, time }` value | `demos/CalendarDemo.tsx` |
-| `CodeTextArea` | CodeMirror 6-backed code editor, fixed `width`/`height` with word-wrap, syntax colors + theme both palette-driven live via `Compartment`s; `language="json"` wired today | `demos/TextAreaDemo.tsx` |
+| `CodeTextArea` | CodeMirror 6-backed code editor, fixed `width`/`height` with word-wrap, syntax colors + theme both palette-driven live via `Compartment`s; `language="json"` wired today; `initialSelection`/`initialScrollTop` restore a cursor/scroll position once, `onViewportChange` reports further changes (debounced) | `demos/TextAreaDemo.tsx` |
 
 Icon/image props (`IconButton.icon`, `IconTextButton.icon`, and future
 `Banner`/`DropdownImageText`/`DropdownImageGrid` image props) take a `data:`

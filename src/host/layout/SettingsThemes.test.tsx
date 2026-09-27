@@ -154,4 +154,59 @@ describe("SettingsThemes", () => {
 
     expect(useAppStore.getState().customPalettes).toHaveLength(0);
   });
+
+  it("loads a different custom palette into the editor when its name is clicked while editing", async () => {
+    resetStore();
+    useAppStore.setState({
+      customPalettes: [
+        { id: "one", name: "One", colors: defaultPalette },
+        { id: "two", name: "Two", colors: { ...defaultPalette, accent: "#123456" } },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<SettingsThemes />);
+
+    await user.click(screen.getByRole("button", { name: "Edit One" }));
+    expect((screen.getByPlaceholderText("Palette name") as HTMLInputElement).value).toBe("One");
+
+    await user.click(screen.getByRole("button", { name: "Two" }));
+
+    expect((screen.getByPlaceholderText("Palette name") as HTMLInputElement).value).toBe("Two");
+  });
+
+  it("does not reset the editor when clicking the name of the palette currently being edited", async () => {
+    resetStore();
+    useAppStore.setState({
+      customPalettes: [{ id: "one", name: "One", colors: defaultPalette }],
+    });
+    const user = userEvent.setup();
+    render(<SettingsThemes />);
+
+    await user.click(screen.getByRole("button", { name: "Edit One" }));
+    const nameInput = screen.getByPlaceholderText("Palette name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Unsaved Edit");
+
+    // The card's own name button still reads "One" (the saved name) since the
+    // draft hasn't been saved yet - click it to simulate re-selecting the
+    // theme currently being edited.
+    await user.click(screen.getByRole("button", { name: "One" }));
+
+    expect((screen.getByPlaceholderText("Palette name") as HTMLInputElement).value).toBe("Unsaved Edit");
+  });
+
+  it("does not load a reserved palette into the editor when clicking its name while editing", async () => {
+    resetStore();
+    useAppStore.setState({
+      customPalettes: [{ id: "one", name: "One", colors: defaultPalette }],
+    });
+    const user = userEvent.setup();
+    render(<SettingsThemes />);
+
+    await user.click(screen.getByRole("button", { name: "Edit One" }));
+    await user.click(screen.getByRole("button", { name: premadePalettes[0].name }));
+
+    expect((screen.getByPlaceholderText("Palette name") as HTMLInputElement).value).toBe("One");
+    expect(useAppStore.getState().paletteId).toBe(premadePalettes[0].id);
+  });
 });
