@@ -164,6 +164,10 @@ export function SettingsAi() {
         <div style={{ marginTop: 16 }}>
           <h3 style={{ fontSize: 13, color: palette.text }}>Anthropic API Key</h3>
           <p style={{ fontSize: 12, color: palette.textMuted, marginTop: -4 }}>
+            Your key is encrypted in your OS credential store. Stewrd never displays it again once saved, and no AI
+            can read it.
+          </p>
+          <p style={{ fontSize: 12, color: palette.textMuted, marginTop: -4 }}>
             {hasKey === null && "Checking..."}
             {hasKey === true && "Key configured ✓"}
             {hasKey === false && "Not configured"}
