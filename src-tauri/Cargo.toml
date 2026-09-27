@@ -1,6 +1,6 @@
 [package]
 name = "stewrd"
-version = "0.1.2"
+version = "0.2.0"
 description = "Stewrd — plugin-based desktop app"
 authors = ["Topher"]
 edition = "2021"
