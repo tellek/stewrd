@@ -72,4 +72,18 @@ describe("CodeTextArea", () => {
 
     expect(container.textContent).toContain('{"b":2}');
   });
+
+  it("styles the CodeMirror scroller with the palette-driven thin scrollbar", () => {
+    resetStore();
+    render(<CodeTextArea value="{}" onChange={vi.fn()} language="json" />);
+    const css = Array.from(document.querySelectorAll("style")).map((s) => s.textContent).join("\n");
+    const scrollerRules = css.match(/[^}]*\.cm-scroller \{[^}]*}/g) ?? [];
+    expect(
+      scrollerRules.some(
+        (rule) =>
+          rule.includes("scrollbar-width: thin") &&
+          rule.includes(`scrollbar-color: ${defaultPalette.border} ${defaultPalette.surface}`),
+      ),
+    ).toBe(true);
+  });
 });

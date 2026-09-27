@@ -16,7 +16,15 @@ function themeExtension(palette: Palette) {
     "&.cm-editor": { border: `1px solid ${palette.border}`, outline: "none" },
     "&.cm-editor.cm-focused": { outline: "none", border: `1px solid ${palette.accent}`, boxShadow: `0 0 0 1px ${palette.accent}` },
     ".cm-content": { caretColor: palette.text },
-    ".cm-scroller": { overflow: "auto", height: "100%" },
+    // Palette-driven thin scrollbar, matching plugins/_template's
+    // scrollbarStyle() helper - CodeMirror's own scroller is a plain
+    // overflow:auto div and otherwise falls back to the browser default.
+    ".cm-scroller": {
+      overflow: "auto",
+      height: "100%",
+      scrollbarWidth: "thin",
+      scrollbarColor: `${palette.border} ${palette.surface}`,
+    },
     ".cm-gutters": { backgroundColor: palette.surface, color: palette.textMuted, border: "none" },
     ".cm-activeLine": { backgroundColor: palette.surfaceHover },
     ".cm-activeLineGutter": { backgroundColor: palette.surfaceHover },
