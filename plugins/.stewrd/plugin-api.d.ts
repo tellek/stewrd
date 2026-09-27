@@ -254,9 +254,9 @@ declare module "stewrd-plugin-api" {
   export interface CodeTextAreaProps {
     value: string;
     onChange: (value: string) => void;
-    language?: "json" | "plain";
+    language?: "json" | "markdown" | "plain";
     width?: number | string;
-    height?: number;
+    height?: number | string;
     readOnly?: boolean;
   }
 

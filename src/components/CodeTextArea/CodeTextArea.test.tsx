@@ -28,6 +28,20 @@ describe("CodeTextArea", () => {
     expect(wrapper.style.width).toBe("100%");
   });
 
+  it("accepts a string height", () => {
+    resetStore();
+    const { container } = render(<CodeTextArea value="" onChange={vi.fn()} language="json" height="100%" />);
+    const wrapper = container.firstChild as HTMLElement;
+    expect(wrapper.style.height).toBe("100%");
+  });
+
+  it("mounts CodeMirror with markdown content", () => {
+    resetStore();
+    const { container } = render(<CodeTextArea value="# Heading" onChange={vi.fn()} language="markdown" />);
+    expect(container.querySelector(".cm-editor")).toBeTruthy();
+    expect(container.textContent).toContain("# Heading");
+  });
+
   it("mounts CodeMirror and renders the initial doc content", () => {
     resetStore();
     const { container } = render(<CodeTextArea value='{"a":1}' onChange={vi.fn()} language="json" />);

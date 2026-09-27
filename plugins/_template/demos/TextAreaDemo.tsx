@@ -16,11 +16,15 @@ export function scrollbarStyle(palette: PluginApi["theme"]["palette"]): CSSPrope
 /** Demonstrates api.ui.CodeTextArea (CodeMirror-backed, palette-themed). */
 export function TextAreaDemo({ api }: { api: PluginApi }) {
   const [code, setCode] = useState('{\n  "hello": "world"\n}');
+  const [md, setMd] = useState("# Heading\n\nSome **bold** and _italic_ text, a `code span`, and a [link](https://example.com).");
 
   return (
     <div>
       <p>JSON editor, fixed 400x200 with word-wrap, syntax colors follow the active palette live:</p>
       <api.ui.CodeTextArea value={code} onChange={setCode} language="json" width={400} height={200} />
+
+      <p>Markdown editor, same size but with a percentage height to show `height` also accepts a string:</p>
+      <api.ui.CodeTextArea value={md} onChange={setMd} language="markdown" width={400} height={200} />
 
       <p>Palette-colored scrollbar on a plain scrollable div (see `scrollbarStyle` above):</p>
       <div style={{ ...scrollbarStyle(api.theme.palette), height: 100, overflow: "auto", border: `1px solid ${api.theme.palette.border}` }}>

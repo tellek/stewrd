@@ -287,12 +287,12 @@ export interface DateTimePickerProps {
 export interface CodeTextAreaProps {
   value: string;
   onChange: (value: string) => void;
-  /** Only `"json"` is wired to a language pack today. */
-  language?: "json" | "plain";
+  /** `"json"` and `"markdown"` are wired to language packs today. */
+  language?: "json" | "markdown" | "plain";
   /** Editor width, e.g. "100%" or a px number. Defaults to "100%". */
   width?: number | string;
-  /** Editor height in px. */
-  height?: number;
+  /** Editor height, e.g. "100%" or a px number. Defaults to 200. */
+  height?: number | string;
   readOnly?: boolean;
 }
 

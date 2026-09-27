@@ -3,6 +3,7 @@ import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
+import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import type { CodeTextAreaProps } from "../../shared/plugin-api.d.ts";
@@ -36,13 +37,21 @@ function highlightExtension(palette: Palette) {
     { tag: tags.punctuation, color: palette.textMuted },
     { tag: tags.comment, color: palette.textMuted, fontStyle: "italic" },
     { tag: tags.invalid, color: palette.status.error },
+    { tag: tags.heading, color: palette.accent, fontWeight: "bold" },
+    { tag: tags.strong, color: palette.accent, fontWeight: "bold" },
+    { tag: tags.emphasis, fontStyle: "italic" },
+    { tag: tags.link, color: palette.accent },
+    { tag: tags.url, color: palette.accent },
+    { tag: tags.monospace, color: palette.status.success },
+    { tag: tags.quote, color: palette.textMuted, fontStyle: "italic" },
+    { tag: tags.processingInstruction, color: palette.textMuted },
   ]);
   return syntaxHighlighting(style);
 }
 
 /** Plugin-facing primitive, exposed via api.ui.CodeTextArea. CodeMirror
- * 6-backed code editor; only `language="json"` is wired today (more language
- * packs can be added to `LANGUAGES` below as needed). Theme/highlight colors
+ * 6-backed code editor; `language="json"` and `language="markdown"` are wired
+ * today (more language packs can be added as needed). Theme/highlight colors
  * are pushed through `Compartment`s so switching the app's active palette
  * live-updates the editor without recreating it. `width`/`height` are fixed
  * (not content-driven) with line-wrapping on, matching a normal textarea. */
@@ -68,7 +77,7 @@ export function CodeTextArea({ value, onChange, language, width = "100%", height
       EditorView.updateListener.of((update) => {
         if (update.docChanged) onChangeRef.current(update.state.doc.toString());
       }),
-      ...(language === "json" ? [json()] : []),
+      ...(language === "json" ? [json()] : language === "markdown" ? [markdown()] : []),
     ];
     const view = new EditorView({
       state: EditorState.create({ doc: value, extensions }),
