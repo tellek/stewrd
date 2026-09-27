@@ -1,9 +1,9 @@
 [
   {
-    "id": "claude-control",
-    "name": "Claude Control",
-    "description": "Control various Claude files and get recommendations from AI on how they could be improved.",
-    "repo": "tellek/claude-control",
+    "id": "stewrd-yt-dlp",
+    "name": "YT-DLP",
+    "description": "Queue-based video/audio downloader UI backed by yt-dlp, with automatic install/update.",
+    "repo": "tellek/stewrd-yt-dlp",
     "apiVersion": "1",
     "category": "Utilities"
   },
