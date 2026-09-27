@@ -22,5 +22,13 @@
     "repo": "tellek/stewrd-notepad",
     "apiVersion": "1",
     "category": "Utilities"
+  },
+  {
+    "id": "claude-control",
+    "name": "Claude Control",
+    "description": "Edit global Claude Code configuration: rules, settings, output styles, agents, skills, and commands.",
+    "repo": "tellek/stewrd-claude",
+    "apiVersion": "1",
+    "category": "Utilities"
   }
 ]
