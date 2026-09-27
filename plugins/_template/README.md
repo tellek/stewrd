@@ -95,13 +95,17 @@ live demonstration.
 
 ## Headless AI (`ctx.api.ai`)
 
-`ctx.api.ai.run(prompt, opts?)` is the single launch point for headless AI CLI
-invocations in this app (currently spawns the `claude` CLI headlessly) -
-prefer it over shelling out to `claude` via `ctx.api.shell.spawn` directly, so
-a different AI provider can be substituted later without touching every call
-site. Returns a handle with `.done` (resolves with the full response text,
-rejects with a stderr-aware error) and `.kill()` for cancelling an in-flight
-request; `opts.onStdout`/`onStderr` stream output live. See the "AI
+`ctx.api.ai.run(prompt, opts?)` is the single launch point for AI invocations
+in this app - prefer it over shelling out to `claude` via `ctx.api.shell.spawn`
+directly. The actual provider (headless `claude` CLI, or a direct Anthropic
+API call) is chosen by the user in Settings > AI, not by the plugin, so a
+plugin never needs to know or care which one is active. Returns a handle with
+`.done` (resolves with the full response text, rejects with a stderr-aware
+error) and `.kill()` for cancelling an in-flight request; `opts.onStdout`/
+`onStderr` stream output live. Under the Anthropic API key provider,
+`opts.allowedTools`/`disallowedTools`/`extraArgs` aren't supported - passing
+any of them rejects `.done` with a clear error rather than silently doing
+nothing; `opts.cwd` is accepted but has no effect there. See the "AI
 (Headless)" tab in `demos/` for a live example.
 
 ## Component Library Coverage

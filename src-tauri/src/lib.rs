@@ -115,6 +115,12 @@ pub fn run() {
             commands::category_icons::list_category_icons,
             commands::updates::list_releases,
             commands::updates::pending_update_version,
+            commands::secrets::secrets_has_anthropic_key,
+            commands::logged::secrets_set_anthropic_key_logged,
+            commands::logged::secrets_clear_anthropic_key_logged,
+            commands::shell::ai_claude_cli_installed,
+            commands::logged::ai_run_anthropic_logged,
+            commands::ai_anthropic::ai_cancel_anthropic,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

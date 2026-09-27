@@ -10,6 +10,12 @@ const storage = createStorageApi("__host__");
 
 export type TaskbarBadgeThreshold = "off" | "success" | "warning" | "error";
 
+/** Which provider every ctx.api.ai.run call flows through - see
+ * host/api/ai.ts. This is a mode flag, not a secret: the Anthropic API key
+ * itself never goes through this plaintext storage mechanism, only via the
+ * OS keyring (see host/api/secrets.ts). */
+export type AiProvider = "claude-subscription" | "anthropic-api";
+
 export interface SavedLayout {
   id: string;
   /** Max 14 characters, enforced by the save-layout prompt modal. */
@@ -23,6 +29,7 @@ export interface HostSettings {
   customPalettes: NamedPalette[];
   hiddenPaletteIds: string[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
+  aiProvider: AiProvider;
   /** Plugin ids in sidebar display order (within their resolved category) -
    * see appStore.ts's movePlugin. Ids missing from this list (new plugins)
    * sort after everything listed here. */

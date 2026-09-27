@@ -18,10 +18,12 @@
 use std::collections::HashMap;
 use tauri::AppHandle;
 
+use super::ai_anthropic as ai_anthropic_cmd;
 use super::fs as fs_cmd;
 use super::logging::log_command_error;
 use super::plugin_install as plugin_install_cmd;
 use super::pty as pty_cmd;
+use super::secrets as secrets_cmd;
 use super::shell as shell_cmd;
 use super::storage as storage_cmd;
 use crate::state::AppState;
@@ -190,6 +192,39 @@ pub async fn install_plugin_from_url_logged(
     let result = plugin_install_cmd::install_plugin_from_url(app.clone(), url, file_name, mode, expected_dir).await;
     if let Err(e) = &result {
         log_command_error(&app, "install_plugin_from_url", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "secrets_set_anthropic_key")]
+pub fn secrets_set_anthropic_key_logged(app: AppHandle, key: String) -> Result<(), String> {
+    let result = secrets_cmd::secrets_set_anthropic_key(key);
+    if let Err(e) = &result {
+        log_command_error(&app, "secrets_set_anthropic_key", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "secrets_clear_anthropic_key")]
+pub fn secrets_clear_anthropic_key_logged(app: AppHandle) -> Result<(), String> {
+    let result = secrets_cmd::secrets_clear_anthropic_key();
+    if let Err(e) = &result {
+        log_command_error(&app, "secrets_clear_anthropic_key", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "ai_run_anthropic")]
+pub async fn ai_run_anthropic_logged(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    prompt: String,
+    model: Option<String>,
+) -> Result<(), String> {
+    let result = ai_anthropic_cmd::ai_run_anthropic(app.clone(), state, id, prompt, model).await;
+    if let Err(e) = &result {
+        log_command_error(&app, "ai_run_anthropic", e);
     }
     result
 }

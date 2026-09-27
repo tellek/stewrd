@@ -33,4 +33,9 @@ pub struct AppState {
     pub child_kill_senders: Mutex<HashMap<String, Sender<()>>>,
     pub child_pids: Mutex<HashMap<String, u32>>,
     pub pty_sessions: Mutex<HashMap<String, PtySession>>,
+    /// Per-request cancel senders for the "anthropic-api" AI provider (see
+    /// commands/ai_anthropic.rs) - keyed by a client-generated uuid, not an
+    /// OS pid, so this never collides with child_kill_senders/child_pids
+    /// above which track real child processes.
+    pub anthropic_cancel_senders: Mutex<HashMap<String, Sender<()>>>,
 }

@@ -21,7 +21,7 @@ pub struct ExecResult {
     stderr: String,
 }
 
-fn build_command(program: &str, args: &[String], cwd: &Option<String>, env: &Option<HashMap<String, String>>) -> Command {
+pub(crate) fn build_command(program: &str, args: &[String], cwd: &Option<String>, env: &Option<HashMap<String, String>>) -> Command {
     let mut cmd = Command::new(program);
     cmd.args(args);
     if let Some(cwd) = cwd {
@@ -149,6 +149,20 @@ pub fn kill_command(state: tauri::State<'_, AppState>, process_id: String) -> Re
         let _ = tx.send(());
     }
     Ok(())
+}
+
+/// Used by Settings > AI to show whether the `claude` CLI is on PATH for the
+/// Claude Subscription provider. Note: right after running the native
+/// installer in the same session, this can still report `false` - this
+/// already-running process keeps the PATH it inherited at launch, so a
+/// restart is needed for a fresh install to be picked up.
+#[tauri::command]
+pub async fn ai_claude_cli_installed() -> bool {
+    build_command("claude", &["--version".to_string()], &None, &None)
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

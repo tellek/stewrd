@@ -1,3 +1,4 @@
+pub mod ai_anthropic;
 pub mod category_icons;
 pub mod fs;
 pub mod icon_util;
@@ -10,6 +11,7 @@ pub mod plugin_install;
 pub mod plugin_settings;
 pub mod plugins;
 pub mod pty;
+pub mod secrets;
 pub mod shell;
 pub mod storage;
 pub mod updates;

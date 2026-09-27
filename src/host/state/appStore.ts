@@ -5,7 +5,13 @@ import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 import { premadePalettes } from "../../shared/palette";
 import type { CategoryDef } from "../../shared/category";
 import { DEFAULT_CATEGORIES, LAYOUTS_CATEGORY_ID, OTHER_CATEGORY_ID } from "../../shared/category";
-import { loadHostSettings, saveHostSettings, type SavedLayout, type TaskbarBadgeThreshold } from "./hostSettings";
+import {
+  loadHostSettings,
+  saveHostSettings,
+  type AiProvider,
+  type SavedLayout,
+  type TaskbarBadgeThreshold,
+} from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 import {
@@ -141,6 +147,7 @@ interface AppState {
   paletteId: string;
   customPalettes: NamedPalette[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
+  aiProvider: AiProvider;
   hostSettingsLoaded: boolean;
   /** Derived from paletteId/customPalettes - recomputed explicitly by every
    * action that touches either, since zustand's default setState merge
@@ -239,6 +246,7 @@ interface AppState {
   deleteCustomPalette(id: string): void;
   hidePalette(id: string): void;
   setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
+  setAiProvider(provider: AiProvider): void;
   setSidebarItems(pluginId: string, items: SidebarItem[]): void;
   setSidebarSelected(pluginId: string, id: string | null): void;
   clearSidebarItems(pluginId: string): void;
@@ -268,6 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   customPalettes: [],
   hiddenPaletteIds: [],
   taskbarBadgeThreshold: "warning",
+  aiProvider: "claude-subscription",
   hostSettingsLoaded: false,
   palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
@@ -452,6 +461,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
+      const aiProvider = loaded.aiProvider ?? state.aiProvider;
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
@@ -465,6 +475,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         categoriesExpanded,
         sidebarSubItemsExpanded,
         taskbarBadgeThreshold,
+        aiProvider,
         pluginsWithSidebarItems,
         layouts,
         hostSettingsLoaded: true,
@@ -573,6 +584,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTaskbarBadgeThreshold: (threshold) => {
     set({ taskbarBadgeThreshold: threshold });
     saveHostSettings({ taskbarBadgeThreshold: threshold });
+  },
+
+  setAiProvider: (provider) => {
+    set({ aiProvider: provider });
+    saveHostSettings({ aiProvider: provider });
   },
 
   setSidebarItems: (pluginId, items) =>

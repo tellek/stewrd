@@ -36,9 +36,12 @@ export function AiDemo({ api }: { api: PluginApi }) {
   return (
     <div>
       <p>
-        Calls <code>api.ai.run(prompt)</code> - this shells out to the <code>claude</code> CLI headlessly, same as
-        Settings&apos; palette-from-media generator and git-tracker&apos;s &quot;Ask Claude&quot;, all going through
-        this one shared surface.
+        Calls <code>api.ai.run(prompt)</code> - same shared surface Settings&apos; palette-from-media generator and
+        git-tracker&apos;s &quot;Ask Claude&quot; go through. Whether this shells out to the <code>claude</code> CLI
+        headlessly or calls the Anthropic API directly is chosen by the user in Settings &gt; AI, not by this plugin.
+        Under the Anthropic API key provider, <code>allowedTools</code>/<code>disallowedTools</code>/
+        <code>extraArgs</code> aren&apos;t supported - passing any of them makes this reject with a clear error
+        instead of silently doing nothing.
       </p>
       <api.ui.TextBox value={prompt} onChange={setPrompt} rows={2} placeholder="Ask something..." />
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
