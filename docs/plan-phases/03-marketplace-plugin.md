@@ -1,5 +1,13 @@
 # Phase 03 — `plugins/marketplace` Scaffold & UI
 
+> **Update:** the "`api.storage`/`storage.json` hot-reload-loop trap" referenced
+> throughout this doc was a real bug in the host's plugin watcher
+> (`src-tauri/src/commands/watcher.rs`), not an inherent API limitation. The
+> watcher now ignores a plugin's own `storage.json` (mirroring the existing
+> `data/` exclusion), so `api.storage` is safe to use freely, including on
+> mount. This doc is left as-is below as a historical record of the
+> workaround that was necessary at the time.
+
 Status: **Scaffold DONE.** `plugins/marketplace/{plugin.json,settings.json,index.tsx,README.md}` written, builds cleanly (`node scripts/stewrd-plugin-build.mjs plugins/marketplace`), type-checks cleanly (`npx tsc -p plugins/tsconfig.json` after adding `marketplace/**/*` to its `include`). Depends on Phase 01 (done) for the `install_plugin_from_url` command it calls.
 
 ## What's implemented

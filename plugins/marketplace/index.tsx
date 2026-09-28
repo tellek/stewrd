@@ -47,10 +47,11 @@ interface InstalledEntry {
   broken: boolean;
 }
 
-// Per-repo release metadata cache, in-memory only (module scope) - avoids
-// api.storage entirely (writing storage.json would fire plugin-changed and
-// hot-reload this plugin mid-browse) and avoids re-spending the 60/hour
-// unauthenticated GitHub API budget on every row re-expand.
+// Per-repo release metadata cache, in-memory only (module scope) - the fs
+// watcher now ignores a plugin's own storage.json (see watcher.rs), so this
+// is no longer required to dodge a hot-reload loop, but it still avoids
+// re-spending the 60/hour unauthenticated GitHub API budget on every row
+// re-expand.
 const releaseCache = new Map<string, ReleaseState>();
 
 export function activate(ctx: PluginContext) {
