@@ -30,5 +30,13 @@
     "repo": "tellek/stewrd-claude",
     "apiVersion": "1",
     "category": "Utilities"
+  },
+  {
+    "id": "py-sandbox",
+    "name": "Py Sandbox",
+    "description": "Isolated Python virtual environments you can create, install into, and open a console for.",
+    "repo": "tellek/stewrd-py-sandbox",
+    "apiVersion": "1",
+    "category": "Utilities"
   }
 ]
