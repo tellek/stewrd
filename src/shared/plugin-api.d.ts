@@ -40,6 +40,8 @@ export interface TextBoxProps {
   placeholder?: string;
   readOnly?: boolean;
   rows?: number;
+  /** Renders a single-line, non-resizable `<input>` instead of a textarea; `rows` is ignored. */
+  singleLine?: boolean;
 }
 
 export interface MaskIconProps {

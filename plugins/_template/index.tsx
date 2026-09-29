@@ -152,7 +152,8 @@ export function Component({ api }: { api: PluginApi }) {
 
       {/* --- ui.TextBox: a shared controlled textarea primitive --- */}
       {/* const [text, setText] = useState("");
-      <api.ui.TextBox value={text} onChange={setText} placeholder="type here" /> */}
+      <api.ui.TextBox value={text} onChange={setText} placeholder="type here" />
+      Add `singleLine` for a non-resizable one-line input (see demos/FormControlsDemo.tsx). */}
 
       {/* --- Component Library showcase: see plugins/_template/demos/ ---
           One tab per category, added here every time a new host component

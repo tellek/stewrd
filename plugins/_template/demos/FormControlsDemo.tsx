@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { PluginApi } from "stewrd-plugin-api";
 
-/** Demonstrates api.ui.Checkbox / RadioGroup / Toggle / RangeSlider. */
+/** Demonstrates api.ui.TextBox (single-line) / Checkbox / RadioGroup / Toggle / RangeSlider. */
 export function FormControlsDemo({ api }: { api: PluginApi }) {
+  const [name, setName] = useState("");
   const [checked, setChecked] = useState(false);
   const [radioValue, setRadioValue] = useState("a");
   const [toggled, setToggled] = useState(false);
@@ -10,6 +11,7 @@ export function FormControlsDemo({ api }: { api: PluginApi }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <api.ui.TextBox singleLine value={name} onChange={setName} placeholder="Single-line, non-resizable" />
       <api.ui.Checkbox checked={checked} onChange={setChecked} label="Enable feature" />
       <api.ui.RadioGroup
         value={radioValue}

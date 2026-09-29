@@ -118,7 +118,7 @@ component requires adding its demo here too (see root `CLAUDE.md`'s
 
 | Component | Description | Demo |
 | --- | --- | --- |
-| `TextBox` | Controlled multi-line textarea | `index.tsx` (commented) |
+| `TextBox` | Controlled multi-line textarea; `singleLine` renders a non-resizable single-line input instead (`rows` ignored) | `demos/FormControlsDemo.tsx` (single-line), `index.tsx` (commented, multi-line) |
 | `StatusDot` | Small status-color indicator dot | `index.tsx` |
 | `MaskIcon` | Palette-tinted icon from a PNG data URL | `demos/ButtonsDemo.tsx` |
 | `TextButton` | Text-only button, `primary`/`secondary` variants; `bordered={false}` renders it as plain hover-text instead of button chrome | `demos/ButtonsDemo.tsx` |

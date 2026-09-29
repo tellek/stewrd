@@ -45,6 +45,28 @@ describe("TextBox", () => {
     expect(onChange).toHaveBeenCalledWith("i");
   });
 
+  it("renders a single-line text input, ignoring rows, when singleLine is true", () => {
+    resetStore();
+    render(<TextBox value="" onChange={() => {}} rows={3} singleLine />);
+    const el = screen.getByRole("textbox");
+    expect(el.tagName).toBe("INPUT");
+    expect((el as HTMLInputElement).type).toBe("text");
+    expect(el.hasAttribute("rows")).toBe(false);
+    expect((el as HTMLElement).style.resize).toBe("");
+  });
+
+  it("calls onChange as the user types in singleLine mode", async () => {
+    resetStore();
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<TextBox value="" onChange={onChange} singleLine />);
+
+    await user.type(screen.getByRole("textbox"), "hi");
+
+    expect(onChange).toHaveBeenCalledWith("h");
+    expect(onChange).toHaveBeenCalledWith("i");
+  });
+
   it("is read-only and does not accept input when readOnly is true", () => {
     resetStore();
     render(<TextBox value="locked" onChange={() => {}} readOnly />);

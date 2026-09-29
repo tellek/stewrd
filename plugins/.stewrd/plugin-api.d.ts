@@ -34,6 +34,8 @@ declare module "stewrd-plugin-api" {
     placeholder?: string;
     readOnly?: boolean;
     rows?: number;
+    /** Renders a single-line, non-resizable `<input>` instead of a textarea; `rows` is ignored. */
+    singleLine?: boolean;
   }
 
   export interface MaskIconProps {
