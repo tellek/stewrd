@@ -42,3 +42,7 @@ See `docs/plugin-catalog.json` at the repo root.
 ```sh
 node ../../scripts/stewrd-plugin-build.mjs . --watch
 ```
+
+## Sidebar Icon Status
+
+Idle by default; in-progress while installing or updating; error if it fails; warning when any plugin has a newer release; success for 5 seconds once the window has focus after a completed install. A row's Update button is disabled when the installed version is already the latest.

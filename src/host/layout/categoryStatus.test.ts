@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { categoryStatusColor, worstStatus } from "./categoryStatus";
+import { categoryStatusColor, effectiveStatus, worstStatus } from "./categoryStatus";
+import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 import type { PluginSidebarEntry } from "../state/appStore";
 import { premadePalettes, type StatusColor } from "../../shared/palette";
 
@@ -52,5 +53,30 @@ describe("categoryStatusColor", () => {
 
   it("returns the normal color for an empty list", () => {
     expect(categoryStatusColor([], palette, palette.text)).toBe(palette.text);
+  });
+});
+
+function item(color?: StatusColor, label = "i"): SidebarItem {
+  return { id: label, label, color, onClick: () => {} };
+}
+
+describe("effectiveStatus", () => {
+  it("keeps a non-idle plugin status", () => {
+    expect(effectiveStatus(entry("warning"), [item("error")]).status).toBe("warning");
+  });
+
+  it("uses the worst sub-item color when the plugin is idle", () => {
+    const r = effectiveStatus(entry("idle"), [item("success", "a"), item("error", "b")]);
+    expect(r).toEqual({ status: "error", tooltip: "b" });
+  });
+
+  it("is idle with no sub-item colors", () => {
+    expect(effectiveStatus(entry("idle"), [item()]).status).toBe("idle");
+  });
+});
+
+describe("sub-item dots feed categories", () => {
+  it("worstStatus includes sub-item colors", () => {
+    expect(worstStatus([entry("idle")], { p: [item("warning")] })).toBe("warning");
   });
 });

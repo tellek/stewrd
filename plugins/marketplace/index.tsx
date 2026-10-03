@@ -54,9 +54,111 @@ interface InstalledEntry {
 // re-expand.
 const releaseCache = new Map<string, ReleaseState>();
 
+const SUCCESS_DISPLAY_MS = 5000;
+
+export interface StatusInputs {
+  busy: boolean;
+  error: boolean;
+  updateAvailable: boolean;
+  success: boolean;
+}
+
+export type MarketplaceStatus = "idle" | "in-progress" | "success" | "warning" | "error";
+
+/** Sidebar icon status: installing/updating > failed > update available > recent success > idle. */
+export function computeStatus({ busy, error, updateAvailable, success }: StatusInputs): MarketplaceStatus {
+  if (busy) return "in-progress";
+  if (error) return "error";
+  if (updateAvailable) return "warning";
+  if (success) return "success";
+  return "idle";
+}
+
+/** True only when the installed version is known and the release is confirmed not newer. */
+export function isUpToDate(installedVersion: string | undefined, releaseTag: string | undefined): boolean {
+  if (!installedVersion || !releaseTag) return false;
+  const cmp = compareSemver(releaseTag, installedVersion);
+  return cmp !== null && cmp <= 0;
+}
+
+// Icon status lives at module scope (not in Component state) so it stays
+// correct while the marketplace pane isn't mounted, e.g. an install still
+// running after the user switches tools.
+const work = { busy: 0, error: false, updateAvailable: false, successPending: false, successShowing: false };
+let applyStatus: ((status: MarketplaceStatus) => void) | null = null;
+let successTimer: ReturnType<typeof setTimeout> | null = null;
+
+function refreshStatus() {
+  applyStatus?.(
+    computeStatus({
+      busy: work.busy > 0,
+      error: work.error,
+      updateAvailable: work.updateAvailable,
+      success: work.successShowing,
+    }),
+  );
+}
+
+function beginWork() {
+  work.busy++;
+  work.error = false;
+  work.successPending = false;
+  work.successShowing = false;
+  refreshStatus();
+}
+
+function finishWork(ok: boolean) {
+  work.busy--;
+  work.error = !ok;
+  work.successPending = ok;
+  refreshStatus();
+  if (ok && document.hasFocus()) startSuccessTimer();
+}
+
+// The 5s success display starts once the window has focus, so it's seen even
+// if the install finished while the user was elsewhere.
+function startSuccessTimer() {
+  if (!work.successPending) return;
+  work.successPending = false;
+  work.successShowing = true;
+  refreshStatus();
+  successTimer = setTimeout(() => {
+    work.successShowing = false;
+    refreshStatus();
+  }, SUCCESS_DISPLAY_MS);
+}
+
+async function checkForUpdates(api: PluginApi) {
+  try {
+    const [{ entries }, installed] = await Promise.all([loadCatalog(api), loadInstalled()]);
+    const releases = await Promise.all(entries.map((e) => fetchLatestRelease(e.repo)));
+    work.updateAvailable = entries.some((entry, i) => {
+      const existing = findInstalledEntry(installed, entry);
+      const tag = releases[i].release?.tag_name;
+      return (
+        !!existing && !existing.broken && !!existing.version && !!tag && compareSemver(tag, existing.version) === 1
+      );
+    });
+    refreshStatus();
+  } catch {
+    // Offline or no catalog: leave the status as is.
+  }
+}
+
 export function activate(ctx: PluginContext) {
   ctx.api.log.info("marketplace plugin activated");
-  ctx.api.statusIcon.set("idle");
+  applyStatus = (status) => {
+    if (!ctx.signal.aborted) ctx.api.statusIcon.set(status);
+  };
+  refreshStatus();
+  const onFocus = () => startSuccessTimer();
+  window.addEventListener("focus", onFocus);
+  ctx.onDispose(() => {
+    window.removeEventListener("focus", onFocus);
+    if (successTimer) clearTimeout(successTimer);
+    applyStatus = null;
+  });
+  void checkForUpdates(ctx.api);
 }
 
 export function deactivate() {}
@@ -150,6 +252,14 @@ async function loadInstalled(): Promise<Map<string, InstalledEntry>> {
   return byDir;
 }
 
+function findInstalledEntry(installed: Map<string, InstalledEntry>, entry: CatalogEntry): InstalledEntry | undefined {
+  for (const inst of installed.values()) {
+    if (inst.id === entry.id) return inst;
+    if (inst.broken && inst.dir === entry.id) return inst;
+  }
+  return undefined;
+}
+
 export function Component({ api }: { api: PluginApi }) {
   const [entries, setEntries] = useState<CatalogEntry[] | null>(null);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -184,11 +294,7 @@ export function Component({ api }: { api: PluginApi }) {
   }, [entries]);
 
   function findInstalled(entry: CatalogEntry): InstalledEntry | undefined {
-    for (const inst of installed.values()) {
-      if (inst.id === entry.id) return inst;
-      if (inst.broken && inst.dir === entry.id) return inst;
-    }
-    return undefined;
+    return findInstalledEntry(installed, entry);
   }
 
   async function installOrUpdate(entry: CatalogEntry, release: GhRelease, existing: InstalledEntry | undefined) {
@@ -206,6 +312,8 @@ export function Component({ api }: { api: PluginApi }) {
     if (!confirmed) return;
 
     setBusyRepo(entry.repo);
+    beginWork();
+    let ok = false;
     try {
       await invoke<string>("install_plugin_from_url", {
         url: asset.browser_download_url,
@@ -214,10 +322,14 @@ export function Component({ api }: { api: PluginApi }) {
         expectedDir: existing?.dir,
       });
       api.toast.show({ message: `${entry.name} ${mode === "update" ? "updated" : "installed"}.`, kind: "success" });
-      setInstalled(await loadInstalled());
+      ok = true;
+      const nowInstalled = await loadInstalled();
+      setInstalled(nowInstalled);
+      void checkForUpdates(api);
     } catch (e) {
-      api.toast.show({ message: `${entry.name}: ${String(e)}`, kind: "error" });
+      if (!ok) api.toast.show({ message: `${entry.name}: ${String(e)}`, kind: "error" });
     } finally {
+      finishWork(ok);
       setBusyRepo(null);
     }
   }
@@ -269,6 +381,7 @@ export function Component({ api }: { api: PluginApi }) {
               existing && existing.version && !existing.broken && state?.release
                 ? compareSemver(state.release.tag_name, existing.version!) === 1
                 : false;
+            const upToDate = !!existing && !existing.broken && isUpToDate(existing.version, state?.release?.tag_name);
             const label = existing?.broken ? "Repair" : existing ? "Update" : "Install";
             const busy = busyRepo === entry.repo;
 
@@ -309,7 +422,7 @@ export function Component({ api }: { api: PluginApi }) {
                   <api.ui.IconTextButton
                     label={busy ? "Working..." : label}
                     onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
-                    disabled={busy || !asset}
+                    disabled={busy || !asset || upToDate}
                   />
                 </td>
               </tr>

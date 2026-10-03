@@ -1,7 +1,7 @@
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { getCategoryIcon } from "./categoryIcons";
-import { categoryStatusColor } from "./categoryStatus";
+import { categoryStatusColor, effectiveStatus } from "./categoryStatus";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { usePluginIcon } from "./usePluginIcon";
 import { findLeaf } from "../state/paneTree";
@@ -16,7 +16,8 @@ export function SidebarCategoryCollapsed({ category, entries }: { category: Cate
   const palette = useAppStore((s) => s.palette);
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const icon = getCategoryIcon(categoryIconFiles, category.icon);
-  const iconColor = categoryStatusColor(entries, palette, palette.textMuted);
+  const itemsByPlugin = useAppStore((s) => s.sidebarItemsByPlugin);
+  const iconColor = categoryStatusColor(entries, palette, palette.textMuted, itemsByPlugin);
 
   return (
     <div>
@@ -64,6 +65,8 @@ function CollapsedPluginButton({
 }) {
   const palette = useAppStore((s) => s.palette);
   const icon = usePluginIcon(entry.dir);
+  const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id]);
+  const effective = effectiveStatus(entry, items);
 
   return (
     <button
@@ -80,8 +83,8 @@ function CollapsedPluginButton({
       }}
     >
       <StatusIcon
-        status={entry.status}
-        tooltip={entry.statusTooltip ?? entry.status}
+        status={effective.status}
+        tooltip={effective.tooltip ?? effective.status}
         png={icon.png}
         alt={entry.manifest.name}
       />

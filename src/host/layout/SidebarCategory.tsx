@@ -27,7 +27,8 @@ export function SidebarCategory({ category, entries }: { category: CategoryDef; 
   const categoryIconFiles = useAppStore((s) => s.categoryIconFiles);
   const icon = getCategoryIcon(categoryIconFiles, category.icon);
   const [hovered, setHovered] = useState(false);
-  const iconColor = hovered ? palette.accent : categoryStatusColor(entries, palette, palette.textMuted);
+  const itemsByPlugin = useAppStore((s) => s.sidebarItemsByPlugin);
+  const iconColor = hovered ? palette.accent : categoryStatusColor(entries, palette, palette.textMuted, itemsByPlugin);
 
   // Single source of truth for where the drop-preview skeleton renders while
   // dragging over this category: a plugin id (insert before it), "end"

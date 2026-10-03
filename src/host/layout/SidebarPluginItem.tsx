@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAppStore, type PluginSidebarEntry } from "../state/appStore";
 import { StatusIcon } from "./StatusIcon";
 import { usePluginIcon } from "./usePluginIcon";
+import { effectiveStatus } from "./categoryStatus";
 import { findLeaf } from "../state/paneTree";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 
@@ -38,6 +39,7 @@ export function SidebarPluginItem({
   const palette = useAppStore((s) => s.palette);
   const isActive = view === "plugin" && findLeaf(paneTree, activePaneId)?.pluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
+  const effective = effectiveStatus(entry, items);
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -87,8 +89,8 @@ export function SidebarPluginItem({
         style={{ display: "flex", alignItems: "center", gap: 8 }}
       >
         <StatusIcon
-          status={entry.status}
-          tooltip={entry.statusTooltip ?? entry.status}
+          status={effective.status}
+          tooltip={effective.tooltip ?? effective.status}
           png={icon.png}
           alt={entry.manifest.name}
           idleColor={hovered ? palette.accent : palette.text}

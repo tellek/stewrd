@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { SidebarCategory } from "./SidebarCategory";
 import { SidebarCategoryCollapsed } from "./SidebarCategoryCollapsed";
@@ -7,7 +7,7 @@ import { SidebarLayoutsCollapsed } from "./SidebarLayoutsCollapsed";
 import { SidebarFooter } from "./SidebarFooter";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
 import { getCategoryIcon } from "./categoryIcons";
-import { countLeaves } from "../state/paneTree";
+import { countLeaves, findLeaf } from "../state/paneTree";
 import { groupPluginsByCategory } from "./sidebarGrouping";
 import { LAYOUTS_CATEGORY_ID } from "../../shared/category";
 import { scrollbarStyle } from "../../components/shared/styles";
@@ -27,6 +27,20 @@ export function Sidebar() {
   const toggleSidebarCollapsed = useAppStore((s) => s.toggleSidebarCollapsed);
   const palette = useAppStore((s) => s.palette);
   const [expandHovered, setExpandHovered] = useState(false);
+  const activePluginId = useAppStore((s) =>
+    s.view === "plugin" ? (findLeaf(s.paneTree, s.activePaneId)?.pluginId ?? null) : null,
+  );
+  const setSidebarSelected = useAppStore((s) => s.setSidebarSelected);
+  const prevActivePluginId = useRef<string | null>(null);
+
+  // A highlighted sub-item un-highlights as soon as its tool loses focus.
+  // Lives here (always mounted) since SidebarPluginItem isn't rendered when
+  // the sidebar or category is collapsed.
+  useEffect(() => {
+    const prev = prevActivePluginId.current;
+    if (prev && prev !== activePluginId) setSidebarSelected(prev, null);
+    prevActivePluginId.current = activePluginId;
+  }, [activePluginId, setSidebarSelected]);
 
   // LAYOUTS_CATEGORY_ID is excluded from this grouping - it's a built-in
   // category (orderable in Settings > Categories like any other) but isn't a

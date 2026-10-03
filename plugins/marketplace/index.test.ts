@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { compareSemver, parseSemver, findZipAsset, loadCatalog } from "./index";
+import { compareSemver, parseSemver, findZipAsset, loadCatalog, isUpToDate, computeStatus } from "./index";
 
 describe("parseSemver / compareSemver", () => {
   it("parses a plain semver string", () => {
@@ -83,5 +83,30 @@ describe("loadCatalog", () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline")) as never;
     vi.mocked(fakeApi.fs.readTextFile).mockRejectedValue(new Error("no file"));
     await expect(loadCatalog(fakeApi)).rejects.toThrow(/could not reach the plugin catalog/);
+  });
+});
+
+describe("isUpToDate", () => {
+  it("is true when equal or older release", () => {
+    expect(isUpToDate("1.2.0", "v1.2.0")).toBe(true);
+    expect(isUpToDate("1.3.0", "v1.2.0")).toBe(true);
+  });
+  it("is false for a newer release", () => {
+    expect(isUpToDate("1.2.0", "v1.3.0")).toBe(false);
+  });
+  it("is false when a version is missing or unparseable", () => {
+    expect(isUpToDate(undefined, "v1.0.0")).toBe(false);
+    expect(isUpToDate("1.0.0", "nightly")).toBe(false);
+  });
+});
+
+describe("computeStatus", () => {
+  const base = { busy: false, error: false, updateAvailable: false, success: false };
+  it("follows priority", () => {
+    expect(computeStatus(base)).toBe("idle");
+    expect(computeStatus({ ...base, success: true })).toBe("success");
+    expect(computeStatus({ ...base, success: true, updateAvailable: true })).toBe("warning");
+    expect(computeStatus({ ...base, updateAvailable: true, error: true })).toBe("error");
+    expect(computeStatus({ ...base, error: true, busy: true })).toBe("in-progress");
   });
 });
