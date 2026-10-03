@@ -32,10 +32,6 @@ export function SidebarPluginItem({
   const toggleSidebarSubItemsExpanded = useAppStore((s) => s.toggleSidebarSubItemsExpanded);
   const items = useAppStore((s) => s.sidebarItemsByPlugin[entry.manifest.id] ?? EMPTY_ITEMS);
   const expanded = useAppStore((s) => s.sidebarSubItemsExpanded[entry.manifest.id] ?? true);
-  // Also recognize a plugin known (from a past setItems call, persisted via
-  // hostSettings) to have sub-items, so a lazy plugin's disclosure triangle
-  // shows at startup even before it's activated this session.
-  const knownExpandable = useAppStore((s) => s.pluginsWithSidebarItems.includes(entry.manifest.id));
   const palette = useAppStore((s) => s.palette);
   const isActive = view === "plugin" && findLeaf(paneTree, activePaneId)?.pluginId === entry.manifest.id;
   const icon = usePluginIcon(entry.dir);
@@ -97,15 +93,10 @@ export function SidebarPluginItem({
         />
         <span style={{ color: hovered ? palette.accent : undefined }}>{entry.manifest.name}</span>
       </span>
-      {(items.length > 0 || knownExpandable) && (
+      {items.length > 0 && (
         // Its own click target (stopPropagation, so it doesn't also fire the
         // row's select/toggle-if-active onClick above) - toggles regardless
-        // of active state, so collapsing a lazy plugin's sub-items doesn't
-        // require it to already be the active selection first. Direction
-        // reflects whether sub-items are actually rendered below
-        // (SidebarSubItems.tsx uses the same items.length && expanded check)
-        // - a lazy plugin not yet activated has no items to show regardless
-        // of its stored expanded flag, so the triangle reads "collapsed".
+        // of active state. Only shown once the plugin has sub-items to expand.
         <span
           onClick={(e) => {
             e.stopPropagation();
