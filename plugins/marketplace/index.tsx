@@ -35,6 +35,8 @@ interface GhRelease {
 
 interface ReleaseState {
   release: GhRelease | null;
+  /** Zip downloads summed across every release, since each release's own count starts at zero. */
+  totalDownloads?: number;
   fetchedAt: number;
   error?: "offline" | "rate-limited";
   rateLimitResetAt?: number;
@@ -190,7 +192,7 @@ async function fetchLatestRelease(repo: string): Promise<ReleaseState> {
   }
   let state: ReleaseState;
   try {
-    const resp = await fetch(`https://api.github.com/repos/${repo}/releases/latest`);
+    const resp = await fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`);
     if (resp.status === 403 && resp.headers.get("X-RateLimit-Remaining") === "0") {
       const resetHeader = resp.headers.get("X-RateLimit-Reset");
       state = {
@@ -202,8 +204,10 @@ async function fetchLatestRelease(repo: string): Promise<ReleaseState> {
     } else if (!resp.ok) {
       state = { release: null, fetchedAt: Date.now(), error: "offline" };
     } else {
-      const release: GhRelease = await resp.json();
-      state = { release, fetchedAt: Date.now() };
+      const releases: (GhRelease & { draft?: boolean; prerelease?: boolean })[] = await resp.json();
+      const release = releases.find((r) => !r.draft && !r.prerelease) ?? null;
+      const totalDownloads = releases.reduce((sum, r) => sum + (findZipAsset(r)?.download_count ?? 0), 0);
+      state = { release, totalDownloads, fetchedAt: Date.now() };
     }
   } catch {
     state = { release: null, fetchedAt: Date.now(), error: "offline" };
@@ -416,7 +420,7 @@ export function Component({ api }: { api: PluginApi }) {
                 </td>
                 <td style={{ padding: 6 }}>{versionCell}</td>
                 <td style={{ padding: 6, color: palette.textMuted, textAlign: "right" }}>
-                  {asset ? asset.download_count : "—"}
+                  {state?.totalDownloads ?? "—"}
                 </td>
                 <td style={{ padding: 6 }}>
                   <api.ui.IconTextButton

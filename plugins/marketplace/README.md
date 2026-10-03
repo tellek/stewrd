@@ -10,7 +10,7 @@ that repo's own latest GitHub release.
 1. Fetches the catalog JSON (cached under this plugin's own `data/` folder,
    via `api.fs`, so a stale copy still shows something if offline - never via
    `api.storage`, which would fire a hot-reload on every write).
-2. Per-entry release metadata (`api.github.com/.../releases/latest`) is
+2. Per-entry release metadata (`api.github.com/.../releases`, summing zip downloads across all releases for the install count) is
    fetched for every visible catalog row as soon as the catalog loads, so the
    table's Version/↓ columns populate without an extra click. It's cached
    in-memory with a 15-minute TTL to stay well under GitHub's 60/hour
