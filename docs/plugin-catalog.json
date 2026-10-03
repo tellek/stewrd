@@ -25,7 +25,7 @@
   },
   {
     "id": "claude-control",
-    "name": "Claude Control",
+    "name": "Claude",
     "description": "Edit global Claude Code configuration: rules, settings, output styles, agents, skills, and commands.",
     "repo": "tellek/stewrd-claude",
     "apiVersion": "1",
