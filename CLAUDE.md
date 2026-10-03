@@ -10,6 +10,7 @@
 
 ## Creating a Plugin
 - Before building **ANY** UI element for a plugin, first check `plugins/_template/demos/` and `plugins/_template/index.tsx` for an existing example of that element — reuse the existing `api.ui` component/pattern instead of hand-rolling markup.
+- Follow the **Sidebar Icon Color Rules** in `plugins/CLAUDE.md` (status dot colors, 3s success hold on focus, error > warning > in-progress > success > idle priority, default icon color when idle).
 - Read [ARCHITECTURE.md](ARCHITECTURE.md) first — it documents the full plugin API surface, manifest/settings schema, and host lifecycle needed to build a correct plugin.
 - Use `plugins/_template` as the reference implementation for wiring a new plugin (manifest shape, `index.tsx` structure, settings, README).
 

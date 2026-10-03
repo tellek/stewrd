@@ -34,6 +34,18 @@ API/file before building anything that touches one of these.
   it's missing, the host shows the fallback "more" icon. Idle tint is
   `palette.text` (`palette.accent` on hover) in the expanded sidebar and
   `palette.textMuted` in the collapsed rail.
+- **Sidebar Icon Color Rules** (mandatory for every plugin):
+  - Each plugin shows a status dot somewhere within it, colored from `palette.status`:
+    idle = `status.idle`; saving/processing/etc. = `status.in-progress`; action
+    completed = `status.success`; non-breaking issue needing no user action =
+    `status.warning`; breaking error = `status.error`.
+  - `success` is held until the app AND the plugin have focus, then reverts
+    3 seconds later. If the user is in another app or plugin it stays
+    `success` until they return, and the 3 seconds start then.
+  - The sidebar icon follows the dot colors. With multiple dots, priority is
+    error > warning > in-progress > success > idle.
+  - When the dot is `status.idle`, the sidebar icon uses its default color,
+    not `status.idle`.
 - Sidebar icon alert/status color: `api.statusIcon.set(color, tooltip?)`
   recolors the whole sidebar icon (`idle | in-progress | success | warning |
   error`).

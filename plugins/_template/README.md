@@ -81,6 +81,18 @@ one React instance instead of bundling a second copy.
 5. **Deactivate** - runs on hot-reload-replace or app shutdown. Your `deactivate()` export runs first (its return value isn't awaited), then the host runs anything you registered via `ctx.onDispose(fn)`, then aborts `ctx.signal`, then unregisters your tick handler - so an `onDispose` callback can't assume `ctx.signal` is already aborted.
 6. **Uninstall** - delete the folder; the next discovery pass removes it and deactivates it if it was active.
 
+## Sidebar icon color rules
+
+Every plugin must follow these:
+- Each plugin shows a status dot somewhere within it, colored from `palette.status` to reflect what it's doing:
+  - Idle: `status.idle`.
+  - Working (saving, processing, etc.): `status.in-progress`.
+  - Action completed successfully: `status.success`, held until the app AND the plugin have focus, then reverted 3 seconds later. If the user is in another app or another plugin, it stays `success` until they return, and the 3 seconds start then.
+  - A non-breaking issue that needs no user action: `status.warning`.
+  - A breaking error: `status.error`.
+- The sidebar icon follows the dot colors. With multiple dots, priority is error > warning > in-progress > success > idle.
+- When the dot is `status.idle`, the sidebar icon uses its default color, not `status.idle`.
+
 ## Errors and the status bar
 
 Every exception a plugin can produce - a thrown error inside a render/lifecycle

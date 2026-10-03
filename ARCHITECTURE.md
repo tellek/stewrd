@@ -413,3 +413,5 @@ Keep this list current — remove an item once it's actually implemented, add ne
 
 
 **Sidebar highlight and status tint:** a highlighted sub-item un-highlights when its plugin stops being the active plugin (effect in `Sidebar.tsx`, since `SidebarPluginItem` isn't mounted when collapsed). A tool icon with no plugin-set status takes the worst sub-item dot color (`effectiveStatus` in `layout/categoryStatus.ts`), and category icons fold the same sub-item colors into `worstStatus`/`categoryStatusColor`.
+
+**Sidebar icon color rules (plugin convention):** plugins show a status dot colored from `palette.status` (idle, in-progress while working, success held until app and plugin have focus then 3s, warning for non-breaking issues, error for breaking ones). The sidebar icon follows the dots with priority error > warning > in-progress > success > idle, and uses its default color when idle. Full text in `plugins/CLAUDE.md`.
