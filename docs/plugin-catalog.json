@@ -38,5 +38,13 @@
     "repo": "tellek/stewrd-py-sandbox",
     "apiVersion": "1",
     "category": "Utilities"
+  },
+  {
+    "id": "agenda",
+    "name": "Agenda",
+    "description": "Tabbed to-do and agenda lists with auto-escalating priorities",
+    "repo": "tellek/stewrd-agenda",
+    "apiVersion": "1",
+    "category": "Utilities"
   }
 ]
