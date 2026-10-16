@@ -174,7 +174,7 @@ pub async fn install_plugin_from_url(
 /// targeted, ordered copy of specific files, written through a `.tmp` +
 /// rename - it never `remove_dir_all`s the live folder, on success or
 /// failure, so a verify failure or a mid-copy crash can't destroy the user's
-/// live `storage.json`/`data/`/custom `settings.json` keys.
+/// live `storage.json`/`data/`/user-edited `settings.json` values.
 pub(crate) fn install_from_bytes(
     plugins_dir: &Path,
     bytes: &[u8],
@@ -308,11 +308,32 @@ fn copy_via_tmp_rename(src: &Path, dst: &Path) -> Result<(), String> {
     std::fs::rename(&tmp, dst).map_err(|e| format!("could not finalize {}: {e}", dst.display()))
 }
 
-/// Mirrors `scripts/merge-plugin-settings.mjs`'s rule: the live
-/// `settings.json` (`category` and anything else user-editable) is kept
-/// as-is, only its `"version"` key is replaced with the new archive's. If the
-/// new archive ships no `settings.json`, or one with no `"version"` key, the
-/// live file (if any) is left completely untouched - never invent a version.
+/// Union of `new` and `live` settings where live values win (objects merge
+/// recursively), so keys added by a plugin update arrive with their defaults
+/// while user-edited and user-added values survive. A non-object `live` is
+/// returned as-is; callers must handle that case.
+fn merge_settings(new: &serde_json::Value, live: &serde_json::Value) -> serde_json::Value {
+    let (Some(new_obj), Some(live_obj)) = (new.as_object(), live.as_object()) else {
+        return live.clone();
+    };
+    let mut merged = new_obj.clone();
+    for (key, live_val) in live_obj {
+        let value = match new_obj.get(key) {
+            Some(new_val) if new_val.is_object() && live_val.is_object() => merge_settings(new_val, live_val),
+            _ => live_val.clone(),
+        };
+        merged.insert(key.clone(), value);
+    }
+    serde_json::Value::Object(merged)
+}
+
+/// Mirrors `scripts/merge-plugin-settings.mjs`'s rule: new keys from the new
+/// archive's `settings.json` are added, existing live values (`category` and
+/// anything else user-editable) and live-only keys are kept, and `"version"`
+/// is replaced with the new archive's. A missing, unparseable, or non-object
+/// live file is replaced by the new settings. If the new archive ships no
+/// `settings.json`, or one with no `"version"` key, the live file (if any) is
+/// left completely untouched - never invent a version.
 fn merge_and_write_settings(temp_dir: &Path, live_dir: &Path) -> Result<(), String> {
     let new_settings_path = temp_dir.join("settings.json");
     let Ok(new_text) = std::fs::read_to_string(&new_settings_path) else {
@@ -326,10 +347,13 @@ fn merge_and_write_settings(temp_dir: &Path, live_dir: &Path) -> Result<(), Stri
     };
 
     let live_settings_path = live_dir.join("settings.json");
-    let mut merged: serde_json::Value = std::fs::read_to_string(&live_settings_path)
+    let live_value: Option<serde_json::Value> = std::fs::read_to_string(&live_settings_path)
         .ok()
-        .and_then(|t| serde_json::from_str(&t).ok())
-        .unwrap_or_else(|| serde_json::json!({}));
+        .and_then(|t| serde_json::from_str(&t).ok());
+    let mut merged = match live_value {
+        Some(live) if live.is_object() => merge_settings(&new_value, &live),
+        _ => new_value.clone(),
+    };
     if let Some(obj) = merged.as_object_mut() {
         obj.insert("version".to_string(), serde_json::Value::String(new_version.to_string()));
     }
@@ -594,6 +618,65 @@ mod tests {
         let merged: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(live_dir.join("settings.json")).unwrap()).unwrap();
         assert_eq!(merged["category"], "Utilities");
         assert_eq!(merged["version"], "0.2.0");
+    }
+
+    #[test]
+    fn merge_settings_adds_new_keys_and_keeps_live_values() {
+        let new = serde_json::json!({ "category": "Templates", "greeting": "Hello!", "refreshSeconds": 30, "nested": { "a": 1, "b": 2 } });
+        let live = serde_json::json!({ "category": "Utilities", "greeting": "Yo", "custom": true, "nested": { "a": 9 } });
+
+        let merged = merge_settings(&new, &live);
+
+        assert_eq!(merged["category"], "Utilities");
+        assert_eq!(merged["greeting"], "Yo");
+        assert_eq!(merged["refreshSeconds"], 30);
+        assert_eq!(merged["custom"], true);
+        assert_eq!(merged["nested"], serde_json::json!({ "a": 9, "b": 2 }));
+    }
+
+    fn merge_settings_files(new_text: Option<&str>, live_text: Option<&str>) -> (tempfile::TempDir, std::path::PathBuf) {
+        let tmp = tempfile::tempdir().unwrap();
+        let new_dir = tmp.path().join("new");
+        let live_dir = tmp.path().join("live");
+        std::fs::create_dir_all(&new_dir).unwrap();
+        std::fs::create_dir_all(&live_dir).unwrap();
+        if let Some(t) = new_text {
+            std::fs::write(new_dir.join("settings.json"), t).unwrap();
+        }
+        if let Some(t) = live_text {
+            std::fs::write(live_dir.join("settings.json"), t).unwrap();
+        }
+        merge_and_write_settings(&new_dir, &live_dir).unwrap();
+        (tmp, live_dir.join("settings.json"))
+    }
+
+    #[test]
+    fn merge_and_write_settings_adds_new_keys_and_updates_version() {
+        let (_tmp, path) = merge_settings_files(
+            Some(r#"{"version":"0.2.0","category":"Templates","newKey":5}"#),
+            Some(r#"{"version":"0.1.0","category":"Utilities"}"#),
+        );
+        let merged: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert_eq!(merged["version"], "0.2.0");
+        assert_eq!(merged["category"], "Utilities");
+        assert_eq!(merged["newKey"], 5);
+    }
+
+    #[test]
+    fn merge_and_write_settings_replaces_corrupt_or_non_object_live_file() {
+        for live in ["not json", "[]", "null", "\"x\""] {
+            let (_tmp, path) = merge_settings_files(Some(r#"{"version":"0.2.0","a":1}"#), Some(live));
+            let merged: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+            assert_eq!(merged, serde_json::json!({ "version": "0.2.0", "a": 1 }), "live = {live}");
+        }
+    }
+
+    #[test]
+    fn merge_and_write_settings_leaves_live_untouched_without_new_version() {
+        for new in [None, Some("not json"), Some(r#"{"a":1}"#)] {
+            let (_tmp, path) = merge_settings_files(new, Some(r#"{"version":"0.1.0"}"#));
+            assert_eq!(std::fs::read_to_string(path).unwrap(), r#"{"version":"0.1.0"}"#);
+        }
     }
 
     #[test]

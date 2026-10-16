@@ -42,6 +42,12 @@ generated form. Saving there writes straight back to this file, and since it
 lives inside the already-watched `plugins/` tree, the host picks up the change
 (including a `category` edit re-grouping the sidebar) without a restart.
 
+When a marketplace update ships a new `settings.json`, it's merged into the
+user's copy: keys you add are created with your defaults, values the user
+already set (and any keys they added) are kept, and `version` comes from the
+update. This applies to your own custom keys too, so give every new setting a
+sensible default in the shipped file.
+
 Omit the file entirely if your plugin has nothing to configure and doesn't
 need to set `category`/`version` - Configure will still work, offering a
 starter `{ "category": "" }` object to fill in.

@@ -4,8 +4,8 @@
 // settings.json holds a mix of fields: `version` is host-owned (only bumped
 // by editing source) and must always come from source, but `category` and
 // everything else are user-editable at runtime (Configure, or dragging a
-// plugin to a different sidebar category via setPluginCategoryFile) and live
-// only in the deployed copy - they must survive a rebuild untouched. Run
+// plugin to a different sidebar category via setPluginCategoryFile) - deployed
+// values win on rebuild, while keys newly added in source are merged in. Run
 // after build-release.bat's per-plugin robocopy loop, which deliberately
 // excludes settings.json from that mirror so this script is the only thing
 // that writes it in deploy.
@@ -27,6 +27,20 @@ function readJson(filePath) {
   }
 }
 
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// Union of source and deployed where deployed values win; objects merge
+// recursively. Mirrors merge_settings in plugin_install.rs.
+function mergeSettings(source, deployed) {
+  const merged = { ...source };
+  for (const [key, deployedVal] of Object.entries(deployed)) {
+    merged[key] = isObject(source[key]) && isObject(deployedVal) ? mergeSettings(source[key], deployedVal) : deployedVal;
+  }
+  return merged;
+}
+
 for (const id of fs.readdirSync(sourcePluginsDir)) {
   if (SKIP.has(id)) continue;
   const sourceDir = path.join(sourcePluginsDir, id);
@@ -41,9 +55,9 @@ for (const id of fs.readdirSync(sourcePluginsDir)) {
   const deploySettingsPath = path.join(deployDir, "settings.json");
   const deployed = readJson(deploySettingsPath);
 
-  const merged = deployed
-    ? { ...deployed, version: source.version } // keep deployed's category/etc; only version always comes from source
-    : source; // first-ever deploy of this plugin - just take source as-is
+  const merged = isObject(deployed)
+    ? { ...mergeSettings(source, deployed), version: source.version } // deployed values win; new source keys are added
+    : source; // first-ever deploy (or unusable deployed file) - just take source as-is
 
   fs.writeFileSync(deploySettingsPath, JSON.stringify(merged, null, 2));
 }
