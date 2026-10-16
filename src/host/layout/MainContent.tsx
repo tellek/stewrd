@@ -86,12 +86,15 @@ function PaneLeafView({
       ref={containerRef}
       onClick={() => setActivePane(node.id)}
       onDragOver={(e) => {
+        // Only sidebar plugin drags show drop markers; drags inside a plugin (e.g. tab reordering) are ignored.
+        if (!useAppStore.getState().draggingPluginId) return;
         e.preventDefault();
         const rect = e.currentTarget.getBoundingClientRect();
         setDropZone(detectEdge(e, rect));
       }}
       onDragLeave={() => setDropZone(null)}
       onDrop={(e) => {
+        if (!useAppStore.getState().draggingPluginId) return;
         e.preventDefault();
         const pluginId = e.dataTransfer.getData("text/plain");
         const zone = dropZone;

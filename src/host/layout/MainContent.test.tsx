@@ -129,6 +129,7 @@ describe("MainContent", () => {
     resetStore();
     const dataTransfer = makeDataTransfer();
     dataTransfer.setData("text/plain", "notepad");
+    useAppStore.setState({ draggingPluginId: "notepad" });
     const { container } = render(<MainContent entries={[makeEntry("notepad", "Notepad")]} onReload={vi.fn()} />);
     const dropTarget = container.querySelector("main > div") as HTMLElement;
     vi.spyOn(dropTarget, "getBoundingClientRect").mockReturnValue({
@@ -147,10 +148,33 @@ describe("MainContent", () => {
     expect(tree.type).toBe("split");
   });
 
+  it("ignores drags that don't come from the sidebar (e.g. a plugin's own tab reorder)", () => {
+    resetStore();
+    const dataTransfer = makeDataTransfer();
+    dataTransfer.setData("text/plain", "notepad");
+    const { container } = render(<MainContent entries={[makeEntry("notepad", "Notepad")]} onReload={vi.fn()} />);
+    const dropTarget = container.querySelector("main > div") as HTMLElement;
+    vi.spyOn(dropTarget, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 100,
+      bottom: 100,
+      width: 100,
+      height: 100,
+    } as DOMRect);
+
+    fireDragEvent(dropTarget, "dragover", { dataTransfer, clientX: 50, clientY: 50 });
+    expect(dropTarget.querySelector("div[style*='opacity: 0.25']")).toBeNull();
+    fireDragEvent(dropTarget, "drop", { dataTransfer, clientX: 50, clientY: 50 });
+
+    expect(useAppStore.getState().paneTree).toMatchObject({ type: "leaf", pluginId: null });
+  });
+
   it("assigns a plugin to the pane when dropped in the center zone", () => {
     resetStore();
     const dataTransfer = makeDataTransfer();
     dataTransfer.setData("text/plain", "notepad");
+    useAppStore.setState({ draggingPluginId: "notepad" });
     const { container } = render(<MainContent entries={[makeEntry("notepad", "Notepad")]} onReload={vi.fn()} />);
     const dropTarget = container.querySelector("main > div") as HTMLElement;
     vi.spyOn(dropTarget, "getBoundingClientRect").mockReturnValue({
@@ -185,6 +209,7 @@ describe("MainContent", () => {
     });
     const dataTransfer = makeDataTransfer();
     dataTransfer.setData("text/plain", "notepad");
+    useAppStore.setState({ draggingPluginId: "notepad" });
     const { container } = render(<MainContent entries={[makeEntry("notepad", "Notepad")]} onReload={vi.fn()} />);
     const dropTarget = container.querySelectorAll("main > div > div > div")[1] as HTMLElement;
     vi.spyOn(dropTarget, "getBoundingClientRect").mockReturnValue({
