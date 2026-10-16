@@ -56,7 +56,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install artifact-signing-cli
-        run: cargo install artifact-signing-cli
+        run: cargo install artifact-signing-cli --locked
 
       - name: npm ci
         run: npm ci
