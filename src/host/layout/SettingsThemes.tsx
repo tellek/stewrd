@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
+import { NEWEST_THEME_ID } from "../../shared/newestTheme";
 import { mergePalettes } from "./mergePalettes";
 import { createModalApi } from "../api/modals";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
@@ -191,8 +192,24 @@ export function SettingsThemes() {
                 borderRadius: 8,
                 padding: 12,
                 minWidth: 220,
+                position: "relative",
+                ...(p.id === NEWEST_THEME_ID && { outline: `2px solid ${palette.status.success}`, outlineOffset: 2 }),
               }}
             >
+              {p.id === NEWEST_THEME_ID && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 10,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: palette.accent,
+                  }}
+                >
+                  NEW
+                </span>
+              )}
               <button
                 onClick={() => {
                   setPaletteId(p.id);

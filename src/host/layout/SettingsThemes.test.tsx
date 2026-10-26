@@ -6,6 +6,7 @@ import { SettingsThemes } from "./SettingsThemes";
 import { Modal } from "../../components/Modal/Modal";
 import { useAppStore } from "../state/appStore";
 import { defaultPalette, premadePalettes } from "../../shared/palette";
+import { NEWEST_THEME_ID } from "../../shared/newestTheme";
 
 vi.mock("../api/ai", () => ({ runHeadlessAi: vi.fn() }));
 vi.mock("@tauri-apps/api/path", () => ({ tempDir: vi.fn().mockResolvedValue("/tmp") }));
@@ -29,6 +30,13 @@ describe("SettingsThemes", () => {
     resetStore();
     render(<SettingsThemes />);
     expect(screen.getByText(premadePalettes[0].name)).toBeTruthy();
+  });
+
+  it("tags only the newest premade palette with NEW", () => {
+    resetStore();
+    render(<SettingsThemes />);
+    expect(premadePalettes.some((p) => p.id === NEWEST_THEME_ID)).toBe(true);
+    expect(screen.getAllByText("NEW")).toHaveLength(1);
   });
 
   it("creates a new custom palette with Title Case buttons", async () => {
