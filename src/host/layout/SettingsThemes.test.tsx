@@ -6,7 +6,6 @@ import { SettingsThemes } from "./SettingsThemes";
 import { Modal } from "../../components/Modal/Modal";
 import { useAppStore } from "../state/appStore";
 import { defaultPalette, premadePalettes } from "../../shared/palette";
-import { NEWEST_THEME_ID } from "../../shared/newestTheme";
 
 vi.mock("../api/ai", () => ({ runHeadlessAi: vi.fn() }));
 vi.mock("@tauri-apps/api/path", () => ({ tempDir: vi.fn().mockResolvedValue("/tmp") }));
@@ -19,7 +18,6 @@ function resetStore() {
     palette: defaultPalette,
     paletteId: premadePalettes[0].id,
     customPalettes: [],
-    newestPaletteId: NEWEST_THEME_ID,
     hiddenPaletteIds: [],
     modalQueue: [],
   });
@@ -33,11 +31,23 @@ describe("SettingsThemes", () => {
     expect(screen.getByText(premadePalettes[0].name)).toBeTruthy();
   });
 
-  it("tags only the newest premade palette with NEW", () => {
+  it("shows no NEW tag when no palette has a created date", () => {
     resetStore();
     render(<SettingsThemes />);
-    expect(premadePalettes.some((p) => p.id === NEWEST_THEME_ID)).toBe(true);
+    expect(screen.queryByText("NEW")).toBeNull();
+  });
+
+  it("tags the palette with the latest created date", () => {
+    resetStore();
+    useAppStore.setState({
+      customPalettes: [
+        { id: "a", name: "Aaa", colors: defaultPalette, createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "b", name: "Bbb", colors: defaultPalette, createdAt: "2026-02-01T00:00:00.000Z" },
+      ],
+    });
+    render(<SettingsThemes />);
     expect(screen.getAllByText("NEW")).toHaveLength(1);
+    expect(screen.getByText("Bbb").parentElement?.textContent).toContain("NEW");
   });
 
   it("moves the NEW tag to a newly saved palette", () => {

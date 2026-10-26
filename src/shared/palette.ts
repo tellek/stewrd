@@ -49,6 +49,9 @@ export interface NamedPalette {
   id: string;
   name: string;
   colors: Palette;
+  /** ISO timestamp set when a user creates/generates the palette. Premades have
+   * none; Settings > Themes marks the palette with the latest one as "NEW". */
+  createdAt?: string;
 }
 
 // Settings > Themes lets the user pick one of these or create/save their own

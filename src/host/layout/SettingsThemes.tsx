@@ -68,7 +68,6 @@ export function SettingsThemes() {
   const palette = useAppStore((s) => s.palette);
   const paletteId = useAppStore((s) => s.paletteId);
   const customPalettes = useAppStore((s) => s.customPalettes);
-  const newestPaletteId = useAppStore((s) => s.newestPaletteId);
   const hiddenPaletteIds = useAppStore((s) => s.hiddenPaletteIds);
   const setPaletteId = useAppStore((s) => s.setPaletteId);
   const saveCustomPalette = useAppStore((s) => s.saveCustomPalette);
@@ -88,6 +87,11 @@ export function SettingsThemes() {
   const generationRef = useRef<PaletteGeneration | null>(null);
 
   const allPalettes = mergePalettes(customPalettes, hiddenPaletteIds);
+
+  // Latest createdAt wins; premades have none, so no dated palette = no NEW.
+  const newestPaletteId = allPalettes
+    .filter((p) => p.createdAt)
+    .sort((a, b) => b.createdAt!.localeCompare(a.createdAt!))[0]?.id;
 
   const newestRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

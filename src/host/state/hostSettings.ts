@@ -27,7 +27,6 @@ export interface HostSettings {
   categories: CategoryDef[];
   paletteId: string;
   customPalettes: NamedPalette[];
-  newestPaletteId: string;
   hiddenPaletteIds: string[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
   aiProvider: AiProvider;
