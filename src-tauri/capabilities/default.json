@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "window-state:default",
     "core:window:allow-set-overlay-icon"
   ]
 }

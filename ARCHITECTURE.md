@@ -327,6 +327,8 @@ All commands are plain `#[tauri::command]` functions registered directly on the 
 
 Also still registered but unused by any `PluginApi` surface: the scaffold `greet` command and `tauri_plugin_opener` init in `lib.rs` — harmless leftovers from `npm create tauri-app`, safe to remove if you're cleaning up but not currently in anyone's way.
 
+The main window's size, position, monitor and maximized state are persisted and restored by `tauri-plugin-window-state` (registered in `lib.rs`, `window-state:default` in `capabilities/default.json`); state lives in the app data dir as `.window-state.json`.
+
 `state.rs` (`AppState`): owns the plugin watcher handle, `child_kill_senders` (normal runtime kill path) and `child_pids` (redundant, used only in the `RunEvent::Exit` handler in `lib.rs` — a synchronous OS-level `taskkill`/`kill` call, since by exit time there's no guarantee the tokio runtime is still scheduled to act on an async oneshot signal). This split exists specifically to fix a real bug (child processes like `ping`/`claude` surviving graceful app exit on Windows) — don't collapse it back into one mechanism without re-verifying that case. `pty_sessions` (`HashMap<String, PtySession>`, keyed by the caller-supplied PTY session id) follows the same exit-time pattern — each session's `ChildKiller` is called directly (a synchronous OS call) in `RunEvent::Exit`, not through a channel signal.
 
 ---

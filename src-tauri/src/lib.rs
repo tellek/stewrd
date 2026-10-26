@@ -23,6 +23,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .manage(AppState::default())
         .manage(IntervalState::default())
         .setup(|app| {
