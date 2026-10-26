@@ -279,3 +279,15 @@ describe("movePlugin", () => {
     expect(result).toEqual({ categoryChanged: true, dir: "a" });
   });
 });
+
+describe("saveCustomPalette createdAt", () => {
+  it("stamps new palettes and keeps the date on edits", () => {
+    useAppStore.setState({ customPalettes: [] });
+    const p = { id: "stamp-test", name: "Stamp", colors: premadePalettes[0].colors };
+    useAppStore.getState().saveCustomPalette(p);
+    const first = useAppStore.getState().customPalettes[0].createdAt;
+    expect(first).toBeTruthy();
+    useAppStore.getState().saveCustomPalette({ ...p, name: "Renamed" });
+    expect(useAppStore.getState().customPalettes[0].createdAt).toBe(first);
+  });
+});
