@@ -20,6 +20,7 @@
     2. If it was a code change: Extecute all tests, fix any that are broken by fixing the related code, not the test(unless the test code truly is broken)
     3. Commit and push directly to main branch (do **NOT** create a pull request)
     4. If it was a code change: Execute ./build-release.bat
+- When told to create a new GitHub release: bump the version by the specified part of major.minor.patch (patch by default), commit any uncommitted changes, push main, create a release zip, create and push a `v<version>` tag, then `gh release create` on the repo with the zip attached
 - ARCHITECTURE.md is a good source to look for details around this project
 - Plugins exist in ./plugins and should contain a README.md in their individual folders
 
