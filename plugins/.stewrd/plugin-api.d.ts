@@ -358,11 +358,15 @@ declare module "stewrd-plugin-api" {
      * provider - under any other provider passing any of them makes `run()`'s
      * `done` reject with a clear error instead of silently doing nothing.
      * `cwd` has no effect in API-key mode but is not an error. A Claude
-     * `model` alias (sonnet/opus/haiku) is ignored by other providers. */
+     * `model` alias (sonnet/opus/haiku) is ignored by other providers.
+     * Prefer `effort` ("low" | "medium" | "high") over naming a model: each
+     * provider maps the tier to its own model + reasoning effort, which the
+     * user edits in Settings > AI. */
     ai: {
       run(
         prompt: string,
         opts?: {
+          effort?: "low" | "medium" | "high";
           model?: string;
           allowedTools?: string[];
           disallowedTools?: string[];

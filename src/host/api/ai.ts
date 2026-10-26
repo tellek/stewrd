@@ -2,9 +2,21 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { spawnWithStdin, type SpawnHandle } from "./shell";
 import { useAppStore } from "../state/appStore";
-import { normalizeAiProvider, parseAiProvider, type AiProviderDef, type ApiSpec, type CliSpec } from "./aiProviders";
+import {
+  normalizeAiProvider,
+  parseAiProvider,
+  tierFor,
+  type AiEffort,
+  type AiProviderDef,
+  type ApiSpec,
+  type CliSpec,
+} from "./aiProviders";
 
 export interface HeadlessAiOpts {
+  /** How much model power this call needs. Each provider maps the tier to its
+   * own model + reasoning effort (Settings > AI), so callers never name a
+   * model. Omitted = the provider's defaults. */
+  effort?: AiEffort;
   /** Claude model alias ("sonnet", "opus", "haiku") or a full model id. On a
    * non-Claude provider a Claude alias is ignored and that provider's
    * configured model is used instead. */
@@ -65,6 +77,12 @@ async function findBinary(names: string[]): Promise<{ name: string; path: string
 function runHeadlessCli(def: AiProviderDef, cli: CliSpec, prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle {
   if (!cli.supportsAgentOpts && hasAgentOpts(opts)) return rejectedHandle(noToolUseMessage(def));
 
+  // Caller model > tier model. A Claude alias means nothing to other CLIs.
+  const tier = opts.effort ? tierFor(def, "cli", opts.effort, useAppStore.getState().aiTiers) : undefined;
+  const callerModel = opts.model && (cli.supportsAgentOpts || !CLAUDE_ALIASES.has(opts.model)) ? opts.model : undefined;
+  const model = (cli.tiers?.model || cli.supportsAgentOpts ? callerModel : undefined) || tier?.model || undefined;
+  const effort = tier?.effort || undefined;
+
   let stdout = "";
   let stderr = "";
   let inner: SpawnHandle | null = null;
@@ -83,7 +101,8 @@ function runHeadlessCli(def: AiProviderDef, cli: CliSpec, prompt: string, opts: 
       binary: binary.name,
       prompt,
       viaStdin,
-      model: cli.supportsAgentOpts ? opts.model : undefined,
+      model,
+      effort,
       allowedTools: opts.allowedTools,
       disallowedTools: opts.disallowedTools,
       extraArgs: opts.extraArgs,
@@ -146,13 +165,22 @@ function runHttpApi(def: AiProviderDef, api: ApiSpec, prompt: string, opts: Head
 
   const anthropic = api.kind === "anthropic";
   const cancelCommand = anthropic ? "ai_cancel_anthropic" : "ai_cancel_openai_compat";
-  const configured = useAppStore.getState().aiModels[def.id];
+  const { aiModels, aiTiers } = useAppStore.getState();
+  const configured = aiModels[def.id];
   const callerModel = opts.model && !(!anthropic && CLAUDE_ALIASES.has(opts.model)) ? opts.model : undefined;
-  const model = callerModel ?? (configured || api.defaultModel);
+  const tier = opts.effort ? tierFor(def, "api", opts.effort, aiTiers) : undefined;
+  // opts.model > tier override > aiModels > built-in tier > provider default.
+  const model =
+    callerModel || tier?.modelOverride || configured || tier?.model || api.defaultModel;
+  // A model the user typed into Settings may not reason (a built-in effort
+  // would 400), so built-in effort only rides along when the tier chose the
+  // model or the user set the effort themselves.
+  const modelIsTiers = !callerModel && !configured;
+  const effort = tier ? tier.effortOverride || (modelIsTiers || tier.modelOverride ? tier.effort : "") || undefined : undefined;
   const runArgs = (id: string) =>
     anthropic
-      ? invoke("ai_run_anthropic", { id, prompt, model: model || undefined })
-      : invoke("ai_run_openai_compat", { id, provider: def.id, model, prompt });
+      ? invoke("ai_run_anthropic", { id, prompt, model: model || undefined, effort })
+      : invoke("ai_run_openai_compat", { id, provider: def.id, model, prompt, effort });
 
   const id = crypto.randomUUID();
   let stdout = "";

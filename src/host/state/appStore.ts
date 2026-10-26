@@ -13,7 +13,7 @@ import {
   type TaskbarBadgeThreshold,
 } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
-import { DEFAULT_AI_PROVIDER, normalizeAiProvider } from "../api/aiProviders";
+import { DEFAULT_AI_PROVIDER, normalizeAiProvider, type AiEffort, type AiTier, type AiTierOverrides } from "../api/aiProviders";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 import {
   closeLeafInTree,
@@ -150,6 +150,7 @@ interface AppState {
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
   aiProvider: AiProvider;
   aiModels: Record<string, string>;
+  aiTiers: AiTierOverrides;
   hostSettingsLoaded: boolean;
   /** Derived from paletteId/customPalettes - recomputed explicitly by every
    * action that touches either, since zustand's default setState merge
@@ -250,6 +251,8 @@ interface AppState {
   setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
   setAiProvider(provider: AiProvider): void;
   setAiModel(providerId: string, model: string): void;
+  /** Sets one field of a provider's Low/Medium/High tier; "" resets it to the built-in default. */
+  setAiTier(providerId: string, effort: AiEffort, field: keyof AiTier, value: string): void;
   setSidebarItems(pluginId: string, items: SidebarItem[]): void;
   setSidebarSelected(pluginId: string, id: string | null): void;
   clearSidebarItems(pluginId: string): void;
@@ -281,6 +284,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   taskbarBadgeThreshold: "warning",
   aiProvider: DEFAULT_AI_PROVIDER,
   aiModels: {},
+  aiTiers: {},
   hostSettingsLoaded: false,
   palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
@@ -467,6 +471,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       const aiProvider = loaded.aiProvider === undefined ? state.aiProvider : normalizeAiProvider(loaded.aiProvider);
       const aiModels = loaded.aiModels ?? state.aiModels;
+      const aiTiers = loaded.aiTiers ?? state.aiTiers;
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
@@ -482,6 +487,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         taskbarBadgeThreshold,
         aiProvider,
         aiModels,
+        aiTiers,
         pluginsWithSidebarItems,
         layouts,
         hostSettingsLoaded: true,
@@ -611,6 +617,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { aiModels };
     });
     saveHostSettings({ aiModels });
+  },
+
+  setAiTier: (providerId, effort, field, value) => {
+    let aiTiers: AiTierOverrides = {};
+    set((s) => {
+      const provider = s.aiTiers[providerId] ?? {};
+      aiTiers = { ...s.aiTiers, [providerId]: { ...provider, [effort]: { ...provider[effort], [field]: value } } };
+      return { aiTiers };
+    });
+    saveHostSettings({ aiTiers });
   },
 
   setSidebarItems: (pluginId, items) =>

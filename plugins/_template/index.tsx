@@ -88,6 +88,7 @@ export function activate(ctx: PluginContext) {
   //     single launch point in this app, so a different provider can be
   //     swapped in later without touching every call site ---
   // const child = ctx.api.ai.run("summarize this in one sentence: ...", {
+  //   effort: "low", // "low" | "medium" | "high" - mapped per provider in Settings > AI
   //   onStdout: (chunk) => ctx.api.log.info(chunk),
   // });
   // const fullText = await child.done; // or child.kill() to stop it early

@@ -8,6 +8,7 @@ import {
   KEY_PROVIDER_IDS,
   normalizeAiProvider,
   parseAiProvider,
+  tierFor,
 } from "./aiProviders";
 
 function rustList(source: string, name: string): string[] {
@@ -95,5 +96,49 @@ describe("CLI args builders", () => {
         expect(cli.buildArgs({ ...input, binary, viaStdin: true }), def.id).not.toContain("do it");
       }
     }
+  });
+});
+
+describe("effort tiers", () => {
+  const claudeCli = AI_PROVIDERS.find((p) => p.id === "claude")!;
+  const codex = AI_PROVIDERS.find((p) => p.id === "openai")!;
+  const base = { binary: "x", prompt: "p", viaStdin: false };
+
+  it("claude CLI emits --model and --effort only when given", () => {
+    expect(claudeCli.cli!.buildArgs({ ...base, model: "opus", effort: "high" })).toEqual([
+      "-p",
+      "p",
+      "--model",
+      "opus",
+      "--effort",
+      "high",
+    ]);
+    expect(claudeCli.cli!.buildArgs(base)).toEqual(["-p", "p"]);
+  });
+
+  it("codex puts -m and the effort config before the trailing stdin marker", () => {
+    const args = codex.cli!.buildArgs({ ...base, viaStdin: true, model: "gpt-5", effort: "low" });
+    expect(args.slice(-5)).toEqual(["-m", "gpt-5", "-c", "model_reasoning_effort=low", "-"]);
+  });
+
+  it("claude defaults map low/medium/high to haiku/sonnet/opus", () => {
+    const get = (e: "low" | "medium" | "high") => tierFor(claudeCli, "cli", e, {});
+    expect(get("low")).toMatchObject({ model: "haiku", effort: "" });
+    expect(get("medium")).toMatchObject({ model: "sonnet", effort: "medium" });
+    expect(get("high")).toMatchObject({ model: "opus", effort: "high" });
+  });
+
+  it("user overrides win per field and blank falls back to the default", () => {
+    const t = tierFor(claudeCli, "cli", "medium", { claude: { medium: { model: "opus", effort: "" } } });
+    expect(t).toMatchObject({ model: "opus", effort: "medium", modelOverride: "opus", effortOverride: "" });
+  });
+
+  it("returns empty fields a mode cannot apply", () => {
+    const gemini = AI_PROVIDERS.find((p) => p.id === "gemini")!;
+    expect(tierFor(gemini, "api", "high", { gemini: { high: { effort: "high" } } }).effort).toBe("");
+    expect(tierFor(AI_PROVIDERS.find((p) => p.id === "copilot")!, "cli", "low", {})).toMatchObject({
+      model: "",
+      effort: "",
+    });
   });
 });

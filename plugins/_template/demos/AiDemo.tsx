@@ -15,7 +15,10 @@ export function AiDemo({ api }: { api: PluginApi }) {
     setAsking(true);
     setOutput("");
     setError(null);
+    // effort picks Low/Medium/High; the user decides in Settings > AI which
+    // model and reasoning level each one means for their provider.
     const handle = api.ai.run(prompt, {
+      effort: "low",
       onStdout: (chunk) => setOutput((prev) => prev + chunk),
     });
     killRef.current = handle.kill;

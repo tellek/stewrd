@@ -291,3 +291,16 @@ describe("saveCustomPalette createdAt", () => {
     expect(useAppStore.getState().customPalettes[0].createdAt).toBe(first);
   });
 });
+
+describe("setAiTier", () => {
+  it("merges one field of one tier without touching others", () => {
+    useAppStore.setState({ aiTiers: {} });
+    useAppStore.getState().setAiTier("claude", "low", "model", "haiku");
+    useAppStore.getState().setAiTier("claude", "low", "effort", "low");
+    useAppStore.getState().setAiTier("claude", "high", "model", "opus");
+
+    expect(useAppStore.getState().aiTiers).toEqual({
+      claude: { low: { model: "haiku", effort: "low" }, high: { model: "opus" } },
+    });
+  });
+});

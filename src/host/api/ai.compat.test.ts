@@ -11,7 +11,7 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 beforeEach(() => {
   mockInvoke.mockReset();
   mockInvoke.mockResolvedValue(undefined);
-  useAppStore.setState({ aiProvider: "openai-api", aiModels: {} });
+  useAppStore.setState({ aiProvider: "openai-api", aiModels: {}, aiTiers: {} });
 });
 
 describe("runHeadlessAi under OpenAI-compatible API providers", () => {
@@ -68,5 +68,43 @@ describe("runHeadlessAi under OpenAI-compatible API providers", () => {
     h.kill();
 
     expect(mockInvoke).toHaveBeenCalledWith("ai_cancel_openai_compat", expect.anything());
+  });
+});
+
+describe("effort tiers under API providers", () => {
+  const compatCall = () => mockInvoke.mock.calls.find((c) => c[0] === "ai_run_openai_compat")![1];
+
+  it("sends the built-in tier effort with the default model", async () => {
+    runHeadlessAi("hello", { effort: "high" });
+    await flush();
+
+    expect(compatCall()).toMatchObject({ model: "gpt-5", effort: "high" });
+  });
+
+  it("keeps a model typed in Settings and withholds built-in effort", async () => {
+    useAppStore.setState({ aiModels: { openai: "gpt-4.1" } });
+    runHeadlessAi("hello", { effort: "medium" });
+    await flush();
+
+    expect(compatCall()).toMatchObject({ model: "gpt-4.1" });
+    expect(compatCall().effort).toBeUndefined();
+  });
+
+  it("applies a user tier override over the Settings model, including its effort", async () => {
+    useAppStore.setState({
+      aiModels: { openai: "gpt-4.1" },
+      aiTiers: { openai: { low: { model: "gpt-5-mini", effort: "low" } } },
+    });
+    runHeadlessAi("hello", { effort: "low" });
+    await flush();
+
+    expect(compatCall()).toMatchObject({ model: "gpt-5-mini", effort: "low" });
+  });
+
+  it("sends no effort when the caller asked for none", async () => {
+    runHeadlessAi("hello");
+    await flush();
+
+    expect(compatCall().effort).toBeUndefined();
   });
 });

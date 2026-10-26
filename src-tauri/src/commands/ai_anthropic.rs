@@ -32,6 +32,21 @@ fn resolve_model(model: Option<&str>) -> String {
     }
 }
 
+/// Request body. `effort` goes in output_config and is dropped when empty or
+/// when the model is Haiku (which doesn't support it).
+fn request_body(model: &str, prompt: &str, effort: Option<&str>) -> serde_json::Value {
+    let mut body = json!({
+        "model": model,
+        "max_tokens": MAX_TOKENS,
+        "stream": true,
+        "messages": [{"role": "user", "content": prompt}],
+    });
+    if let Some(effort) = effort.filter(|e| !e.is_empty() && !model.contains("haiku")) {
+        body["output_config"] = json!({"effort": effort});
+    }
+    body
+}
+
 pub(crate) fn emit_output(app: &AppHandle, id: &str, stream: &'static str, chunk: String) {
     let _ = app.emit(&format!("process-output:{id}"), json!({"stream": stream, "chunk": chunk}));
 }
@@ -90,6 +105,7 @@ pub async fn ai_run_anthropic(
     id: String,
     prompt: String,
     model: Option<String>,
+    effort: Option<String>,
 ) -> Result<(), String> {
     let key = read_key("claude")?
         .ok_or_else(|| "No Anthropic API key configured - add one in Settings > AI".to_string())?;
@@ -101,7 +117,7 @@ pub async fn ai_run_anthropic(
     let id_for_task = id.clone();
     let resolved_model = resolve_model(model.as_deref());
     tauri::async_runtime::spawn(async move {
-        let result = run_request(&app_for_task, &id_for_task, &key, &prompt, &resolved_model, &mut cancel_rx).await;
+        let result = run_request(&app_for_task, &id_for_task, &key, &prompt, &resolved_model, effort.as_deref(), &mut cancel_rx).await;
         match result {
             Ok(()) => emit_exit(&app_for_task, &id_for_task, 0),
             Err(RequestOutcome::Cancelled) => emit_exit(&app_for_task, &id_for_task, -1),
@@ -128,15 +144,11 @@ async fn run_request(
     key: &str,
     prompt: &str,
     model: &str,
+    effort: Option<&str>,
     cancel_rx: &mut oneshot::Receiver<()>,
 ) -> Result<(), RequestOutcome> {
     let client = reqwest::Client::new();
-    let body = json!({
-        "model": model,
-        "max_tokens": MAX_TOKENS,
-        "stream": true,
-        "messages": [{"role": "user", "content": prompt}],
-    });
+    let body = request_body(model, prompt, effort);
 
     let response = tokio::select! {
         result = client
@@ -203,6 +215,15 @@ mod tests {
         assert_eq!(resolve_model(Some("sonnet")), "claude-sonnet-5");
         assert_eq!(resolve_model(None), DEFAULT_MODEL);
         assert_eq!(resolve_model(Some("claude-opus-5-5")), "claude-opus-5-5");
+    }
+
+    #[test]
+    fn sends_effort_in_output_config_except_for_haiku_or_when_empty() {
+        let body = request_body("claude-sonnet-5", "hi", Some("medium"));
+        assert_eq!(body["output_config"]["effort"], "medium");
+        assert!(request_body("claude-sonnet-5", "hi", None).get("output_config").is_none());
+        assert!(request_body("claude-sonnet-5", "hi", Some("")).get("output_config").is_none());
+        assert!(request_body("claude-haiku-4-5-20251001", "hi", Some("low")).get("output_config").is_none());
     }
 
     #[test]

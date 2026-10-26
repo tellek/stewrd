@@ -83,10 +83,12 @@ pub async fn ai_run_openai_compat(
     provider: String,
     model: String,
     prompt: String,
+    effort: Option<String>,
 ) -> Result<(), String> {
     if model.trim().is_empty() {
         return Err("No model configured - set one in Settings > AI".to_string());
     }
+    let effort = if provider == "openai" { effort } else { None };
     let (url, key) = resolve_endpoint(&provider)?;
 
     let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
@@ -94,7 +96,7 @@ pub async fn ai_run_openai_compat(
 
     let app_for_task = app.clone();
     tauri::async_runtime::spawn(async move {
-        let result = run_request(&app_for_task, &id, &url, key.as_deref(), &model, &prompt, &mut cancel_rx).await;
+        let result = run_request(&app_for_task, &id, &url, key.as_deref(), &model, &prompt, effort.as_deref(), &mut cancel_rx).await;
         match result {
             Ok(()) => emit_exit(&app_for_task, &id, 0),
             Err(Outcome::Cancelled) => emit_exit(&app_for_task, &id, -1),
@@ -109,6 +111,21 @@ pub async fn ai_run_openai_compat(
     Ok(())
 }
 
+/// No token cap parameter: max_tokens vs max_completion_tokens differs between
+/// OpenAI-compatible servers, and the provider default is fine. `effort` is
+/// only passed for OpenAI itself (other servers may reject the field).
+fn request_body(model: &str, prompt: &str, effort: Option<&str>) -> serde_json::Value {
+    let mut body = json!({
+        "model": model,
+        "stream": true,
+        "messages": [{"role": "user", "content": prompt}],
+    });
+    if let Some(effort) = effort.filter(|e| !e.is_empty()) {
+        body["reasoning_effort"] = json!(effort);
+    }
+    body
+}
+
 enum Outcome {
     Cancelled,
     Failed(String),
@@ -121,16 +138,11 @@ async fn run_request(
     key: Option<&str>,
     model: &str,
     prompt: &str,
+    effort: Option<&str>,
     cancel_rx: &mut oneshot::Receiver<()>,
 ) -> Result<(), Outcome> {
     let client = reqwest::Client::new();
-    // No token cap parameter: max_tokens vs max_completion_tokens differs
-    // between OpenAI-compatible servers, and the provider default is fine.
-    let body = json!({
-        "model": model,
-        "stream": true,
-        "messages": [{"role": "user", "content": prompt}],
-    });
+    let body = request_body(model, prompt, effort);
     let mut request = client.post(url).json(&body);
     if let Some(key) = key {
         request = request.bearer_auth(key);
@@ -177,6 +189,13 @@ pub fn ai_cancel_openai_compat(state: State<'_, AppState>, id: String) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn adds_reasoning_effort_only_when_given() {
+        assert_eq!(request_body("gpt-5", "hi", Some("high"))["reasoning_effort"], "high");
+        assert!(request_body("gpt-5", "hi", None).get("reasoning_effort").is_none());
+        assert!(request_body("gpt-5", "hi", Some("")).get("reasoning_effort").is_none());
+    }
 
     #[test]
     fn parses_a_text_delta_and_skips_the_role_only_chunk() {

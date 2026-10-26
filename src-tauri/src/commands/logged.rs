@@ -233,8 +233,9 @@ pub async fn ai_run_openai_compat_logged(
     provider: String,
     model: String,
     prompt: String,
+    effort: Option<String>,
 ) -> Result<(), String> {
-    let result = ai_openai_compat_cmd::ai_run_openai_compat(app.clone(), state, id, provider, model, prompt).await;
+    let result = ai_openai_compat_cmd::ai_run_openai_compat(app.clone(), state, id, provider, model, prompt, effort).await;
     if let Err(e) = &result {
         log_command_error(&app, "ai_run_openai_compat", e);
     }
@@ -248,8 +249,9 @@ pub async fn ai_run_anthropic_logged(
     id: String,
     prompt: String,
     model: Option<String>,
+    effort: Option<String>,
 ) -> Result<(), String> {
-    let result = ai_anthropic_cmd::ai_run_anthropic(app.clone(), state, id, prompt, model).await;
+    let result = ai_anthropic_cmd::ai_run_anthropic(app.clone(), state, id, prompt, model, effort).await;
     if let Err(e) = &result {
         log_command_error(&app, "ai_run_anthropic", e);
     }

@@ -5,7 +5,9 @@ import type { Palette } from "../../shared/palette";
 import { createShellApi } from "../api/shell";
 import { createSecretsApi } from "../api/secrets";
 import {
+  AI_EFFORTS,
   AI_PROVIDERS,
+  tierFor,
   normalizeAiProvider,
   parseAiProvider,
   toAiProvider,
@@ -39,6 +41,57 @@ function inputStyle(palette: Palette, width = 320): CSSProperties {
     fontSize: 12,
     width,
   };
+}
+
+const EFFORT_LABELS = { low: "Low", medium: "Medium", high: "High" } as const;
+
+/** What Low/Medium/High mean for the current provider and mode. Shows only the
+ * fields this mode can apply; blank = the built-in default (shown as placeholder). */
+function TierTable({ def, mode }: { def: AiProviderDef; mode: AiMode }) {
+  const palette = useAppStore((s) => s.palette);
+  const aiTiers = useAppStore((s) => s.aiTiers);
+  const setAiTier = useAppStore((s) => s.setAiTier);
+  const spec = def[mode]?.tiers;
+  if (!spec) return null;
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h3 style={{ fontSize: 13, color: palette.text }}>Effort Levels</h3>
+      <p style={{ fontSize: 12, color: palette.textMuted, marginTop: -4 }}>
+        Plugins ask for Low, Medium or High. Set what each means for {def.label}; leave a field blank to use the
+        default.
+      </p>
+      {AI_EFFORTS.map((effort) => {
+        const tier = tierFor(def, mode, effort, aiTiers);
+        const base = spec.defaults[effort];
+        return (
+          <div key={effort} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+            <span style={{ width: 60, fontSize: 12, color: palette.text }}>{EFFORT_LABELS[effort]}</span>
+            {spec.model && (
+              <input
+                aria-label={`${EFFORT_LABELS[effort]} Model`}
+                defaultValue={tier.modelOverride}
+                key={`m-${def.id}-${mode}-${tier.modelOverride}`}
+                onBlur={(e) => setAiTier(def.id, effort, "model", e.target.value.trim())}
+                placeholder={base.model || "Model"}
+                style={inputStyle(palette, 180)}
+              />
+            )}
+            {spec.effort && (
+              <input
+                aria-label={`${EFFORT_LABELS[effort]} Effort`}
+                defaultValue={tier.effortOverride}
+                key={`e-${def.id}-${mode}-${tier.effortOverride}`}
+                onBlur={(e) => setAiTier(def.id, effort, "effort", e.target.value.trim())}
+                placeholder={base.effort || "Effort"}
+                style={inputStyle(palette, 120)}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function CliPanel({ def }: { def: AiProviderDef }) {
@@ -314,6 +367,7 @@ export function SettingsAi() {
       </div>
 
       {mode === "cli" ? <CliPanel def={def} /> : <ApiPanel def={def} />}
+      <TierTable def={def} mode={mode} />
 
       <p
         style={{

@@ -32,7 +32,7 @@ beforeEach(() => {
   mockSpawn.mockReset();
   mockInvoke.mockReset();
   cliOnPath("C:\\bin\\claude.exe");
-  useAppStore.setState({ aiProvider: "claude-cli", aiModels: {} });
+  useAppStore.setState({ aiProvider: "claude-cli", aiModels: {}, aiTiers: {} });
 });
 
 describe("runHeadlessAi under the claude-cli provider", () => {
@@ -214,5 +214,49 @@ describe("runHeadlessAi under other CLI providers", () => {
     h.kill();
 
     expect(handle.kill).toHaveBeenCalled();
+  });
+});
+
+describe("effort tiers under CLI providers", () => {
+  it("claude medium becomes --model sonnet --effort medium", async () => {
+    mockSpawn.mockReturnValue(makeSpawnHandle().handle);
+    runHeadlessAi("prompt", { effort: "medium" });
+    await flush();
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      "claude",
+      ["-p", "prompt", "--model", "sonnet", "--effort", "medium"],
+      expect.anything(),
+      undefined,
+    );
+  });
+
+  it("a user override replaces the tier model", async () => {
+    useAppStore.setState({ aiTiers: { claude: { low: { model: "sonnet" } } } });
+    mockSpawn.mockReturnValue(makeSpawnHandle().handle);
+    runHeadlessAi("prompt", { effort: "low" });
+    await flush();
+
+    expect(mockSpawn.mock.calls[0]![1]).toEqual(["-p", "prompt", "--model", "sonnet"]);
+  });
+
+  it("codex forwards the user's tier but drops a Claude alias from the caller", async () => {
+    useAppStore.setState({ aiProvider: "openai-cli", aiTiers: { openai: { high: { model: "gpt-5", effort: "high" } } } });
+    cliOnPath("C:\bin\codex.exe");
+    mockSpawn.mockReturnValue(makeSpawnHandle().handle);
+    runHeadlessAi("hi", { effort: "high", model: "opus" });
+    await flush();
+
+    expect(mockSpawn.mock.calls[0]![1].slice(-5)).toEqual(["-m", "gpt-5", "-c", "model_reasoning_effort=high", "-"]);
+  });
+
+  it("emits no model flags without an effort tier", async () => {
+    useAppStore.setState({ aiProvider: "openai-cli" });
+    cliOnPath("C:\bin\codex.exe");
+    mockSpawn.mockReturnValue(makeSpawnHandle().handle);
+    runHeadlessAi("hi");
+    await flush();
+
+    expect(mockSpawn.mock.calls[0]![1]).not.toContain("-m");
   });
 });

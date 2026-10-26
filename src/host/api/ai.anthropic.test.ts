@@ -101,3 +101,17 @@ describe("runHeadlessAi under the claude-api provider", () => {
     expect(mockInvoke).toHaveBeenCalledWith("ai_cancel_anthropic", expect.objectContaining({}));
   });
 });
+
+describe("effort tiers under the claude-api provider", () => {
+  it("passes the tier model and effort to ai_run_anthropic", async () => {
+    mockInvoke.mockResolvedValue(undefined);
+    useAppStore.setState({ aiProvider: "claude-api", aiTiers: {} });
+    runHeadlessAi("prompt", { effort: "high" });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "ai_run_anthropic",
+      expect.objectContaining({ model: "opus", effort: "high" }),
+    );
+  });
+});

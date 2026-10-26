@@ -90,13 +90,12 @@ export class GenerationCancelled extends Error {}
 export function generatePaletteFromMedia(mediaName: string): PaletteGeneration {
   let outcome: "cancelled" | "timeout" | null = null;
 
-  // Tool restrictions and the "sonnet" alias are Claude-only; the Claude API
-  // provider has no tool use, and other providers use their own model.
+  // Tool restrictions are Claude CLI-only; the Claude API provider has no tool
+  // use. Which model "medium" means comes from Settings > AI.
   const provider = useAppStore.getState().aiProvider;
-  const isClaude = provider.startsWith("claude-");
   const handlePromise = tempDir().then((cwd) =>
     runHeadlessAi(buildPrompt(mediaName), {
-      ...(isClaude ? { model: "sonnet" } : {}),
+      effort: "medium",
       ...(provider === "claude-cli"
         ? { allowedTools: ["WebSearch", "WebFetch"], disallowedTools: ["Bash", "Write", "Edit", "Read"] }
         : {}),

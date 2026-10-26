@@ -2,6 +2,7 @@ import { createStorageApi } from "../api/storage";
 import type { CategoryDef } from "../../shared/category";
 import type { NamedPalette } from "../../shared/palette";
 import type { PaneNode } from "./paneTree";
+import type { AiTierOverrides } from "../api/aiProviders";
 
 // Host-level settings (categories, theme) reuse the same per-plugin
 // storage.rs mechanism as plugins, namespaced under a reserved id that no
@@ -35,6 +36,9 @@ export interface HostSettings {
   /** Model name per API provider id (non-secret). Missing = the provider's
    * default; required for the custom provider. */
   aiModels: Record<string, string>;
+  /** User overrides of what Low/Medium/High mean per provider id (non-secret).
+   * Missing fields fall back to the built-in tier in aiProviders.ts. */
+  aiTiers: AiTierOverrides;
   /** Plugin ids in sidebar display order (within their resolved category) -
    * see appStore.ts's movePlugin. Ids missing from this list (new plugins)
    * sort after everything listed here. */

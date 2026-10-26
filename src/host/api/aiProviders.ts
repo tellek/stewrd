@@ -7,14 +7,37 @@ import type { AiProvider } from "../state/hostSettings";
 
 export type AiProviderId = "claude" | "openai" | "gemini" | "copilot" | "cursor" | "grok" | "opencode" | "custom";
 
+/** Provider-neutral reasoning tier a caller asks for; each provider maps it to
+ * its own model + effort (defaults below, user-editable in Settings > AI). */
+export type AiEffort = "low" | "medium" | "high";
+export const AI_EFFORTS: AiEffort[] = ["low", "medium", "high"];
+
+/** What a tier means for one provider. Empty strings mean "unset". */
+export interface AiTier {
+  model: string;
+  effort: string;
+}
+
+/** Which tier fields a provider mode can apply, plus its built-in tiers. */
+export interface TierSpec {
+  model: boolean;
+  effort: boolean;
+  defaults: Record<AiEffort, AiTier>;
+}
+
+const NO_TIER: AiTier = { model: "", effort: "" };
+const emptyTiers = (): Record<AiEffort, AiTier> => ({ low: NO_TIER, medium: NO_TIER, high: NO_TIER });
+
 /** Everything a CLI args builder needs. `viaStdin` means the prompt is NOT in
  * argv - it is piped to stdin instead. */
 export interface CliArgsInput {
   binary: string;
   prompt: string;
   viaStdin: boolean;
-  /** Claude-only agent options; other CLIs reject these before reaching here. */
+  /** From the resolved tier (or the caller, Claude only). */
   model?: string;
+  effort?: string;
+  /** Claude-only agent options; other CLIs reject these before reaching here. */
   allowedTools?: string[];
   disallowedTools?: string[];
   extraArgs?: string[];
@@ -29,6 +52,7 @@ export interface CliSpec {
   stdinWhenShim?: boolean;
   /** Only claude understands allowedTools/disallowedTools/extraArgs/model. */
   supportsAgentOpts: boolean;
+  tiers?: TierSpec;
   buildArgs(input: CliArgsInput): string[];
   /** PowerShell command that installs the CLI (Windows), if there is one. */
   installCommand?: string;
@@ -42,6 +66,7 @@ export interface ApiSpec {
   kind: "anthropic" | "openai-compat";
   defaultModel: string;
   keyPlaceholder: string;
+  tiers?: TierSpec;
 }
 
 export interface AiProviderDef {
@@ -65,6 +90,18 @@ export const FORBIDDEN_CLI_FLAGS = [
   "danger-full-access",
 ];
 
+const CLAUDE_TIERS: TierSpec = {
+  model: true,
+  effort: true,
+  defaults: {
+    low: { model: "haiku", effort: "" },
+    medium: { model: "sonnet", effort: "medium" },
+    high: { model: "opus", effort: "high" },
+  },
+};
+
+const modelOnlyTiers = (): TierSpec => ({ model: true, effort: false, defaults: emptyTiers() });
+
 const withModel = (flag: string, model?: string) => (model ? [flag, model] : []);
 
 export const AI_PROVIDERS: AiProviderDef[] = [
@@ -76,10 +113,12 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       promptVia: "argv",
       stdinWhenShim: true,
       supportsAgentOpts: true,
-      buildArgs: ({ prompt, viaStdin, model, allowedTools, disallowedTools, extraArgs }) => [
+      tiers: CLAUDE_TIERS,
+      buildArgs: ({ prompt, viaStdin, model, effort, allowedTools, disallowedTools, extraArgs }) => [
         "-p",
         ...(viaStdin ? [] : [prompt]),
         ...withModel("--model", model),
+        ...withModel("--effort", effort),
         ...(allowedTools?.length ? ["--allowedTools", allowedTools.join(",")] : []),
         ...(disallowedTools?.length ? ["--disallowedTools", disallowedTools.join(",")] : []),
         ...(extraArgs ?? []),
@@ -87,7 +126,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://claude.ai/install.ps1 | iex",
       loginCommand: "claude",
     },
-    api: { kind: "anthropic", defaultModel: "", keyPlaceholder: "sk-ant-..." },
+    api: { kind: "anthropic", defaultModel: "", keyPlaceholder: "sk-ant-...", tiers: CLAUDE_TIERS },
   },
   {
     id: "openai",
@@ -98,12 +137,33 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       supportsAgentOpts: false,
       // read-only sandbox, and skip the git-repo check because palette
       // generation runs in a temp dir.
-      buildArgs: () => ["exec", "-s", "read-only", "--skip-git-repo-check", "--color", "never", "-"],
+      tiers: { model: true, effort: true, defaults: emptyTiers() },
+      // model/effort flags go before the trailing "-" (stdin prompt marker).
+      buildArgs: ({ model, effort }) => [
+        "exec",
+        "-s",
+        "read-only",
+        "--skip-git-repo-check",
+        "--color",
+        "never",
+        ...withModel("-m", model),
+        ...(effort ? ["-c", `model_reasoning_effort=${effort}`] : []),
+        "-",
+      ],
       installCommand: "npm.cmd install -g @openai/codex",
       loginCommand: "codex login",
       statusArgs: ["login", "status"],
     },
-    api: { kind: "openai-compat", defaultModel: "gpt-5", keyPlaceholder: "sk-..." },
+    api: {
+      kind: "openai-compat",
+      defaultModel: "gpt-5",
+      keyPlaceholder: "sk-...",
+      tiers: {
+        model: true,
+        effort: true,
+        defaults: { low: { model: "", effort: "low" }, medium: { model: "", effort: "medium" }, high: { model: "", effort: "high" } },
+      },
+    },
   },
   {
     id: "gemini",
@@ -118,7 +178,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://antigravity.google/cli/install.ps1 | iex",
       loginCommand: "agy",
     },
-    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza..." },
+    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza...", tiers: modelOnlyTiers() },
   },
   {
     id: "copilot",
@@ -155,7 +215,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://x.ai/cli/install.ps1 | iex",
       loginCommand: "grok",
     },
-    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-..." },
+    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-...", tiers: modelOnlyTiers() },
   },
   {
     id: "opencode",
@@ -172,7 +232,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
   {
     id: "custom",
     label: "Custom (OpenAI-Compatible)",
-    api: { kind: "openai-compat", defaultModel: "", keyPlaceholder: "Optional for local servers" },
+    api: { kind: "openai-compat", defaultModel: "", keyPlaceholder: "Optional for local servers", tiers: modelOnlyTiers() },
   },
 ];
 
@@ -222,4 +282,28 @@ export const CLI_BINARIES: string[] = AI_PROVIDERS.flatMap((p) => p.cli?.binarie
 
 export function defaultModelFor(def: AiProviderDef): string {
   return def.api?.defaultModel ?? "";
+}
+
+export type AiTierOverrides = Record<string, Partial<Record<AiEffort, Partial<AiTier>>>>;
+
+/** The tier a provider mode applies for `effort`: the user's override per
+ * field, else the built-in default. Empty values are "unset". Fields the mode
+ * can't apply come back empty. */
+export function tierFor(
+  def: AiProviderDef,
+  mode: AiMode,
+  effort: AiEffort,
+  overrides: AiTierOverrides,
+): { model: string; effort: string; modelOverride: string; effortOverride: string } {
+  const spec = def[mode]?.tiers;
+  const base = spec?.defaults[effort] ?? NO_TIER;
+  const user = overrides[def.id]?.[effort];
+  const modelOverride = spec?.model ? (user?.model ?? "") : "";
+  const effortOverride = spec?.effort ? (user?.effort ?? "") : "";
+  return {
+    model: spec?.model ? modelOverride || base.model : "",
+    effort: spec?.effort ? effortOverride || base.effort : "",
+    modelOverride,
+    effortOverride,
+  };
 }

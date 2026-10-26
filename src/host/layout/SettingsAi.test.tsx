@@ -101,3 +101,36 @@ describe("SettingsAi", () => {
     expect(screen.getByRole("button", { name: "Save Endpoint" })).toBeTruthy();
   });
 });
+
+describe("SettingsAi effort levels", () => {
+  it("shows Model and Effort inputs for Claude and saves an override on blur", async () => {
+    resetStore();
+    useAppStore.setState({ aiTiers: {} });
+    render(<SettingsAi />);
+
+    const input = screen.getByLabelText("Low Model") as HTMLInputElement;
+    expect(screen.getByLabelText("Low Effort")).toBeTruthy();
+    expect(input.placeholder).toBe("haiku");
+    await userEvent.type(input, "sonnet");
+    await userEvent.tab();
+
+    expect(useAppStore.getState().aiTiers.claude?.low?.model).toBe("sonnet");
+  });
+
+  it("hides the Effort column where a provider mode cannot apply it", () => {
+    resetStore();
+    useAppStore.setState({ aiProvider: "gemini-api", aiTiers: {} });
+    render(<SettingsAi />);
+
+    expect(screen.getByLabelText("Low Model")).toBeTruthy();
+    expect(screen.queryByLabelText("Low Effort")).toBeNull();
+  });
+
+  it("shows no table for a provider without tiers", () => {
+    resetStore();
+    useAppStore.setState({ aiProvider: "copilot-cli", aiTiers: {} });
+    render(<SettingsAi />);
+
+    expect(screen.queryByText("Effort Levels")).toBeNull();
+  });
+});
