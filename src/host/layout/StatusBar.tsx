@@ -78,8 +78,19 @@ export function StatusBar() {
             textAlign: "left",
           }}
         >
-          <span>{expanded ? "▾" : "▸"}</span>
-          <span>{latest ? latest.message : "Ready"}</span>
+          <span style={{ flexShrink: 0 }}>{expanded ? "▾" : "▸"}</span>
+          <span
+            title={latest?.message}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {latest ? latest.message : "Ready"}
+          </span>
         </button>
         <button
           onClick={() => clearStatusLog()}
