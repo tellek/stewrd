@@ -108,3 +108,20 @@ describe("effort tiers under API providers", () => {
     expect(compatCall().effort).toBe("medium");
   });
 });
+
+describe("effort tiers under Gemini and Grok API", () => {
+  it.each([
+    ["gemini-api", "gemini", "gemini-3.8-flash"],
+    ["grok-api", "grok", "grok-4.7"],
+  ] as const)("%s sends the tier effort", async (provider, id, model) => {
+    useAppStore.setState({ aiProvider: provider });
+    runHeadlessAi("hello", { effort: "low" });
+    await flush();
+
+    expect(mockInvoke.mock.calls.find((c) => c[0] === "ai_run_openai_compat")![1]).toMatchObject({
+      provider: id,
+      model,
+      effort: "low",
+    });
+  });
+});

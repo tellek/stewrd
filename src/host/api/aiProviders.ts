@@ -198,7 +198,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://antigravity.google/cli/install.ps1 | iex",
       loginCommand: "agy",
     },
-    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza...", tiers: modelOnlyTiers("gemini-3.8-flash") },
+    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza...", tiers: { model: true, effort: true, defaults: levels("gemini-3.8-flash", ["low", "medium", "high"]) } },
   },
   {
     id: "copilot",
@@ -253,7 +253,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://x.ai/cli/install.ps1 | iex",
       loginCommand: "grok",
     },
-    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-...", tiers: modelOnlyTiers("grok-4.7") },
+    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-...", tiers: { model: true, effort: true, defaults: levels("grok-4.7", ["low", "medium", "high"]) } },
   },
   {
     id: "opencode",

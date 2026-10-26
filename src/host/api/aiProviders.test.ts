@@ -134,8 +134,8 @@ describe("effort tiers", () => {
   });
 
   it("returns empty fields a mode cannot apply", () => {
-    const gemini = AI_PROVIDERS.find((p) => p.id === "gemini")!;
-    expect(tierFor(gemini, "api", "high", { gemini: { high: { effort: "high" } } }).effort).toBe("");
+    const gemini = AI_PROVIDERS.find((p) => p.id === "custom")!;
+    expect(tierFor(gemini, "api", "high", { custom: { high: { effort: "high" } } }).effort).toBe("");
     expect(tierFor(AI_PROVIDERS.find((p) => p.id === "cursor")!, "cli", "low", {})).toMatchObject({
       model: "",
       effort: "",

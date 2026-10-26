@@ -119,7 +119,7 @@ describe("SettingsAi effort levels", () => {
 
   it("hides the Effort column where a provider mode cannot apply it", () => {
     resetStore();
-    useAppStore.setState({ aiProvider: "gemini-api", aiTiers: {} });
+    useAppStore.setState({ aiProvider: "custom-api", aiTiers: {} });
     render(<SettingsAi />);
 
     expect(screen.getByLabelText("Low Model")).toBeTruthy();

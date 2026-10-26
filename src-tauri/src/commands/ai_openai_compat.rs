@@ -88,7 +88,8 @@ pub async fn ai_run_openai_compat(
     if model.trim().is_empty() {
         return Err("No model configured - set one in Settings > AI".to_string());
     }
-    let effort = if provider == "openai" { effort } else { None };
+    // Custom endpoints may reject the field, so only the built-in providers get it.
+    let effort = if matches!(provider.as_str(), "openai" | "gemini" | "grok") { effort } else { None };
     let (url, key) = resolve_endpoint(&provider)?;
 
     let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
@@ -113,7 +114,7 @@ pub async fn ai_run_openai_compat(
 
 /// No token cap parameter: max_tokens vs max_completion_tokens differs between
 /// OpenAI-compatible servers, and the provider default is fine. `effort` is
-/// only passed for OpenAI itself (other servers may reject the field).
+/// only passed for the built-in providers (OpenAI, Gemini and Grok all accept it).
 fn request_body(model: &str, prompt: &str, effort: Option<&str>) -> serde_json::Value {
     let mut body = json!({
         "model": model,
