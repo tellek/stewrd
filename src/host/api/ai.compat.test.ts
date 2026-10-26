@@ -101,10 +101,10 @@ describe("effort tiers under API providers", () => {
     expect(compatCall()).toMatchObject({ model: "gpt-5-mini", effort: "low" });
   });
 
-  it("sends no effort when the caller asked for none", async () => {
+  it("uses the medium tier when the caller asked for none", async () => {
     runHeadlessAi("hello");
     await flush();
 
-    expect(compatCall().effort).toBeUndefined();
+    expect(compatCall().effort).toBe("medium");
   });
 });

@@ -125,12 +125,4 @@ describe("SettingsAi effort levels", () => {
     expect(screen.getByLabelText("Low Model")).toBeTruthy();
     expect(screen.queryByLabelText("Low Effort")).toBeNull();
   });
-
-  it("shows no table for a provider without tiers", () => {
-    resetStore();
-    useAppStore.setState({ aiProvider: "copilot-cli", aiTiers: {} });
-    render(<SettingsAi />);
-
-    expect(screen.queryByText("Model Configuration")).toBeNull();
-  });
 });

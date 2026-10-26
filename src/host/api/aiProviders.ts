@@ -112,6 +112,12 @@ const gptTiers = (): Record<AiEffort, AiTier> => ({
   high: { model: "gpt-5", effort: "high" },
 });
 
+const levels = (model: string, efforts: [string, string, string]): Record<AiEffort, AiTier> => ({
+  low: { model, effort: efforts[0] },
+  medium: { model, effort: efforts[1] },
+  high: { model, effort: efforts[2] },
+});
+
 const modelOnlyTiers = (model: string): TierSpec => ({ model: true, effort: false, defaults: sameModelTiers(model) });
 
 const withModel = (flag: string, model?: string) => (model ? [flag, model] : []);
@@ -182,7 +188,13 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       promptVia: "argv",
       supportsAgentOpts: false,
       // Same shape for both binaries: -p takes the prompt as its value.
-      buildArgs: ({ prompt }) => ["-p", prompt],
+      // agy takes --model and --effort; the older gemini binary only -m.
+      tiers: { model: true, effort: true, defaults: levels("gemini-3.8-flash", ["low", "medium", "high"]) },
+      buildArgs: ({ binary, prompt, model, effort }) => [
+        "-p",
+        prompt,
+        ...(binary === "agy" ? [...withModel("--model", model), ...withModel("--effort", effort)] : withModel("-m", model)),
+      ],
       installCommand: "irm https://antigravity.google/cli/install.ps1 | iex",
       loginCommand: "agy",
     },
@@ -195,7 +207,17 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       binaries: ["copilot"],
       promptVia: "argv",
       supportsAgentOpts: false,
-      buildArgs: ({ prompt }) => ["-p", prompt, "-s", "--deny-tool", "shell"],
+      // Blank model = Copilot's own default; effort only applies to models that support it.
+      tiers: { model: true, effort: true, defaults: levels("", ["low", "medium", "high"]) },
+      buildArgs: ({ prompt, model, effort }) => [
+        "-p",
+        prompt,
+        "-s",
+        "--deny-tool",
+        "shell",
+        ...withModel("--model", model),
+        ...withModel("--reasoning-effort", effort),
+      ],
       installCommand: "winget install GitHub.Copilot",
       loginCommand: "copilot  (then type /login)",
     },
@@ -207,7 +229,9 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       binaries: ["agent"],
       promptVia: "argv",
       supportsAgentOpts: false,
-      buildArgs: ({ prompt }) => ["-p", prompt, "--trust"],
+      // No effort flag; blank model = Cursor's own default.
+      tiers: { model: true, effort: false, defaults: levels("", ["", "", ""]) },
+      buildArgs: ({ prompt, model }) => ["-p", prompt, "--trust", ...withModel("--model", model)],
       installCommand: "irm 'https://cursor.com/install?win32=true' | iex",
       loginCommand: "agent login",
     },
@@ -219,7 +243,13 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       binaries: ["grok"],
       promptVia: "argv",
       supportsAgentOpts: false,
-      buildArgs: ({ prompt }) => ["-p", prompt],
+      tiers: { model: true, effort: true, defaults: levels("grok-4.7", ["low", "medium", "high"]) },
+      buildArgs: ({ prompt, model, effort }) => [
+        "-p",
+        prompt,
+        ...withModel("-m", model),
+        ...withModel("--effort", effort),
+      ],
       installCommand: "irm https://x.ai/cli/install.ps1 | iex",
       loginCommand: "grok",
     },
@@ -232,7 +262,15 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       binaries: ["opencode"],
       promptVia: "argv",
       supportsAgentOpts: false,
-      buildArgs: ({ prompt }) => ["run", prompt],
+      // -m wants provider/model; --variant is the provider-specific reasoning level.
+      // Blank = the user's OpenCode config.
+      tiers: { model: true, effort: true, defaults: levels("", ["", "", ""]) },
+      buildArgs: ({ prompt, model, effort }) => [
+        "run",
+        ...withModel("-m", model),
+        ...withModel("--variant", effort),
+        prompt,
+      ],
       installCommand: "npm.cmd install -g opencode-ai",
       loginCommand: "opencode auth login",
     },

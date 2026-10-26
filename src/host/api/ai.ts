@@ -15,7 +15,7 @@ import {
 export interface HeadlessAiOpts {
   /** How much model power this call needs. Each provider maps the tier to its
    * own model + reasoning effort (Settings > AI), so callers never name a
-   * model. Omitted = the provider's defaults. */
+   * model. Omitted = "medium". */
   effort?: AiEffort;
   /** Claude model alias ("sonnet", "opus", "haiku") or a full model id. On a
    * non-Claude provider a Claude alias is ignored and that provider's
@@ -78,10 +78,10 @@ function runHeadlessCli(def: AiProviderDef, cli: CliSpec, prompt: string, opts: 
   if (!cli.supportsAgentOpts && hasAgentOpts(opts)) return rejectedHandle(noToolUseMessage(def));
 
   // Caller model > tier model. A Claude alias means nothing to other CLIs.
-  const tier = opts.effort ? tierFor(def, "cli", opts.effort, useAppStore.getState().aiTiers) : undefined;
+  const tier = tierFor(def, "cli", opts.effort ?? "medium", useAppStore.getState().aiTiers);
   const callerModel = opts.model && (cli.supportsAgentOpts || !CLAUDE_ALIASES.has(opts.model)) ? opts.model : undefined;
-  const model = (cli.tiers?.model || cli.supportsAgentOpts ? callerModel : undefined) || tier?.model || undefined;
-  const effort = tier?.effort || undefined;
+  const model = callerModel || tier.model || undefined;
+  const effort = tier.effort || undefined;
 
   let stdout = "";
   let stderr = "";
@@ -168,15 +168,15 @@ function runHttpApi(def: AiProviderDef, api: ApiSpec, prompt: string, opts: Head
   const { aiModels, aiTiers } = useAppStore.getState();
   const configured = aiModels[def.id];
   const callerModel = opts.model && !(!anthropic && CLAUDE_ALIASES.has(opts.model)) ? opts.model : undefined;
-  const tier = opts.effort ? tierFor(def, "api", opts.effort, aiTiers) : undefined;
+  const tier = tierFor(def, "api", opts.effort ?? "medium", aiTiers);
   // opts.model > tier override > aiModels > built-in tier > provider default.
   const model =
-    callerModel || tier?.modelOverride || configured || tier?.model || api.defaultModel;
+    callerModel || tier.modelOverride || configured || tier.model || api.defaultModel;
   // A model the user typed into Settings may not reason (a built-in effort
   // would 400), so built-in effort only rides along when the tier chose the
   // model or the user set the effort themselves.
   const modelIsTiers = !callerModel && !configured;
-  const effort = tier ? tier.effortOverride || (modelIsTiers || tier.modelOverride ? tier.effort : "") || undefined : undefined;
+  const effort = tier.effortOverride || (modelIsTiers || tier.modelOverride ? tier.effort : "") || undefined;
   const runArgs = (id: string) =>
     anthropic
       ? invoke("ai_run_anthropic", { id, prompt, model: model || undefined, effort })

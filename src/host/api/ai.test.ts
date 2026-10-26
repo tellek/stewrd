@@ -54,6 +54,8 @@ describe("runHeadlessAi under the claude-cli provider", () => {
         "prompt",
         "--model",
         "sonnet",
+        "--effort",
+        "medium",
         "--allowedTools",
         "WebSearch,WebFetch",
         "--disallowedTools",
@@ -72,7 +74,7 @@ describe("runHeadlessAi under the claude-cli provider", () => {
     runHeadlessAi("prompt", {});
     await flush();
 
-    expect(mockSpawn).toHaveBeenCalledWith("claude", ["-p", "prompt"], expect.anything(), undefined);
+    expect(mockSpawn).toHaveBeenCalledWith("claude", ["-p", "prompt", "--model", "sonnet", "--effort", "medium"], expect.anything(), undefined);
   });
 
   it("pipes the prompt on stdin when claude resolved to a .cmd shim, keeping extraArgs positional", async () => {
@@ -82,7 +84,7 @@ describe("runHeadlessAi under the claude-cli provider", () => {
     runHeadlessAi("multi\nline", { extraArgs: ["harvest/a.md"] });
     await flush();
 
-    expect(mockSpawn).toHaveBeenCalledWith("claude", ["-p", "harvest/a.md"], expect.anything(), "multi\nline");
+    expect(mockSpawn).toHaveBeenCalledWith("claude", ["-p", "--model", "sonnet", "--effort", "medium", "harvest/a.md"], expect.anything(), "multi\nline");
   });
 
   it("rejects with trimmed stderr on a non-zero exit code", async () => {
@@ -162,7 +164,7 @@ describe("runHeadlessAi under other CLI providers", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       "codex",
-      ["exec", "-s", "read-only", "--skip-git-repo-check", "--color", "never", "-"],
+      ["exec", "-s", "read-only", "--skip-git-repo-check", "--color", "never", "-m", "gpt-5", "-c", "model_reasoning_effort=medium", "-"],
       expect.anything(),
       "hello",
     );
@@ -178,7 +180,7 @@ describe("runHeadlessAi under other CLI providers", () => {
     runHeadlessAi("hi");
     await flush();
 
-    expect(mockSpawn).toHaveBeenCalledWith("gemini", ["-p", "hi"], expect.anything(), undefined);
+    expect(mockSpawn).toHaveBeenCalledWith("gemini", ["-p", "hi", "-m", "gemini-3.8-flash"], expect.anything(), undefined);
   });
 
   it("rejects tool-use options before spawning anything", async () => {
@@ -199,7 +201,7 @@ describe("runHeadlessAi under other CLI providers", () => {
 
     expect(mockSpawn).toHaveBeenCalledWith(
       "copilot",
-      ["-p", "hi", "-s", "--deny-tool", "shell"],
+      ["-p", "hi", "-s", "--deny-tool", "shell", "--reasoning-effort", "medium"],
       expect.anything(),
       undefined,
     );
@@ -250,13 +252,13 @@ describe("effort tiers under CLI providers", () => {
     expect(mockSpawn.mock.calls[0]![1].slice(-5)).toEqual(["-m", "gpt-5", "-c", "model_reasoning_effort=high", "-"]);
   });
 
-  it("emits no model flags without an effort tier", async () => {
+  it("uses the medium tier when no effort is given", async () => {
     useAppStore.setState({ aiProvider: "openai-cli" });
     cliOnPath("C:\bin\codex.exe");
     mockSpawn.mockReturnValue(makeSpawnHandle().handle);
     runHeadlessAi("hi");
     await flush();
 
-    expect(mockSpawn.mock.calls[0]![1]).not.toContain("-m");
+    expect(mockSpawn.mock.calls[0]![1]).toContain("-m");
   });
 });

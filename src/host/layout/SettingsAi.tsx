@@ -201,16 +201,12 @@ function CliPanel({ def }: { def: AiProviderDef }) {
 
 function ApiPanel({ def }: { def: AiProviderDef }) {
   const palette = useAppStore((s) => s.palette);
-  const aiModels = useAppStore((s) => s.aiModels);
-  const setAiModel = useAppStore((s) => s.setAiModel);
   const api = def.api!;
   const isCustom = def.id === "custom";
-  const isClaude = def.id === "claude";
 
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [keyInput, setKeyInput] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [model, setModel] = useState(aiModels[def.id] ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -230,7 +226,6 @@ function ApiPanel({ def }: { def: AiProviderDef }) {
   useEffect(() => {
     setKeyInput("");
     setError(null);
-    setModel(useAppStore.getState().aiModels[def.id] ?? "");
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [def.id]);
@@ -262,21 +257,6 @@ function ApiPanel({ def }: { def: AiProviderDef }) {
         {hasKey === true && (isCustom ? "Endpoint configured ✓" : "Key configured ✓")}
         {hasKey === false && "Not configured"}
       </p>
-
-      {!isClaude && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 12, color: palette.textMuted, marginBottom: 4 }}>
-            Model{isCustom ? "" : ` (default: ${api.defaultModel})`}
-          </div>
-          <input
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            onBlur={() => setAiModel(def.id, model.trim())}
-            placeholder={api.defaultModel || "e.g. deepseek-v4-pro"}
-            style={inputStyle(palette)}
-          />
-        </div>
-      )}
 
       {isCustom && (
         <div style={{ marginBottom: 8 }}>
