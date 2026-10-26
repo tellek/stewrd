@@ -291,3 +291,14 @@ import type { PluginContext, PluginApi } from "stewrd-plugin-api";
 Plugins are portable: zip up a plugin's folder (including its built `dist/`)
 and hand it to someone else, or install it via **Settings > Plugins > Add
 plugin** (`.zip`/`.tar`/`.tar.gz`/`.tgz` supported).
+
+<!-- stewrd:ai-calls -->
+## Calling AI (`api.ai`)
+
+- Call AI only through `api.ai.run(prompt, opts?)`. Never spawn `claude`/`codex`/etc. yourself and never call an AI HTTP API directly; the user's provider (Settings > AI) decides what runs, and the same call works for every CLI and API-key provider.
+- Pick a tier with `effort: "low" | "medium" | "high"` instead of naming a model. Each provider maps the tier to its own model and reasoning level (user-editable under Settings > AI > Model Configuration). Use `low` for cheap, quick tasks (classify, title, short answer), `medium` for general work, `high` for hard reasoning. Omitting `effort` means `medium`.
+- Do not pass `model` unless you truly need one specific model; a Claude alias (`sonnet`/`opus`/`haiku`) is ignored by non-Claude providers.
+- `allowedTools`, `disallowedTools` and `extraArgs` work only under the Claude CLI provider; under any other provider `done` rejects with a clear error. Do not depend on tool use unless the feature can say "switch to Claude (CLI)".
+- Handle the result: `run()` returns `{ pid, kill(), done }`. `await done` for the full text (it rejects on failure; show the message via the status/notification APIs), stream with `onStdout`, and call `kill()` to cancel (wire it to a Cancel button or `ctx.signal`).
+- Example: `const h = api.ai.run(prompt, { effort: "low", onStdout: (c) => setText((t) => t + c) }); const text = await h.done;`
+- See `plugins/_template/demos/AiDemo.tsx` in the Stewrd repo for a working example.
