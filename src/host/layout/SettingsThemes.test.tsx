@@ -19,6 +19,7 @@ function resetStore() {
     palette: defaultPalette,
     paletteId: premadePalettes[0].id,
     customPalettes: [],
+    newestPaletteId: NEWEST_THEME_ID,
     hiddenPaletteIds: [],
     modalQueue: [],
   });
@@ -37,6 +38,14 @@ describe("SettingsThemes", () => {
     render(<SettingsThemes />);
     expect(premadePalettes.some((p) => p.id === NEWEST_THEME_ID)).toBe(true);
     expect(screen.getAllByText("NEW")).toHaveLength(1);
+  });
+
+  it("moves the NEW tag to a newly saved palette", () => {
+    resetStore();
+    render(<SettingsThemes />);
+    act(() => useAppStore.getState().saveCustomPalette({ id: "fresh", name: "Fresh", colors: defaultPalette }));
+    expect(screen.getAllByText("NEW")).toHaveLength(1);
+    expect(screen.getByText("Fresh").parentElement?.textContent).toContain("NEW");
   });
 
   it("creates a new custom palette with Title Case buttons", async () => {

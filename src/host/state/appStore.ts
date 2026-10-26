@@ -12,6 +12,7 @@ import {
   type SavedLayout,
   type TaskbarBadgeThreshold,
 } from "./hostSettings";
+import { NEWEST_THEME_ID } from "../../shared/newestTheme";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 import {
@@ -146,6 +147,10 @@ interface AppState {
   hiddenPaletteIds: string[];
   paletteId: string;
   customPalettes: NamedPalette[];
+  /** Id of the most recently added palette - Settings > Themes outlines it and
+   * tags it "NEW". Starts as the shipped premade (`NEWEST_THEME_ID`), replaced
+   * by saveCustomPalette whenever a new palette is created or generated. */
+  newestPaletteId: string;
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
   aiProvider: AiProvider;
   hostSettingsLoaded: boolean;
@@ -274,6 +279,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   pluginOrder: [],
   paletteId: premadePalettes[0].id,
   customPalettes: [],
+  newestPaletteId: NEWEST_THEME_ID,
   hiddenPaletteIds: [],
   taskbarBadgeThreshold: "warning",
   aiProvider: "claude-subscription",
@@ -459,6 +465,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const pluginOrder = loaded.pluginOrder ?? state.pluginOrder;
       const paletteId = loaded.paletteId ?? state.paletteId;
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
+      const newestPaletteId = loaded.newestPaletteId ?? state.newestPaletteId;
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
       const aiProvider = loaded.aiProvider ?? state.aiProvider;
@@ -471,6 +478,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         pluginOrder,
         paletteId,
         customPalettes,
+        newestPaletteId,
         hiddenPaletteIds,
         categoriesExpanded,
         sidebarSubItemsExpanded,
@@ -560,8 +568,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           ? state.customPalettes.map((p, i) => (i === existingIndex ? namedPalette : p))
           : [...state.customPalettes, namedPalette];
       const hiddenPaletteIds = state.hiddenPaletteIds.filter((id) => id !== namedPalette.id);
-      saveHostSettings({ customPalettes, hiddenPaletteIds });
-      return { customPalettes, hiddenPaletteIds, palette: resolvePalette(state.paletteId, customPalettes) };
+      const newestPaletteId = existingIndex >= 0 ? state.newestPaletteId : namedPalette.id;
+      saveHostSettings({ customPalettes, hiddenPaletteIds, newestPaletteId });
+      return { customPalettes, hiddenPaletteIds, newestPaletteId, palette: resolvePalette(state.paletteId, customPalettes) };
     }),
 
   deleteCustomPalette: (id) =>

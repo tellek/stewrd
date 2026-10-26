@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../state/appStore";
 import { premadePalettes, type Palette, type StatusColor, type NamedPalette } from "../../shared/palette";
-import { NEWEST_THEME_ID } from "../../shared/newestTheme";
 import { mergePalettes } from "./mergePalettes";
 import { createModalApi } from "../api/modals";
 import { MaskIcon } from "../../components/MaskIcon/MaskIcon";
@@ -69,6 +68,7 @@ export function SettingsThemes() {
   const palette = useAppStore((s) => s.palette);
   const paletteId = useAppStore((s) => s.paletteId);
   const customPalettes = useAppStore((s) => s.customPalettes);
+  const newestPaletteId = useAppStore((s) => s.newestPaletteId);
   const hiddenPaletteIds = useAppStore((s) => s.hiddenPaletteIds);
   const setPaletteId = useAppStore((s) => s.setPaletteId);
   const saveCustomPalette = useAppStore((s) => s.saveCustomPalette);
@@ -88,6 +88,11 @@ export function SettingsThemes() {
   const generationRef = useRef<PaletteGeneration | null>(null);
 
   const allPalettes = mergePalettes(customPalettes, hiddenPaletteIds);
+
+  const newestRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    newestRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [newestPaletteId]);
 
   function startCreate() {
     setDraftName("");
@@ -187,16 +192,17 @@ export function SettingsThemes() {
           return (
             <div
               key={p.id}
+              ref={p.id === newestPaletteId ? newestRef : undefined}
               style={{
                 border: `2px solid ${paletteId === p.id ? palette.accent : palette.border}`,
                 borderRadius: 8,
                 padding: 12,
                 minWidth: 220,
                 position: "relative",
-                ...(p.id === NEWEST_THEME_ID && { outline: `2px solid ${palette.status.success}`, outlineOffset: 2 }),
+                ...(p.id === newestPaletteId && { outline: `2px solid ${palette.status.success}`, outlineOffset: 2 }),
               }}
             >
-              {p.id === NEWEST_THEME_ID && (
+              {p.id === newestPaletteId && (
                 <span
                   style={{
                     position: "absolute",
