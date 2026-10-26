@@ -26,7 +26,6 @@ export interface TierSpec {
 }
 
 const NO_TIER: AiTier = { model: "", effort: "" };
-const emptyTiers = (): Record<AiEffort, AiTier> => ({ low: NO_TIER, medium: NO_TIER, high: NO_TIER });
 
 /** Everything a CLI args builder needs. `viaStdin` means the prompt is NOT in
  * argv - it is piped to stdin instead. */
@@ -94,13 +93,26 @@ const CLAUDE_TIERS: TierSpec = {
   model: true,
   effort: true,
   defaults: {
-    low: { model: "haiku", effort: "" },
+    low: { model: "haiku", effort: "low" },
     medium: { model: "sonnet", effort: "medium" },
     high: { model: "opus", effort: "high" },
   },
 };
 
-const modelOnlyTiers = (): TierSpec => ({ model: true, effort: false, defaults: emptyTiers() });
+const sameModelTiers = (model: string): Record<AiEffort, AiTier> => ({
+  low: { model, effort: "" },
+  medium: { model, effort: "" },
+  high: { model, effort: "" },
+});
+
+/** Same model at each effort level, Low/Medium/High reasoning. */
+const gptTiers = (): Record<AiEffort, AiTier> => ({
+  low: { model: "gpt-5", effort: "low" },
+  medium: { model: "gpt-5", effort: "medium" },
+  high: { model: "gpt-5", effort: "high" },
+});
+
+const modelOnlyTiers = (model: string): TierSpec => ({ model: true, effort: false, defaults: sameModelTiers(model) });
 
 const withModel = (flag: string, model?: string) => (model ? [flag, model] : []);
 
@@ -137,7 +149,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       supportsAgentOpts: false,
       // read-only sandbox, and skip the git-repo check because palette
       // generation runs in a temp dir.
-      tiers: { model: true, effort: true, defaults: emptyTiers() },
+      tiers: { model: true, effort: true, defaults: gptTiers() },
       // model/effort flags go before the trailing "-" (stdin prompt marker).
       buildArgs: ({ model, effort }) => [
         "exec",
@@ -158,11 +170,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       kind: "openai-compat",
       defaultModel: "gpt-5",
       keyPlaceholder: "sk-...",
-      tiers: {
-        model: true,
-        effort: true,
-        defaults: { low: { model: "", effort: "low" }, medium: { model: "", effort: "medium" }, high: { model: "", effort: "high" } },
-      },
+      tiers: { model: true, effort: true, defaults: gptTiers() },
     },
   },
   {
@@ -178,7 +186,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://antigravity.google/cli/install.ps1 | iex",
       loginCommand: "agy",
     },
-    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza...", tiers: modelOnlyTiers() },
+    api: { kind: "openai-compat", defaultModel: "gemini-3.8-flash", keyPlaceholder: "AIza...", tiers: modelOnlyTiers("gemini-3.8-flash") },
   },
   {
     id: "copilot",
@@ -215,7 +223,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
       installCommand: "irm https://x.ai/cli/install.ps1 | iex",
       loginCommand: "grok",
     },
-    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-...", tiers: modelOnlyTiers() },
+    api: { kind: "openai-compat", defaultModel: "grok-4.7", keyPlaceholder: "xai-...", tiers: modelOnlyTiers("grok-4.7") },
   },
   {
     id: "opencode",
@@ -232,7 +240,7 @@ export const AI_PROVIDERS: AiProviderDef[] = [
   {
     id: "custom",
     label: "Custom (OpenAI-Compatible)",
-    api: { kind: "openai-compat", defaultModel: "", keyPlaceholder: "Optional for local servers", tiers: modelOnlyTiers() },
+    api: { kind: "openai-compat", defaultModel: "", keyPlaceholder: "Optional for local servers", tiers: modelOnlyTiers("") },
   },
 ];
 

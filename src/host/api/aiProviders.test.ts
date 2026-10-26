@@ -123,7 +123,7 @@ describe("effort tiers", () => {
 
   it("claude defaults map low/medium/high to haiku/sonnet/opus", () => {
     const get = (e: "low" | "medium" | "high") => tierFor(claudeCli, "cli", e, {});
-    expect(get("low")).toMatchObject({ model: "haiku", effort: "" });
+    expect(get("low")).toMatchObject({ model: "haiku", effort: "low" });
     expect(get("medium")).toMatchObject({ model: "sonnet", effort: "medium" });
     expect(get("high")).toMatchObject({ model: "opus", effort: "high" });
   });

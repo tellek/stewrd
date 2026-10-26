@@ -131,6 +131,6 @@ describe("SettingsAi effort levels", () => {
     useAppStore.setState({ aiProvider: "copilot-cli", aiTiers: {} });
     render(<SettingsAi />);
 
-    expect(screen.queryByText("Effort Levels")).toBeNull();
+    expect(screen.queryByText("Model Configuration")).toBeNull();
   });
 });

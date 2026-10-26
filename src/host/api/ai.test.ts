@@ -237,7 +237,7 @@ describe("effort tiers under CLI providers", () => {
     runHeadlessAi("prompt", { effort: "low" });
     await flush();
 
-    expect(mockSpawn.mock.calls[0]![1]).toEqual(["-p", "prompt", "--model", "sonnet"]);
+    expect(mockSpawn.mock.calls[0]![1]).toEqual(["-p", "prompt", "--model", "sonnet", "--effort", "low"]);
   });
 
   it("codex forwards the user's tier but drops a Claude alias from the caller", async () => {

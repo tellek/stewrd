@@ -56,7 +56,7 @@ function TierTable({ def, mode }: { def: AiProviderDef; mode: AiMode }) {
 
   return (
     <div style={{ marginTop: 16 }}>
-      <h3 style={{ fontSize: 13, color: palette.text }}>Effort Levels</h3>
+      <h3 style={{ fontSize: 13, color: palette.text }}>Model Configuration</h3>
       <p style={{ fontSize: 12, color: palette.textMuted, marginTop: -4 }}>
         Plugins ask for Low, Medium or High. Set what each means for {def.label}; leave a field blank to use the
         default.
