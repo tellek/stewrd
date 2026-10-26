@@ -287,23 +287,6 @@ export function SettingsAi() {
         Every AI request in Stewrd - host features and plugins alike - flows through whichever provider is selected
         here.
       </p>
-      <p
-        style={{
-          fontSize: 12,
-          color: palette.textMuted,
-          padding: "8px 10px",
-          borderRadius: 4,
-          border: `1px solid ${palette.border}`,
-          background: palette.surface,
-        }}
-      >
-        <strong style={{ color: palette.text }}>How secrets are stored.</strong> API keys are saved only in your
-        operating system's keychain (Windows Credential Manager, macOS Keychain, or Linux Secret Service), which
-        encrypts them at rest. Stewrd never writes a key to its own files or settings, and only its backend reads one
-        back, to make the request. Stewrd never passes a key to the AI (an agent CLI with shell access runs as you and
-        could still read your keychain). CLI providers use their own sign-in, so Stewrd stores nothing for them.
-      </p>
-
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <select
           aria-label="Provider"
@@ -331,6 +314,24 @@ export function SettingsAi() {
       </div>
 
       {mode === "cli" ? <CliPanel def={def} /> : <ApiPanel def={def} />}
+
+      <p
+        style={{
+          marginTop: 24,
+          fontSize: 12,
+          color: palette.textMuted,
+          padding: "8px 10px",
+          borderRadius: 4,
+          border: `1px solid ${palette.border}`,
+          background: palette.surface,
+        }}
+      >
+        <strong style={{ color: palette.text }}>How secrets are stored.</strong> API keys are saved only in your
+        operating system's keychain (Windows Credential Manager, macOS Keychain, or Linux Secret Service), which
+        encrypts them at rest. Stewrd never writes a key to its own files or settings, and only its backend reads one
+        back, to make the request. Stewrd never passes a key to the AI (an agent CLI with shell access runs as you and
+        could still read your keychain). CLI providers use their own sign-in, so Stewrd stores nothing for them.
+      </p>
     </div>
   );
 }
