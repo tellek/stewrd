@@ -14,6 +14,8 @@ pub struct PtySession {
     pub writer: Arc<Mutex<Box<dyn Write + Send>>>,
     pub master: Box<dyn MasterPty + Send>,
     pub killer: Box<dyn ChildKiller + Send + Sync>,
+    /// Some only for `pty_spawn_v2` sessions; see `commands/pty.rs`.
+    pub flow: Option<Arc<crate::commands::pty::FlowControl>>,
 }
 
 /// Owns the plugin dist/ watcher so it isn't dropped (dropping a notify

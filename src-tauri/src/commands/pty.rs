@@ -35,14 +35,82 @@ use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::mpsc as std_mpsc;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::{Duration, Instant};
 use tauri::Manager;
 
 use crate::state::{AppState, PtySession};
 
 const BATCH_INTERVAL: Duration = Duration::from_millis(16);
+// Flush immediately once this much is pending, so a continuous flood is
+// delivered in bounded chunks instead of one giant batch after a quiet gap.
+const MAX_BATCH_BYTES: usize = 64 * 1024;
+// Flow control (pty_spawn_v2 only): the reader pauses once more than HIGH
+// bytes are sent-but-unacked and resumes once the plugin has acked down to LOW.
+const FLOW_HIGH_BYTES: usize = 100 * 1024;
+const FLOW_LOW_BYTES: usize = 5 * 1024;
 
+/// Byte-count backpressure between the emitter (adds bytes as it sends them)
+/// and the plugin (acks bytes once xterm has processed them). Counted in
+/// UTF-8 bytes on both sides. `close()` releases a parked reader so it can
+/// always drain to EOF on kill/exit.
+pub struct FlowControl {
+    state: Mutex<FlowState>,
+    cv: Condvar,
+}
+
+struct FlowState {
+    unacked: usize,
+    closed: bool,
+}
+
+impl FlowControl {
+    pub fn new() -> Self {
+        Self { state: Mutex::new(FlowState { unacked: 0, closed: false }), cv: Condvar::new() }
+    }
+
+    pub fn add(&self, n: usize) {
+        self.state.lock().unwrap().unacked += n;
+    }
+
+    pub fn ack(&self, n: usize) {
+        let mut st = self.state.lock().unwrap();
+        st.unacked = st.unacked.saturating_sub(n);
+        self.cv.notify_all();
+    }
+
+    pub fn close(&self) {
+        self.state.lock().unwrap().closed = true;
+        self.cv.notify_all();
+    }
+
+    pub fn unacked(&self) -> usize {
+        self.state.lock().unwrap().unacked
+    }
+
+    // Hysteresis: only parks above HIGH, then stays parked until LOW.
+    fn wait_if_paused(&self) {
+        let mut st = self.state.lock().unwrap();
+        if st.unacked > FLOW_HIGH_BYTES {
+            while st.unacked > FLOW_LOW_BYTES && !st.closed {
+                st = self.cv.wait(st).unwrap();
+            }
+        }
+    }
+}
+
+/// Adapts a String sink to the byte-batch sink, carrying an incomplete
+/// trailing UTF-8 sequence over to the next batch instead of corrupting it
+/// with from_utf8_lossy.
+fn utf8_string_sink(mut on_output: impl FnMut(String) + Send + 'static) -> impl FnMut(&[u8]) + Send + 'static {
+    let mut carry: Vec<u8> = Vec::new();
+    move |bytes: &[u8]| {
+        carry.extend_from_slice(bytes);
+        flush_pending(&mut carry, &mut on_output);
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn spawn_pty_inner(
     sessions: &Mutex<HashMap<String, PtySession>>,
     id: String,
@@ -52,7 +120,8 @@ fn spawn_pty_inner(
     env: Option<HashMap<String, String>>,
     cols: u16,
     rows: u16,
-    mut on_output: impl FnMut(String) + Send + 'static,
+    mut on_output: impl FnMut(&[u8]) + Send + 'static,
+    flow: Option<Arc<FlowControl>>,
     on_exited: impl FnOnce(&str, i32) + Send + 'static,
     on_exit_cleanup: impl FnOnce(&str) + Send + 'static,
 ) -> Result<(), String> {
@@ -111,6 +180,7 @@ fn spawn_pty_inner(
                 writer,
                 master: pair.master,
                 killer,
+                flow: flow.clone(),
             },
         );
     }
@@ -120,10 +190,14 @@ fn spawn_pty_inner(
     // and a blocking read() alone never wakes on a timer with nothing to
     // read.
     let (tx, rx) = std_mpsc::channel::<Vec<u8>>();
+    let flow_for_reader = flow.clone();
     let reader_handle = std::thread::spawn(move || {
         let mut reader = reader;
         let mut buf = [0u8; 4096];
         loop {
+            if let Some(flow) = &flow_for_reader {
+                flow.wait_if_paused();
+            }
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
@@ -136,28 +210,46 @@ fn spawn_pty_inner(
         }
     });
 
-    // Emitter thread: batches into ~16ms windows, flushing on either a
-    // recv timeout (mirrors shell.rs's pump_stream) or channel disconnect
-    // (reader hit EOF). Carries over incomplete trailing UTF-8 sequences
-    // between iterations instead of using from_utf8_lossy per chunk, which
-    // would corrupt split multi-byte chars.
+    // Emitter thread: batches output. The first chunk after an idle period
+    // (>= BATCH_INTERVAL since the last flush) goes out immediately so a
+    // keystroke echo isn't delayed; while output is flowing, it flushes every
+    // BATCH_INTERVAL measured from the last flush, or as soon as MAX_BATCH_BYTES
+    // is pending, whichever comes first. Pending is always fully drained on a
+    // flush (UTF-8 carry-over, if any, lives in the sink), so the timeout
+    // below can't spin on leftover bytes.
+    let flow_for_emitter = flow.clone();
     let emitter_handle = std::thread::spawn(move || {
         let mut pending: Vec<u8> = Vec::new();
+        let mut last_flush = Instant::now()
+            .checked_sub(BATCH_INTERVAL)
+            .unwrap_or_else(Instant::now);
+        let mut flush = |pending: &mut Vec<u8>, last_flush: &mut Instant| {
+            if pending.is_empty() {
+                return;
+            }
+            on_output(pending);
+            if let Some(flow) = &flow_for_emitter {
+                flow.add(pending.len());
+            }
+            pending.clear();
+            *last_flush = Instant::now();
+        };
         loop {
-            match rx.recv_timeout(BATCH_INTERVAL) {
+            let received = if pending.is_empty() {
+                rx.recv().map_err(|_| std_mpsc::RecvTimeoutError::Disconnected)
+            } else {
+                rx.recv_timeout((last_flush + BATCH_INTERVAL).saturating_duration_since(Instant::now()))
+            };
+            match received {
                 Ok(chunk) => {
                     pending.extend_from_slice(&chunk);
-                }
-                Err(std_mpsc::RecvTimeoutError::Timeout) => {
-                    if !pending.is_empty() {
-                        flush_pending(&mut pending, &mut on_output);
+                    if pending.len() >= MAX_BATCH_BYTES || last_flush.elapsed() >= BATCH_INTERVAL {
+                        flush(&mut pending, &mut last_flush);
                     }
-                    continue;
                 }
+                Err(std_mpsc::RecvTimeoutError::Timeout) => flush(&mut pending, &mut last_flush),
                 Err(std_mpsc::RecvTimeoutError::Disconnected) => {
-                    if !pending.is_empty() {
-                        flush_pending(&mut pending, &mut on_output);
-                    }
+                    flush(&mut pending, &mut last_flush);
                     break;
                 }
             }
@@ -171,6 +263,11 @@ fn spawn_pty_inner(
     std::thread::spawn(move || {
         let status = child.wait();
         let code = status.map(|s| s.exit_code() as i32).unwrap_or(-1);
+        // Release a reader parked on flow control BEFORE cleanup drops the
+        // master, which on older Windows blocks until the output pipe drains.
+        if let Some(flow) = &flow {
+            flow.close();
+        }
         on_exit_cleanup(&id);
         let _ = reader_handle.join();
         let _ = emitter_handle.join();
@@ -206,9 +303,34 @@ pub fn pty_spawn_with_sinks(
         env,
         cols,
         rows,
-        on_output,
+        utf8_string_sink(on_output),
+        None,
         on_exited,
         on_exit_cleanup,
+    )?;
+    Ok(id_for_return)
+}
+
+/// Binary + flow-controlled variant used by pty_spawn_v2 and tests. Sink gets
+/// raw byte batches; the reader pauses per `flow` until acked via pty_ack.
+#[allow(clippy::too_many_arguments)]
+pub fn pty_spawn_binary_with_sinks(
+    sessions: &Mutex<HashMap<String, PtySession>>,
+    id: String,
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    cols: u16,
+    rows: u16,
+    on_output: impl FnMut(&[u8]) + Send + 'static,
+    flow: Arc<FlowControl>,
+    on_exited: impl FnOnce(&str, i32) + Send + 'static,
+    on_exit_cleanup: impl FnOnce(&str) + Send + 'static,
+) -> Result<String, String> {
+    let id_for_return = id.clone();
+    spawn_pty_inner(
+        sessions, id, program, args, cwd, env, cols, rows, on_output, Some(flow), on_exited, on_exit_cleanup,
     )?;
     Ok(id_for_return)
 }
@@ -308,10 +430,72 @@ pub fn pty_spawn(
         move |sid, code| {
             let _ = app_for_exit.emit(&format!("pty-exit:{sid}"), serde_json::json!({ "code": code }));
         },
-        move |sid| {
-            app_for_cleanup.state::<AppState>().pty_sessions.lock().unwrap().remove(sid);
-        },
+        move |sid| remove_session(&app_for_cleanup, sid),
     )
+}
+
+// Removes the session and drops it (master/ClosePseudoConsole) AFTER releasing
+// the sessions lock, so a blocking close can't stall pty_write/resize/kill.
+fn remove_session(app: &tauri::AppHandle, sid: &str) {
+    let removed = app.state::<AppState>().pty_sessions.lock().unwrap().remove(sid);
+    drop(removed);
+}
+
+/// Opt-in successor to pty_spawn: output is streamed over a binary Channel
+/// (one ArrayBuffer per batch) and flow-controlled via pty_ack. pty-exit is
+/// still emitted as an event, so listen("pty-exit:<id>") before calling this.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub fn pty_spawn_v2(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    cols: u16,
+    rows: u16,
+    on_output: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
+) -> Result<String, String> {
+    use tauri::Emitter;
+
+    let app_for_exit = app.clone();
+    let app_for_cleanup = app.clone();
+
+    pty_spawn_binary_with_sinks(
+        &state.pty_sessions,
+        id,
+        program,
+        args,
+        cwd,
+        env,
+        cols,
+        rows,
+        move |bytes| {
+            let _ = on_output.send(tauri::ipc::InvokeResponseBody::Raw(bytes.to_vec()));
+        },
+        Arc::new(FlowControl::new()),
+        move |sid, code| {
+            let _ = app_for_exit.emit(&format!("pty-exit:{sid}"), serde_json::json!({ "code": code }));
+        },
+        move |sid| remove_session(&app_for_cleanup, sid),
+    )
+}
+
+/// Acknowledges `bytes` of pty_spawn_v2 output as processed by the plugin.
+/// Unknown id (session already exited) is a no-op.
+#[tauri::command]
+pub async fn pty_ack(app: tauri::AppHandle, id: String, bytes: usize) -> Result<(), String> {
+    pty_ack_inner(&app.state::<AppState>().pty_sessions, &id, bytes);
+    Ok(())
+}
+
+pub fn pty_ack_inner(sessions: &Mutex<HashMap<String, PtySession>>, id: &str, bytes: usize) {
+    let flow = sessions.lock().unwrap().get(id).and_then(|s| s.flow.clone());
+    if let Some(flow) = flow {
+        flow.ack(bytes);
+    }
 }
 
 #[tauri::command]
@@ -333,8 +517,9 @@ pub async fn pty_write(app: tauri::AppHandle, id: String, data: String) -> Resul
     Ok(())
 }
 
+// async so ResizePseudoConsole runs off the main thread (sync commands don't).
 #[tauri::command]
-pub fn pty_resize(state: tauri::State<'_, AppState>, id: String, cols: u16, rows: u16) -> Result<(), String> {
+pub async fn pty_resize(state: tauri::State<'_, AppState>, id: String, cols: u16, rows: u16) -> Result<(), String> {
     pty_resize_inner(&state.pty_sessions, &id, cols, rows)
 }
 
@@ -448,6 +633,115 @@ mod tests {
         assert!(err.contains("already in use"), "unexpected error: {err}");
 
         pty_kill_inner(&sessions, "dup-id").expect("kill should not error");
+    }
+
+    #[test]
+    fn flow_counter_returns_to_zero_for_mixed_utf8() {
+        let flow = FlowControl::new();
+        // "é" is 2 bytes, "日" is 3, box-drawing "─" is 3: count bytes, not chars.
+        let chunks = ["abc", "é日─", "plain"];
+        let sent: usize = chunks.iter().map(|c| c.as_bytes().len()).sum();
+        for c in chunks {
+            flow.add(c.as_bytes().len());
+        }
+        assert_eq!(flow.unacked(), sent);
+        flow.ack(sent);
+        assert_eq!(flow.unacked(), 0);
+        flow.ack(10); // over-ack saturates, never underflows
+        assert_eq!(flow.unacked(), 0);
+    }
+
+    #[test]
+    fn flow_pauses_above_high_until_acked_below_low() {
+        let flow = Arc::new(FlowControl::new());
+        flow.add(FLOW_HIGH_BYTES + 1);
+        let (tx, rx) = mpsc::channel::<()>();
+        let f = flow.clone();
+        std::thread::spawn(move || {
+            f.wait_if_paused();
+            let _ = tx.send(());
+        });
+        assert!(rx.recv_timeout(Duration::from_millis(200)).is_err(), "should be parked");
+        flow.ack(FLOW_HIGH_BYTES - FLOW_LOW_BYTES); // still above LOW + 1
+        assert!(rx.recv_timeout(Duration::from_millis(200)).is_err(), "hysteresis: still parked");
+        flow.ack(2);
+        assert!(rx.recv_timeout(Duration::from_secs(2)).is_ok(), "should resume at/below LOW");
+    }
+
+    #[test]
+    fn flow_close_releases_parked_reader() {
+        let flow = Arc::new(FlowControl::new());
+        flow.add(FLOW_HIGH_BYTES * 2);
+        let (tx, rx) = mpsc::channel::<()>();
+        let f = flow.clone();
+        std::thread::spawn(move || {
+            f.wait_if_paused();
+            let _ = tx.send(());
+        });
+        assert!(rx.recv_timeout(Duration::from_millis(200)).is_err());
+        flow.close();
+        assert!(rx.recv_timeout(Duration::from_secs(2)).is_ok());
+    }
+
+    #[test]
+    fn utf8_sink_carries_split_sequences() {
+        let (tx, rx) = mpsc::channel::<String>();
+        let mut sink = utf8_string_sink(move |s| {
+            let _ = tx.send(s);
+        });
+        let bytes = "日".as_bytes();
+        sink(&bytes[..2]);
+        assert!(rx.try_recv().is_err(), "incomplete sequence must be held");
+        sink(&bytes[2..]);
+        assert_eq!(rx.try_recv().unwrap(), "日");
+    }
+
+    #[test]
+    fn kill_while_flow_paused_still_exits_and_cleans_up() {
+        let sessions: Arc<Mutex<HashMap<String, PtySession>>> = Arc::new(Mutex::new(HashMap::new()));
+        let sessions_for_cleanup = sessions.clone();
+        let flow = Arc::new(FlowControl::new());
+        let (exit_tx, exit_rx) = mpsc::channel::<i32>();
+
+        // Never acked, so the reader parks once the flood exceeds HIGH.
+        pty_spawn_binary_with_sinks(
+            &sessions,
+            "paused-kill".to_string(),
+            "cmd".to_string(),
+            vec!["/c".to_string(), "for /L %i in (1,1,200000) do @echo flood-flood-flood-flood-%i".to_string()],
+            None,
+            None,
+            80,
+            24,
+            |_bytes| {},
+            flow.clone(),
+            move |_sid, code| {
+                let _ = exit_tx.send(code);
+            },
+            move |sid| {
+                sessions_for_cleanup.lock().unwrap().remove(sid);
+            },
+        )
+        .expect("spawn should succeed");
+
+        // ConPTY holds output until its startup cursor query is answered.
+        let writer = sessions.lock().unwrap().get("paused-kill").map(|s| s.writer.clone()).unwrap();
+        {
+            let mut w = writer.lock().unwrap();
+            let _ = w.write_all(b"\x1b[1;1R");
+            let _ = w.flush();
+        }
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while flow.unacked() <= FLOW_HIGH_BYTES && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        assert!(flow.unacked() > FLOW_HIGH_BYTES, "flood should exceed the high mark");
+        std::thread::sleep(Duration::from_millis(200)); // let the reader park
+
+        pty_kill_inner(&sessions, "paused-kill").expect("kill should not error");
+        exit_rx.recv_timeout(Duration::from_secs(10)).expect("exit must fire even though the reader was paused");
+        assert!(sessions.lock().unwrap().get("paused-kill").is_none());
     }
 
     #[test]

@@ -161,6 +161,27 @@ pub fn pty_spawn_logged(
     result
 }
 
+#[tauri::command(rename = "pty_spawn_v2")]
+#[allow(clippy::too_many_arguments)]
+pub fn pty_spawn_v2_logged(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    cols: u16,
+    rows: u16,
+    on_output: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
+) -> Result<String, String> {
+    let result = pty_cmd::pty_spawn_v2(app.clone(), state, id, program, args, cwd, env, cols, rows, on_output);
+    if let Err(e) = &result {
+        log_command_error(&app, "pty_spawn_v2", e);
+    }
+    result
+}
+
 #[tauri::command(rename = "pty_write")]
 pub async fn pty_write_logged(app: AppHandle, id: String, data: String) -> Result<(), String> {
     let result = pty_cmd::pty_write(app.clone(), id, data).await;

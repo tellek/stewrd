@@ -100,6 +100,8 @@ pub fn run() {
             commands::logged::spawn_command_logged,
             commands::shell::kill_command,
             commands::logged::pty_spawn_logged,
+            commands::logged::pty_spawn_v2_logged,
+            commands::pty::pty_ack,
             commands::logged::pty_write_logged,
             commands::pty::pty_resize,
             commands::pty::pty_kill,
