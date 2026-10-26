@@ -84,7 +84,7 @@ export function activate(ctx: PluginContext) {
   // --- signal: cancel in-flight async work on deactivate ---
   // fetch("https://example.com", { signal: ctx.signal }).catch(() => {});
 
-  // --- ai: headless AI CLI invocation (currently spawns `claude`) - the
+  // --- ai: headless AI invocation (the provider is the user's choice in Settings > AI) - the
   //     single launch point in this app, so a different provider can be
   //     swapped in later without touching every call site ---
   // const child = ctx.api.ai.run("summarize this in one sentence: ...", {

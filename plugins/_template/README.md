@@ -114,16 +114,19 @@ live demonstration.
 ## Headless AI (`ctx.api.ai`)
 
 `ctx.api.ai.run(prompt, opts?)` is the single launch point for AI invocations
-in this app - prefer it over shelling out to `claude` via `ctx.api.shell.spawn`
-directly. The actual provider (headless `claude` CLI, or a direct Anthropic
-API call) is chosen by the user in Settings > AI, not by the plugin, so a
-plugin never needs to know or care which one is active. Returns a handle with
+in this app - prefer it over shelling out to an AI CLI via
+`ctx.api.shell.spawn` directly. The actual provider (Claude, OpenAI, Gemini,
+Copilot, Cursor, Grok, OpenCode or a custom OpenAI-compatible endpoint, each
+as a CLI or an API-key call) is chosen by the user in Settings > AI, not by
+the plugin, so a plugin never needs to know or care which one is active. API
+keys live in the user's OS keychain and are never visible to plugins or the AI. Returns a handle with
 `.done` (resolves with the full response text, rejects with a stderr-aware
 error) and `.kill()` for cancelling an in-flight request; `opts.onStdout`/
-`onStderr` stream output live. Under the Anthropic API key provider,
-`opts.allowedTools`/`disallowedTools`/`extraArgs` aren't supported - passing
-any of them rejects `.done` with a clear error rather than silently doing
-nothing; `opts.cwd` is accepted but has no effect there. See the "AI
+`onStderr` stream output live. `opts.allowedTools`/`disallowedTools`/`extraArgs` work only under the
+Claude CLI provider - under any other provider passing one rejects `.done`
+with a clear error rather than silently doing nothing; `opts.cwd` is accepted
+but has no effect in API-key mode. A Claude `opts.model` alias (`sonnet`
+etc.) is ignored by other providers, which use the model set in Settings > AI. See the "AI
 (Headless)" tab in `demos/` for a live example.
 
 ## Component Library Coverage

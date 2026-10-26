@@ -1,5 +1,6 @@
 import { tempDir } from "@tauri-apps/api/path";
 import { runHeadlessAi } from "./ai";
+import { useAppStore } from "../state/appStore";
 import type { NamedPalette, Palette, StatusColor } from "../../shared/palette";
 
 /** Ids owned by the built-in, immutable Dark/Light themes - a generated or
@@ -89,11 +90,16 @@ export class GenerationCancelled extends Error {}
 export function generatePaletteFromMedia(mediaName: string): PaletteGeneration {
   let outcome: "cancelled" | "timeout" | null = null;
 
+  // Tool restrictions and the "sonnet" alias are Claude-only; the Claude API
+  // provider has no tool use, and other providers use their own model.
+  const provider = useAppStore.getState().aiProvider;
+  const isClaude = provider.startsWith("claude-");
   const handlePromise = tempDir().then((cwd) =>
     runHeadlessAi(buildPrompt(mediaName), {
-      model: "sonnet",
-      allowedTools: ["WebSearch", "WebFetch"],
-      disallowedTools: ["Bash", "Write", "Edit", "Read"],
+      ...(isClaude ? { model: "sonnet" } : {}),
+      ...(provider === "claude-cli"
+        ? { allowedTools: ["WebSearch", "WebFetch"], disallowedTools: ["Bash", "Write", "Edit", "Read"] }
+        : {}),
       cwd,
     }),
   );

@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use tauri::AppHandle;
 
 use super::ai_anthropic as ai_anthropic_cmd;
+use super::ai_openai_compat as ai_openai_compat_cmd;
 use super::fs as fs_cmd;
 use super::logging::log_command_error;
 use super::plugin_install as plugin_install_cmd;
@@ -131,8 +132,9 @@ pub async fn spawn_command_logged(
     args: Vec<String>,
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
+    stdin: Option<String>,
 ) -> Result<u32, String> {
-    let result = shell_cmd::spawn_command(app.clone(), state, program, args, cwd, env).await;
+    let result = shell_cmd::spawn_command(app.clone(), state, program, args, cwd, env, stdin).await;
     if let Err(e) = &result {
         log_command_error(&app, "spawn_command", e);
     }
@@ -196,20 +198,45 @@ pub async fn install_plugin_from_url_logged(
     result
 }
 
-#[tauri::command(rename = "secrets_set_anthropic_key")]
-pub fn secrets_set_anthropic_key_logged(app: AppHandle, key: String) -> Result<(), String> {
-    let result = secrets_cmd::secrets_set_anthropic_key(key);
+#[tauri::command(rename = "secrets_set_key")]
+pub fn secrets_set_key_logged(app: AppHandle, provider: String, key: String) -> Result<(), String> {
+    let result = secrets_cmd::secrets_set_key(provider, key);
     if let Err(e) = &result {
-        log_command_error(&app, "secrets_set_anthropic_key", e);
+        log_command_error(&app, "secrets_set_key", e);
     }
     result
 }
 
-#[tauri::command(rename = "secrets_clear_anthropic_key")]
-pub fn secrets_clear_anthropic_key_logged(app: AppHandle) -> Result<(), String> {
-    let result = secrets_cmd::secrets_clear_anthropic_key();
+#[tauri::command(rename = "secrets_set_custom")]
+pub fn secrets_set_custom_logged(app: AppHandle, base_url: String, key: String) -> Result<(), String> {
+    let result = secrets_cmd::secrets_set_custom(base_url, key);
     if let Err(e) = &result {
-        log_command_error(&app, "secrets_clear_anthropic_key", e);
+        log_command_error(&app, "secrets_set_custom", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "secrets_clear_key")]
+pub fn secrets_clear_key_logged(app: AppHandle, provider: String) -> Result<(), String> {
+    let result = secrets_cmd::secrets_clear_key(provider);
+    if let Err(e) = &result {
+        log_command_error(&app, "secrets_clear_key", e);
+    }
+    result
+}
+
+#[tauri::command(rename = "ai_run_openai_compat")]
+pub async fn ai_run_openai_compat_logged(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    id: String,
+    provider: String,
+    model: String,
+    prompt: String,
+) -> Result<(), String> {
+    let result = ai_openai_compat_cmd::ai_run_openai_compat(app.clone(), state, id, provider, model, prompt).await;
+    if let Err(e) = &result {
+        log_command_error(&app, "ai_run_openai_compat", e);
     }
     result
 }

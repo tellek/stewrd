@@ -147,7 +147,7 @@ API/file before building anything that touches one of these.
   - `api.storage`: per-plugin JSON, no secrets.
   - `api.fs`: sandboxed to `data/`. `watchFile` is a no-op stub.
   - `api.shell`: pass the program and args separately, never a shell string.
-  - `api.ai`: headless `claude` CLI.
+  - `api.ai`: headless AI via the provider chosen in Settings > AI (Claude, OpenAI, Gemini, Copilot, Cursor, Grok, OpenCode, Custom).
 
 ## `plugin.json`
 
@@ -247,7 +247,7 @@ plugin that spawns a process or opens a watch must clean it up itself (e.g.
 | `api.storage` | `{ get<T>(key), set<T>(key, val), getAll<T>() }` | Per-plugin JSON key/value store. Plaintext — no secrets. |
 | `api.fs` | `{ readTextFile, writeTextFile, readDataUrl, listDir, getRootPath, deleteFile, renameFile, watchFile }` | Raw file access scoped to your plugin's own sandboxed folder (`watchFile` is currently a no-op stub). For files *outside* your sandbox (e.g. editing a dotfile in the user's home dir), use `api.shell.exec` instead. |
 | `api.log` | `{ info(msg), warn(msg), error(msg) }` | Writes to the status bar and a persistent log file. |
-| `api.ai` | `{ run(prompt, opts?) }` → `{ pid, kill(), done }` | Launch point for headless `claude` CLI invocations. |
+| `api.ai` | `{ run(prompt, opts?) }` → `{ pid, kill(), done }` | Launch point for headless AI invocations; the user's provider choice decides which CLI or API runs. Tool options (`allowedTools`/`disallowedTools`/`extraArgs`) work only under Claude CLI. |
 | `ctx.tick` | `{ register(fn), unregister(), requestWake(afterMs?), setInterval(ms\|null) }` | Scheduled work while your plugin is loaded (independent of whether it's mounted). Throttled when the window is minimized — for background work that must survive that, use the raw escape hatch instead: `invoke("start_interval", { key, intervalMs })` (clamps to >= 1000ms) + `listen("interval-tick:" + key, fn)`, and `invoke("stop_interval", { key })` in `ctx.onDispose`. |
 | Raw PTY (no `api.*` wrapper) | `invoke("pty_spawn", { id, program, args, cwd?, env?, cols, rows })`, `invoke("pty_write", { id, data })`, `invoke("pty_resize", { id, cols, rows })`, `invoke("pty_kill", { id })` | A real interactive terminal (resize, ANSI escapes) via `portable-pty`, for plugins needing more than `api.shell`'s piped output — e.g. an in-app shell. **You generate `id` yourself** (a UUID) and must `listen("pty-output:" + id, fn)` / `listen("pty-exit:" + id, fn)` **before** calling `invoke("pty_spawn", ...)` — output starts flushing within ~16ms, so listening first is required, not just best practice, or early events (batched output, or a fast-exiting process's `pty-exit`) are silently dropped. `pty-exit` fires once with `{ code }`, after all output has flushed. Reusing an `id` that's still live makes `pty_spawn` reject. **On Windows, the terminal writes a cursor-position query (`ESC[6n`) on startup and won't render further output until you write back `ESC[<row>;<col>R` via `pty_write`** — a real terminal emulator (xterm.js) does this for you automatically via its `onData`; anything else reading `pty-output` directly must answer it itself. Kill on deactivate yourself (`ctx.onDispose(() => invoke("pty_kill", { id }))`) — nothing does it for you, same as `api.shell.spawn`. |
 

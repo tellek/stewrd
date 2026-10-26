@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { PluginApi } from "stewrd-plugin-api";
 
-/** Demonstrates ctx.api.ai.run - the single launch point for headless AI CLI
+/** Demonstrates ctx.api.ai.run - the single launch point for headless AI
  * invocations in this app. Streams the response live via onStdout, and
  * supports cancelling an in-flight request. */
 export function AiDemo({ api }: { api: PluginApi }) {
@@ -37,11 +37,11 @@ export function AiDemo({ api }: { api: PluginApi }) {
     <div>
       <p>
         Calls <code>api.ai.run(prompt)</code> - same shared surface Settings&apos; palette-from-media generator and
-        git-tracker&apos;s &quot;Ask Claude&quot; go through. Whether this shells out to the <code>claude</code> CLI
-        headlessly or calls the Anthropic API directly is chosen by the user in Settings &gt; AI, not by this plugin.
-        Under the Anthropic API key provider, <code>allowedTools</code>/<code>disallowedTools</code>/
-        <code>extraArgs</code> aren&apos;t supported - passing any of them makes this reject with a clear error
-        instead of silently doing nothing.
+        git-tracker&apos;s &quot;Ask Claude&quot; go through. Which provider answers (Claude, OpenAI, Gemini, Copilot, Cursor, Grok, OpenCode or a
+        custom endpoint, as a CLI or an API key) is chosen by the user in Settings &gt; AI, not by this plugin.
+        <code>allowedTools</code>/<code>disallowedTools</code>/<code>extraArgs</code> work only under the Claude CLI
+        provider - under any other provider, passing one makes this reject with a clear error instead of silently
+        doing nothing.
       </p>
       <api.ui.TextBox value={prompt} onChange={setPrompt} rows={2} placeholder="Ask something..." />
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>

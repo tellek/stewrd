@@ -351,14 +351,14 @@ declare module "stewrd-plugin-api" {
       watchFile(path: string, onChange: () => void): () => void;
     };
     log: { info(msg: string): void; warn(msg: string): void; error(msg: string): void };
-    /** Which provider this actually calls (headless `claude` CLI, or a
-     * direct Anthropic API call) is chosen by the user in Settings > AI, not
-     * by the plugin. Under the Anthropic API key provider, `allowedTools`,
-     * `disallowedTools`, and `extraArgs` are not supported - passing any of
-     * them makes `run()`'s `done` reject with a clear error instead of
-     * silently doing nothing, so switch back to the Claude Subscription
-     * provider if your plugin depends on tool use. `cwd` has no effect
-     * under that provider but is not an error. */
+    /** Which provider this actually calls (Claude, OpenAI, Gemini, Copilot,
+     * Cursor, Grok, OpenCode or a custom endpoint; as a CLI or an API-key call)
+     * is chosen by the user in Settings > AI, not by the plugin. `allowedTools`,
+     * `disallowedTools` and `extraArgs` work only under the Claude CLI
+     * provider - under any other provider passing any of them makes `run()`'s
+     * `done` reject with a clear error instead of silently doing nothing.
+     * `cwd` has no effect in API-key mode but is not an error. A Claude
+     * `model` alias (sonnet/opus/haiku) is ignored by other providers. */
     ai: {
       run(
         prompt: string,

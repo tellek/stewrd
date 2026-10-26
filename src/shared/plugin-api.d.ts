@@ -366,9 +366,10 @@ export interface PluginApi {
   storage: StorageApi;
   fs: FsApi;
   log: LogApi;
-  /** Headless AI CLI invocation - the single launch point for this app's
-   * "spawn claude headlessly" functionality, kept behind one surface so a
-   * different AI provider can be substituted later. See host/api/ai.ts. */
+  /** Headless AI invocation - the single launch point for AI in this app.
+   * The provider (Claude, OpenAI, Gemini, Copilot, Cursor, Grok, OpenCode or
+   * a custom endpoint; CLI or API key) is the user's choice in Settings > AI.
+   * See host/api/ai.ts. */
   ai: AiApi;
 }
 

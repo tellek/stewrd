@@ -1,30 +1,34 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { createShellApi } from "./shell";
+import { spawnWithStdin, type SpawnHandle } from "./shell";
 import { useAppStore } from "../state/appStore";
+import { normalizeAiProvider, parseAiProvider, type AiProviderDef, type ApiSpec, type CliSpec } from "./aiProviders";
 
 export interface HeadlessAiOpts {
+  /** Claude model alias ("sonnet", "opus", "haiku") or a full model id. On a
+   * non-Claude provider a Claude alias is ignored and that provider's
+   * configured model is used instead. */
   model?: string;
   allowedTools?: string[];
   disallowedTools?: string[];
   /** Extra raw CLI args appended after the built-in ones (e.g. notepad's
    * harvester needs `--permission-mode acceptEdits` plus positional file
-   * paths). Agent/tool-use options - only meaningful under the
-   * "claude-subscription" provider; see runAnthropicApi below. */
+   * paths). Agent/tool-use options - only meaningful under the Claude CLI
+   * provider; every other provider rejects them. */
   extraArgs?: string[];
   /** Working directory for the spawned process - callers choose this
    * explicitly (e.g. a temp dir so `claude` doesn't pick up this repo's own
    * CLAUDE.md/project settings, or a plugin's own sandboxed folder). Purely
    * a process-isolation detail, not a tool capability - has no effect (and
-   * is not an error) under the "anthropic-api" provider. */
+   * is not an error) under the API-key providers. */
   cwd?: string;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;
 }
 
 export interface HeadlessAiHandle {
-  /** The OS pid for the "claude-subscription" provider; always -1 for
-   * "anthropic-api" (there is no OS process - it's a direct HTTP call). */
+  /** The OS pid for CLI providers (-1 until the process has started); always
+   * -1 for API-key providers (there is no OS process - it's a direct HTTP call). */
   readonly pid: number;
   kill(): void;
   /** Resolves with the full accumulated stdout on a clean exit; rejects with
@@ -32,72 +36,123 @@ export interface HeadlessAiHandle {
   done: Promise<string>;
 }
 
-function runHeadlessClaudeCli(prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle {
-  const shell = createShellApi();
+const CLAUDE_ALIASES = new Set(["sonnet", "opus", "haiku"]);
+
+function hasAgentOpts(opts: HeadlessAiOpts): boolean {
+  return Boolean(opts.allowedTools?.length || opts.disallowedTools?.length || opts.extraArgs?.length);
+}
+
+function rejectedHandle(message: string): HeadlessAiHandle {
+  return { pid: -1, kill: () => {}, done: Promise.reject(new Error(message)) };
+}
+
+function noToolUseMessage(def: AiProviderDef): string {
+  return `${def.label} doesn't support tool use - switch to Claude (CLI) in Settings > AI for this feature.`;
+}
+
+async function findBinary(names: string[]): Promise<{ name: string; path: string } | null> {
+  for (const name of names) {
+    const path = await invoke<string | null>("ai_cli_path", { binary: name });
+    if (path) return { name, path };
+  }
+  return null;
+}
+
+/** CLI mode: spawns the provider's agent CLI headlessly. The prompt goes on
+ * stdin instead of argv when the CLI wants it that way, or when a CLI that
+ * normally takes it as an argument resolved to an npm `.cmd` shim (which
+ * can't take multi-line arguments). */
+function runHeadlessCli(def: AiProviderDef, cli: CliSpec, prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle {
+  if (!cli.supportsAgentOpts && hasAgentOpts(opts)) return rejectedHandle(noToolUseMessage(def));
+
   let stdout = "";
   let stderr = "";
+  let inner: SpawnHandle | null = null;
+  let killed = false;
 
-  const args = ["-p", prompt];
-  if (opts.model) args.push("--model", opts.model);
-  if (opts.allowedTools?.length) args.push("--allowedTools", opts.allowedTools.join(","));
-  if (opts.disallowedTools?.length) args.push("--disallowedTools", opts.disallowedTools.join(","));
-  if (opts.extraArgs?.length) args.push(...opts.extraArgs);
+  const done = (async (): Promise<string> => {
+    const binary = await findBinary(cli.binaries);
+    if (!binary) {
+      throw new Error(`Couldn't launch the ${cli.binaries[0]} CLI on PATH. Install it from Settings > AI.`);
+    }
+    if (killed) throw new Error("Cancelled");
 
-  const handle = shell.spawn("claude", args, {
-    cwd: opts.cwd,
-    onStdout: (chunk) => {
-      stdout += chunk;
-      opts.onStdout?.(chunk);
-    },
-    onStderr: (chunk) => {
-      stderr += chunk;
-      opts.onStderr?.(chunk);
-    },
-  });
-
-  const done = handle.done
-    .then(({ code }) => {
-      if (code !== 0) throw new Error(stderr.trim() || `claude exited with code ${code}`);
-      return stdout;
-    })
-    .catch((err) => {
-      const message = err instanceof Error ? err.message : String(err);
-      if (/failed to spawn|program not found|os error 2|ENOENT/i.test(message)) {
-        throw new Error(
-          "Couldn't launch the claude CLI on PATH. If it's installed via npm as a .cmd shim, this app can't currently launch it directly.",
-        );
-      }
-      throw err;
+    const isShim = /\.(cmd|bat)$/i.test(binary.path);
+    const viaStdin = cli.promptVia === "stdin" || Boolean(cli.stdinWhenShim && isShim);
+    const args = cli.buildArgs({
+      binary: binary.name,
+      prompt,
+      viaStdin,
+      model: cli.supportsAgentOpts ? opts.model : undefined,
+      allowedTools: opts.allowedTools,
+      disallowedTools: opts.disallowedTools,
+      extraArgs: opts.extraArgs,
     });
+
+    inner = spawnWithStdin(
+      binary.name,
+      args,
+      {
+        cwd: opts.cwd,
+        onStdout: (chunk) => {
+          stdout += chunk;
+          opts.onStdout?.(chunk);
+        },
+        onStderr: (chunk) => {
+          stderr += chunk;
+          opts.onStderr?.(chunk);
+        },
+      },
+      viaStdin ? prompt : undefined,
+    );
+
+    const { code } = await inner.done;
+    if (code !== 0) {
+      throw new Error(
+        `${stderr.trim() || `${binary.name} exited with code ${code}`}\n\nIf this is a sign-in problem, see the login steps in Settings > AI.`,
+      );
+    }
+    return stdout;
+  })().catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/program not found|os error 2|ENOENT/i.test(message)) {
+      throw new Error(`Couldn't launch the ${cli.binaries[0]} CLI on PATH. Install it from Settings > AI.`);
+    }
+    throw err;
+  });
 
   return {
     get pid() {
-      return handle.pid;
+      return inner?.pid ?? -1;
     },
-    kill: handle.kill,
+    kill: () => {
+      killed = true;
+      inner?.kill();
+    },
     done,
   };
 }
 
-/** The "anthropic-api" provider: a direct HTTP call to the Anthropic Messages
- * API via src-tauri/src/commands/ai_anthropic.rs, with no agentic tool-use
- * loop - see HeadlessAiOpts' allowedTools/disallowedTools/extraArgs docs.
+/** API-key mode: a direct HTTP call from Rust (ai_anthropic.rs for Claude,
+ * ai_openai_compat.rs for everything else), with no agentic tool-use loop.
  * Reuses the same process-output:<id>/process-exit:<id> event contract
  * shell.rs's spawn_command uses, but both listeners must be registered and
  * *awaited* before invoking the Rust command - unlike shell.ts's spawn,
  * which is only safe to listen-after-invoke because the id there comes back
  * from Rust after the streaming task has already started; here the id is
  * generated client-side, so listening first is required, not incidental. */
-function runAnthropicApi(prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle {
-  if (opts.allowedTools?.length || opts.disallowedTools?.length || opts.extraArgs?.length) {
-    const message =
-      "The Anthropic API key provider doesn't support tool use - switch to Claude Subscription in Settings > AI for this feature.";
-    return {
-      pid: -1,
-      kill: () => {},
-      done: Promise.reject(new Error(message)),
-    };
-  }
+function runHttpApi(def: AiProviderDef, api: ApiSpec, prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle {
+  if (hasAgentOpts(opts)) return rejectedHandle(noToolUseMessage(def));
+
+  const anthropic = api.kind === "anthropic";
+  const cancelCommand = anthropic ? "ai_cancel_anthropic" : "ai_cancel_openai_compat";
+  const configured = useAppStore.getState().aiModels[def.id];
+  const callerModel = opts.model && !(!anthropic && CLAUDE_ALIASES.has(opts.model)) ? opts.model : undefined;
+  const model = callerModel ?? (configured || api.defaultModel);
+  const runArgs = (id: string) =>
+    anthropic
+      ? invoke("ai_run_anthropic", { id, prompt, model: model || undefined })
+      : invoke("ai_run_openai_compat", { id, provider: def.id, model, prompt });
 
   const id = crypto.randomUUID();
   let stdout = "";
@@ -127,16 +182,16 @@ function runAnthropicApi(prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle
         listen<{ code: number }>(`process-exit:${id}`, (event) => {
           unlistenBoth();
           if (event.payload.code === 0) resolve(stdout);
-          else reject(new Error(stderr.trim() || `Anthropic API request exited with code ${event.payload.code}`));
+          else reject(new Error(stderr.trim() || `${def.label} API request exited with code ${event.payload.code}`));
         }),
       ]).then(([unlistenOut, unlistenEx]) => {
         unlistenOutput = unlistenOut;
         unlistenExit = unlistenEx;
 
-        invoke("ai_run_anthropic", { id, prompt, model: opts.model })
+        runArgs(id)
           .then(() => {
             invokeSettled = true;
-            if (cancelRequested) invoke("ai_cancel_anthropic", { id }).catch(() => {});
+            if (cancelRequested) invoke(cancelCommand, { id }).catch(() => {});
           })
           .catch((err) => {
             invokeSettled = true;
@@ -153,7 +208,7 @@ function runAnthropicApi(prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle
     pid: -1,
     kill: () => {
       cancelRequested = true;
-      if (invokeSettled) invoke("ai_cancel_anthropic", { id }).catch(() => {});
+      if (invokeSettled) invoke(cancelCommand, { id }).catch(() => {});
     },
     done,
   };
@@ -169,8 +224,8 @@ function runAnthropicApi(prompt: string, opts: HeadlessAiOpts): HeadlessAiHandle
  * through this instead of calling `shell.spawn("claude", ...)` or an HTTP
  * client directly. */
 export function runHeadlessAi(prompt: string, opts: HeadlessAiOpts = {}): HeadlessAiHandle {
-  const provider = useAppStore.getState().aiProvider;
-  return provider === "anthropic-api" ? runAnthropicApi(prompt, opts) : runHeadlessClaudeCli(prompt, opts);
+  const { def, mode } = parseAiProvider(normalizeAiProvider(useAppStore.getState().aiProvider));
+  return mode === "cli" ? runHeadlessCli(def, def.cli!, prompt, opts) : runHttpApi(def, def.api!, prompt, opts);
 }
 
 export interface AiApi {

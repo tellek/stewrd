@@ -11,7 +11,7 @@ use serde_json::json;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
-use super::secrets::read_anthropic_key;
+use super::secrets::read_key;
 use crate::state::AppState;
 
 const ANTHROPIC_VERSION: &str = "2023-06-01";
@@ -32,16 +32,16 @@ fn resolve_model(model: Option<&str>) -> String {
     }
 }
 
-fn emit_output(app: &AppHandle, id: &str, stream: &'static str, chunk: String) {
+pub(crate) fn emit_output(app: &AppHandle, id: &str, stream: &'static str, chunk: String) {
     let _ = app.emit(&format!("process-output:{id}"), json!({"stream": stream, "chunk": chunk}));
 }
 
-fn emit_exit(app: &AppHandle, id: &str, code: i32) {
+pub(crate) fn emit_exit(app: &AppHandle, id: &str, code: i32) {
     let _ = app.emit(&format!("process-exit:{id}"), json!({"code": code}));
 }
 
-fn cleanup(state: &AppState, id: &str) {
-    state.anthropic_cancel_senders.lock().unwrap().remove(id);
+pub(crate) fn cleanup(state: &AppState, id: &str) {
+    state.ai_cancel_senders.lock().unwrap().remove(id);
 }
 
 #[derive(Deserialize)]
@@ -91,11 +91,11 @@ pub async fn ai_run_anthropic(
     prompt: String,
     model: Option<String>,
 ) -> Result<(), String> {
-    let key = read_anthropic_key()?
+    let key = read_key("claude")?
         .ok_or_else(|| "No Anthropic API key configured - add one in Settings > AI".to_string())?;
 
     let (cancel_tx, mut cancel_rx) = oneshot::channel::<()>();
-    state.anthropic_cancel_senders.lock().unwrap().insert(id.clone(), cancel_tx);
+    state.ai_cancel_senders.lock().unwrap().insert(id.clone(), cancel_tx);
 
     let app_for_task = app.clone();
     let id_for_task = id.clone();
@@ -188,7 +188,7 @@ async fn run_request(
 
 #[tauri::command]
 pub fn ai_cancel_anthropic(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    if let Some(tx) = state.anthropic_cancel_senders.lock().unwrap().remove(&id) {
+    if let Some(tx) = state.ai_cancel_senders.lock().unwrap().remove(&id) {
         let _ = tx.send(());
     }
     Ok(())

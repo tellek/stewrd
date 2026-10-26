@@ -34,7 +34,18 @@ semver = "1"
 self-replace = "1"
 minisign-verify = "0.2"
 portable-pty = "0.9"
+which = "7"
+
+# OS credential store backend per platform. No plaintext fallback: on a Linux
+# box without a Secret Service provider, saving a key fails instead.
+[target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3", features = ["apple-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 
 [dev-dependencies]
 tempfile = "3"

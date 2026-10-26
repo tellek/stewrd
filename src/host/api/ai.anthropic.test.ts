@@ -26,10 +26,10 @@ beforeEach(() => {
   listeners.clear();
   unlistenSpies.clear();
   mockInvoke.mockReset();
-  useAppStore.setState({ aiProvider: "anthropic-api" });
+  useAppStore.setState({ aiProvider: "claude-api" });
 });
 
-describe("runHeadlessAi under the anthropic-api provider", () => {
+describe("runHeadlessAi under the claude-api provider", () => {
   it("rejects immediately without calling invoke when tool-use options are passed", async () => {
     const h = runHeadlessAi("prompt", { allowedTools: ["WebSearch"] });
 

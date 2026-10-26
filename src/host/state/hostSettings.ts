@@ -11,10 +11,12 @@ const storage = createStorageApi("__host__");
 export type TaskbarBadgeThreshold = "off" | "success" | "warning" | "error";
 
 /** Which provider every ctx.api.ai.run call flows through - see
- * host/api/ai.ts. This is a mode flag, not a secret: the Anthropic API key
- * itself never goes through this plaintext storage mechanism, only via the
- * OS keyring (see host/api/secrets.ts). */
-export type AiProvider = "claude-subscription" | "anthropic-api";
+ * host/api/ai.ts and host/api/aiProviders.ts. This is a mode flag, not a
+ * secret: API keys never go through this plaintext storage mechanism, only
+ * via the OS keychain (see host/api/secrets.ts). */
+export type AiProvider =
+  | `${"claude" | "openai" | "gemini" | "copilot" | "cursor" | "grok" | "opencode"}-cli`
+  | `${"claude" | "openai" | "gemini" | "grok" | "custom"}-api`;
 
 export interface SavedLayout {
   id: string;
@@ -30,6 +32,9 @@ export interface HostSettings {
   hiddenPaletteIds: string[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
   aiProvider: AiProvider;
+  /** Model name per API provider id (non-secret). Missing = the provider's
+   * default; required for the custom provider. */
+  aiModels: Record<string, string>;
   /** Plugin ids in sidebar display order (within their resolved category) -
    * see appStore.ts's movePlugin. Ids missing from this list (new plugins)
    * sort after everything listed here. */

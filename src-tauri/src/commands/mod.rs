@@ -1,4 +1,5 @@
 pub mod ai_anthropic;
+pub mod ai_openai_compat;
 pub mod category_icons;
 pub mod fs;
 pub mod icon_util;

@@ -13,6 +13,7 @@ import {
   type TaskbarBadgeThreshold,
 } from "./hostSettings";
 import { listCategoryIcons, type CategoryIconFile } from "../api/categoryIcons";
+import { DEFAULT_AI_PROVIDER, normalizeAiProvider } from "../api/aiProviders";
 import type { SidebarItem } from "../../shared/plugin-api.d.ts";
 import {
   closeLeafInTree,
@@ -148,6 +149,7 @@ interface AppState {
   customPalettes: NamedPalette[];
   taskbarBadgeThreshold: TaskbarBadgeThreshold;
   aiProvider: AiProvider;
+  aiModels: Record<string, string>;
   hostSettingsLoaded: boolean;
   /** Derived from paletteId/customPalettes - recomputed explicitly by every
    * action that touches either, since zustand's default setState merge
@@ -247,6 +249,7 @@ interface AppState {
   hidePalette(id: string): void;
   setTaskbarBadgeThreshold(threshold: TaskbarBadgeThreshold): void;
   setAiProvider(provider: AiProvider): void;
+  setAiModel(providerId: string, model: string): void;
   setSidebarItems(pluginId: string, items: SidebarItem[]): void;
   setSidebarSelected(pluginId: string, id: string | null): void;
   clearSidebarItems(pluginId: string): void;
@@ -276,7 +279,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   customPalettes: [],
   hiddenPaletteIds: [],
   taskbarBadgeThreshold: "warning",
-  aiProvider: "claude-subscription",
+  aiProvider: DEFAULT_AI_PROVIDER,
+  aiModels: {},
   hostSettingsLoaded: false,
   palette: resolvePalette(premadePalettes[0].id, []),
   modalQueue: [],
@@ -461,7 +465,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       const customPalettes = loaded.customPalettes ?? state.customPalettes;
       const hiddenPaletteIds = loaded.hiddenPaletteIds ?? state.hiddenPaletteIds;
       const taskbarBadgeThreshold = loaded.taskbarBadgeThreshold ?? state.taskbarBadgeThreshold;
-      const aiProvider = loaded.aiProvider ?? state.aiProvider;
+      const aiProvider = loaded.aiProvider === undefined ? state.aiProvider : normalizeAiProvider(loaded.aiProvider);
+      const aiModels = loaded.aiModels ?? state.aiModels;
       const pluginsWithSidebarItems = loaded.pluginsWithSidebarItems ?? state.pluginsWithSidebarItems;
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
@@ -476,6 +481,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         sidebarSubItemsExpanded,
         taskbarBadgeThreshold,
         aiProvider,
+        aiModels,
         pluginsWithSidebarItems,
         layouts,
         hostSettingsLoaded: true,
@@ -596,6 +602,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setAiProvider: (provider) => {
     set({ aiProvider: provider });
     saveHostSettings({ aiProvider: provider });
+  },
+
+  setAiModel: (providerId, model) => {
+    let aiModels: Record<string, string> = {};
+    set((s) => {
+      aiModels = { ...s.aiModels, [providerId]: model };
+      return { aiModels };
+    });
+    saveHostSettings({ aiModels });
   },
 
   setSidebarItems: (pluginId, items) =>
