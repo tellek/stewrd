@@ -9,6 +9,8 @@ import { useAppStore } from "../state/appStore";
 import { defaultPalette } from "../../shared/palette";
 import type { PluginDiscoveryEntry } from "../loader/pluginDiscovery";
 
+const mockOpenUrl = vi.fn().mockResolvedValue(undefined);
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: (...args: unknown[]) => mockOpenUrl(...args) }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock("../loader/pluginDiscovery", () => ({
   listPlugins: vi.fn(),
@@ -53,6 +55,52 @@ function resetStore() {
 }
 
 describe("SettingsPlugins", () => {
+  it("opens the plugin's catalog repo issues page from the Report an Issue icon button", async () => {
+    resetStore();
+    mockOpenUrl.mockClear();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => [{ id: "notepad", repo: "tellek/stewrd-notepad" }] }),
+    );
+    vi.mocked(listPlugins).mockResolvedValue([okEntry()]);
+    const user = userEvent.setup();
+    render(<SettingsPlugins />);
+
+    await screen.findByText("Notepad", { exact: false });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    await user.click(screen.getByRole("button", { name: "Report an Issue" }));
+
+    expect(mockOpenUrl).toHaveBeenCalledWith("https://github.com/tellek/stewrd-notepad/issues");
+    vi.unstubAllGlobals();
+  });
+
+  it("falls back to the app's own issues page when the plugin isn't in the catalog", async () => {
+    resetStore();
+    mockOpenUrl.mockClear();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    vi.mocked(listPlugins).mockResolvedValue([okEntry()]);
+    const user = userEvent.setup();
+    render(<SettingsPlugins />);
+
+    await screen.findByText("Notepad", { exact: false });
+    await user.click(screen.getByRole("button", { name: "Report an Issue" }));
+
+    expect(mockOpenUrl).toHaveBeenCalledWith("https://github.com/tellek/stewrd/issues");
+    vi.unstubAllGlobals();
+  });
+
+  it("renders row actions as icon buttons labelled with tooltips", async () => {
+    resetStore();
+    vi.mocked(listPlugins).mockResolvedValue([okEntry()]);
+    render(<SettingsPlugins />);
+
+    await screen.findByText("Notepad", { exact: false });
+    for (const name of ["Configure", "Deactivate", "Report an Issue", "Remove"]) {
+      expect(screen.getByRole("button", { name }).getAttribute("title")).toBe(name);
+    }
+  });
+
   it("renders discovered plugins with Enabled status", async () => {
     resetStore();
     vi.mocked(listPlugins).mockResolvedValue([okEntry()]);

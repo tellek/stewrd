@@ -14,9 +14,25 @@ import { createModalApi } from "../api/modals";
 import { createToastApi } from "../api/toast";
 import { TextBox } from "../../components/TextBox/TextBox";
 import { TextButton } from "../../components/TextButton/TextButton";
+import { IconButton } from "../../components/IconButton/IconButton";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { activateIcon, configureIcon, deactivateIcon, removeIcon, reportIssueIcon } from "./pluginActionIcons";
 
 const modal = createModalApi();
 const toast = createToastApi();
+
+// Same catalog the Marketplace plugin browses; maps a plugin id to its GitHub
+// repo so each row can link to that repo's issues page.
+const CATALOG_URL = "https://raw.githubusercontent.com/tellek/stewrd/main/docs/plugin-catalog.json";
+// Plugins that ship with the app and aren't in the catalog live in this repo.
+const HOST_REPO = "tellek/stewrd";
+
+async function fetchRepoById(): Promise<Map<string, string>> {
+  const resp = await fetch(CATALOG_URL);
+  if (!resp.ok) throw new Error(`catalog fetch returned ${resp.status}`);
+  const entries = (await resp.json()) as { id: string; repo: string }[];
+  return new Map(entries.map((e) => [e.id, e.repo]));
+}
 
 // Mirrors plugins/claude-settings-editor/index.tsx's pattern (raw text,
 // JSON.parse validated client-side before it ever touches disk) but at host
@@ -89,10 +105,17 @@ export function SettingsPlugins() {
   const [entries, setEntries] = useState<PluginDiscoveryEntry[]>([]);
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [repoById, setRepoById] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(() => {
     listPlugins().then(setEntries);
+  }, []);
+
+  useEffect(() => {
+    fetchRepoById()
+      .then(setRepoById)
+      .catch(() => {}); // offline: issue buttons fall back to the app's own repo
   }, []);
 
   useEffect(() => {
@@ -121,6 +144,13 @@ export function SettingsPlugins() {
     } catch (err) {
       await modal.error({ title: "Remove failed", message: String(err) });
     }
+  }
+
+  function onReportIssue(id: string) {
+    const repo = repoById.get(id) ?? HOST_REPO;
+    openUrl(`https://github.com/${repo}/issues`).catch((err) =>
+      toast.show({ message: `Couldn't open the issues page: ${String(err)}`, kind: "error" }),
+    );
   }
 
   async function onFilePicked(file: File) {
@@ -181,12 +211,23 @@ export function SettingsPlugins() {
                   </td>
                   <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
                     <div style={{ display: "flex", gap: 6 }}>
-                      <TextButton
+                      <IconButton
+                        icon={configureIcon}
                         label="Configure"
                         onClick={() => setConfiguring(configuring === manifest.id ? null : manifest.id)}
                       />
-                      <TextButton label={disabled ? "Activate" : "Deactivate"} onClick={() => onToggleDisabled(entry)} />
-                      <TextButton
+                      <IconButton
+                        icon={disabled ? activateIcon : deactivateIcon}
+                        label={disabled ? "Activate" : "Deactivate"}
+                        onClick={() => onToggleDisabled(entry)}
+                      />
+                      <IconButton
+                        icon={reportIssueIcon}
+                        label="Report an Issue"
+                        onClick={() => onReportIssue(manifest.id)}
+                      />
+                      <IconButton
+                        icon={removeIcon}
                         label="Remove"
                         disabled={manifest.id === "marketplace"}
                         onClick={() => onRemove(dir, manifest.name, manifest.id)}
