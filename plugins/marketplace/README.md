@@ -45,4 +45,4 @@ node ../../scripts/stewrd-plugin-build.mjs . --watch
 
 ## Sidebar Icon Status
 
-Idle by default; in-progress while installing or updating; error if it fails; warning when any plugin has a newer release; success for 5 seconds once the window has focus after a completed install. A row's Update button is disabled when the installed version is already the latest.
+Idle by default; in-progress while installing or updating; error if it fails; warning when any plugin has a newer release; success for 5 seconds once the window has focus after a completed install. Each row has icon buttons matching Settings > Plugins: Update (shown once installed; dimmed with an "On The Latest Version" tooltip when no update exists), Report an Issue (opens the plugin repo's issues page), and Install, which becomes Remove once installed.

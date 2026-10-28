@@ -1,5 +1,17 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { compareSemver, parseSemver, findZipAsset, loadCatalog, isUpToDate, computeStatus } from "./index";
+import { compareSemver, parseSemver, findZipAsset, loadCatalog, isUpToDate, computeStatus, updateButtonLabel } from "./index";
+
+describe("updateButtonLabel", () => {
+  it("explains the disabled state when on the latest version", () => {
+    expect(updateButtonLabel(false, false)).toBe("You Are On The Latest Version");
+  });
+  it("says Update when a newer release exists", () => {
+    expect(updateButtonLabel(false, true)).toBe("Update");
+  });
+  it("says Repair for a broken install", () => {
+    expect(updateButtonLabel(true, false)).toBe("Repair");
+  });
+});
 
 describe("parseSemver / compareSemver", () => {
   it("parses a plain semver string", () => {

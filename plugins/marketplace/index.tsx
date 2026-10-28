@@ -12,6 +12,27 @@ const CATALOG_URL = "https://raw.githubusercontent.com/tellek/stewrd/main/docs/p
 const SUPPORTED_API_VERSION = "1"; // kept in sync manually - this plugin ships with the host and is rebuilt alongside it.
 const RELEASE_CACHE_TTL_MS = 15 * 60 * 1000;
 
+// Row-button icons (same approach as the host's pluginActionIcons.ts): MaskIcon
+// only uses the alpha channel, so the fill is irrelevant.
+function svgIcon(path: string): string {
+  const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black">${path}</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(markup)}`;
+}
+const installIcon = svgIcon('<path d="M5 20h14v-2H5v2ZM19 9h-4V3H9v6H5l7 7 7-7Z"/>');
+const updateIcon = svgIcon(
+  '<path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.74 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35Z"/>',
+);
+const removeIcon = svgIcon('<path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12ZM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4Z"/>');
+const reportIssueIcon = svgIcon(
+  '<path d="M20 8h-2.8a6 6 0 0 0-1.6-1.8L17 4.8 15.6 3.4l-2 2a6 6 0 0 0-3.2 0l-2-2L7 4.8l1.4 1.4A6 6 0 0 0 6.8 8H4v2h2.1c-.1.3-.1.7-.1 1v1H4v2h2v1c0 .3 0 .7.1 1H4v2h2.8a6 6 0 0 0 10.4 0H20v-2h-2.1c.1-.3.1-.7.1-1v-1h2v-2h-2v-1c0-.3 0-.7-.1-1H20V8Zm-6 8h-4v-2h4v2Zm0-4h-4v-2h4v2Z"/>',
+);
+
+/** Label (and tooltip) for the Update button. */
+export function updateButtonLabel(broken: boolean, updateAvailable: boolean): string {
+  if (broken) return "Repair";
+  return updateAvailable ? "Update" : "You Are On The Latest Version";
+}
+
 interface CatalogEntry {
   id: string;
   name: string;
@@ -338,6 +359,32 @@ export function Component({ api }: { api: PluginApi }) {
     }
   }
 
+  async function removeInstalled(entry: CatalogEntry, existing: InstalledEntry) {
+    const confirmed = await api.modal.confirm({
+      title: `Remove ${entry.name}?`,
+      message: "This deletes the plugin's folder and its data.",
+      confirmLabel: "Remove",
+    });
+    if (!confirmed) return;
+    setBusyRepo(entry.repo);
+    try {
+      await invoke("remove_plugin", { dir: existing.dir });
+      api.toast.show({ message: `${entry.name} removed.`, kind: "success" });
+      setInstalled(await loadInstalled());
+      void checkForUpdates(api);
+    } catch (e) {
+      api.toast.show({ message: `${entry.name}: ${String(e)}`, kind: "error" });
+    } finally {
+      setBusyRepo(null);
+    }
+  }
+
+  function reportIssue(entry: CatalogEntry) {
+    invoke("plugin:opener|open_url", { url: `https://github.com/${entry.repo}/issues` }).catch((e) =>
+      api.toast.show({ message: `Could not open the browser: ${String(e)}`, kind: "error" }),
+    );
+  }
+
   if (catalogError) {
     return (
       <div>
@@ -386,7 +433,6 @@ export function Component({ api }: { api: PluginApi }) {
                 ? compareSemver(state.release.tag_name, existing.version!) === 1
                 : false;
             const upToDate = !!existing && !existing.broken && isUpToDate(existing.version, state?.release?.tag_name);
-            const label = existing?.broken ? "Repair" : existing ? "Update" : "Install";
             const busy = busyRepo === entry.repo;
 
             let versionCell: ReactNode = <api.ui.Spinner />;
@@ -423,11 +469,32 @@ export function Component({ api }: { api: PluginApi }) {
                   {state?.totalDownloads ?? "—"}
                 </td>
                 <td style={{ padding: 6 }}>
-                  <api.ui.IconTextButton
-                    label={busy ? "Working..." : label}
-                    onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
-                    disabled={busy || !asset || upToDate}
-                  />
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {existing && (
+                      <api.ui.IconButton
+                        icon={updateIcon}
+                        label={busy ? "Working..." : updateButtonLabel(!!existing.broken, updateAvailable)}
+                        onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
+                        disabled={busy || !asset || upToDate}
+                      />
+                    )}
+                    <api.ui.IconButton icon={reportIssueIcon} label="Report an Issue" onClick={() => reportIssue(entry)} />
+                    {existing ? (
+                      <api.ui.IconButton
+                        icon={removeIcon}
+                        label="Remove"
+                        onClick={() => removeInstalled(entry, existing)}
+                        disabled={busy || entry.id === "marketplace"}
+                      />
+                    ) : (
+                      <api.ui.IconButton
+                        icon={installIcon}
+                        label={busy ? "Working..." : "Install"}
+                        onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
+                        disabled={busy || !asset}
+                      />
+                    )}
+                  </div>
                 </td>
               </tr>
             );
