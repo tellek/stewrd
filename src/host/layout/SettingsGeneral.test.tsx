@@ -9,6 +9,10 @@ import { getName } from "@tauri-apps/api/app";
 
 vi.mock("@tauri-apps/api/app", () => ({ getName: vi.fn() }));
 
+const mockExec = vi.fn();
+vi.mock("../api/shell", () => ({ createShellApi: () => ({ exec: mockExec }) }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue(undefined) }));
+
 function resetStore() {
   cleanup();
   useAppStore.setState({ palette: defaultPalette, taskbarBadgeThreshold: "off" });
@@ -45,6 +49,31 @@ describe("SettingsGeneral", () => {
 
     const button = screen.getByText("Warning or worse");
     expect(button.style.borderColor).toBe(hexToRgb(defaultPalette.accent));
+  });
+
+  it("stars the repo via gh and shows Starred", async () => {
+    resetStore();
+    vi.mocked(getName).mockResolvedValue("stewrd");
+    mockExec.mockResolvedValue({ code: 0, stdout: "", stderr: "" });
+    const user = userEvent.setup();
+    render(<SettingsGeneral />);
+
+    await user.click(screen.getByText("★ Star"));
+
+    expect(mockExec).toHaveBeenCalledWith("gh", ["api", "-X", "PUT", "user/starred/tellek/stewrd"]);
+    expect(await screen.findByText("★ Starred")).toBeTruthy();
+  });
+
+  it("shows an error when starring fails", async () => {
+    resetStore();
+    vi.mocked(getName).mockResolvedValue("stewrd");
+    mockExec.mockResolvedValue({ code: 1, stdout: "", stderr: "not logged in" });
+    const user = userEvent.setup();
+    render(<SettingsGeneral />);
+
+    await user.click(screen.getByText("★ Star"));
+
+    expect(await screen.findByText(/not logged in/)).toBeTruthy();
   });
 
   it("calls setTaskbarBadgeThreshold when an option is clicked", async () => {
