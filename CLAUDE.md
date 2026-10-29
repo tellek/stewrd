@@ -4,6 +4,9 @@
 - **NEVER** specify a color manually, instead **ALWAYS** select a variable from the color palette to identify a color so that it is controllable by theme changes
 - All titles and button text should be Title case. IE: "Create New Palette", NOT "Create new palette"
 
+## Help Screen
+- Any new user-facing app feature or interaction (shortcuts, gestures, drag/drop, settings, workflows) **MUST** be added to the Settings > Help tab (`src/host/layout/SettingsHelp.tsx`) in the same change, and any changed or removed one **MUST** have its Help entry updated to match.
+
 ## Component Library
 - Any new plugin-facing feature — a component under `src/components/` registered in `api.ui`, a new `api.*` surface, a new `ctx` capability, or a new manifest/settings field — **MUST** ship a corresponding example in `plugins/_template` (a `demos/` file for components, an `index.tsx`/README snippet for other surfaces) in the same change.
 - Shared components live under `src/components/<Name>/<Name>.tsx`, source colors only from `Palette` fields (or values derived from them), and are wired to plugins via `src/shared/plugin-api.d.ts` + `plugins/.stewrd/plugin-api.d.ts` (hand-synced) + `src/host/api/createPluginApi.ts`.
