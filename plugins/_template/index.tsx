@@ -51,6 +51,11 @@ export function activate(ctx: PluginContext) {
   // });
   // const { code } = await child.done; // or child.kill() to stop it early
 
+  // --- settings: read this plugin's own settings.json (see settings.json next to plugin.json) ---
+  // const settings = await ctx.api.settings.get<{ greeting?: string; refreshSeconds?: number }>();
+  // Saving the file (Settings > Plugins > Configure) hot-reloads the plugin, so activate() re-runs
+  // and this always sees the new values. A missing/malformed file reads as {}.
+
   // --- storage: per-plugin key/value JSON on disk (plaintext - no secrets) ---
   // await ctx.api.storage.set("lastRun", Date.now());
   // const lastRun = await ctx.api.storage.get<number>("lastRun");

@@ -179,9 +179,11 @@ Optionally drop a `settings.json` next to `plugin.json` — a plain JSON object,
 not a schema. The host only reads two keys: `"category"` (sidebar grouping —
 must match a category id from Settings > Categories, else it lands under
 "Other") and `"version"` (informational, shown in Settings > Plugins).
-Everything else in the file is yours to define and read back via your own
-`ctx.api.shell.exec`-based workaround if needed (there's no built-in way to
-read your own custom settings keys at runtime otherwise). Example:
+Everything else in the file is yours to define and read back with
+`await ctx.api.settings.get<MySettings>()` (fresh from disk on each call; a
+missing or malformed file reads as `{}`). Saving the file from Configure
+hot-reloads the plugin, so `activate()` re-runs and sees the new values; there
+is no subscribe. Example:
 
 ```json
 {
@@ -250,6 +252,7 @@ plugin that spawns a process or opens a watch must clean it up itself (e.g.
 | `api.fs` | `{ readTextFile, writeTextFile, readDataUrl, listDir, getRootPath, deleteFile, renameFile, watchFile }` | Raw file access scoped to your plugin's own sandboxed folder (`watchFile` is currently a no-op stub). For files *outside* your sandbox (e.g. editing a dotfile in the user's home dir), use `api.shell.exec` instead. |
 | `api.log` | `{ info(msg), warn(msg), error(msg) }` | Writes to the status bar and a persistent log file. |
 | `api.ai` | `{ run(prompt, opts?) }` → `{ pid, kill(), done }` | Launch point for headless AI invocations; the user's provider choice decides which CLI or API runs. Tool options (`allowedTools`/`disallowedTools`/`extraArgs`) work only under Claude CLI. `effort` (`"low"|"medium"|"high"`) selects the user-mapped model + reasoning level. |
+| `api.settings` | `{ get<T>() }` | Reads the plugin's own `settings.json` fresh from disk (missing/malformed → `{}`). Saving it via Configure hot-reloads the plugin, so `activate()` re-runs; no subscribe. |
 | `ctx.tick` | `{ register(fn), unregister(), requestWake(afterMs?), setInterval(ms\|null) }` | Scheduled work while your plugin is loaded (independent of whether it's mounted). Throttled when the window is minimized — for background work that must survive that, use the raw escape hatch instead: `invoke("start_interval", { key, intervalMs })` (clamps to >= 1000ms) + `listen("interval-tick:" + key, fn)`, and `invoke("stop_interval", { key })` in `ctx.onDispose`. |
 | Raw PTY (no `api.*` wrapper) | `invoke("pty_spawn", { id, program, args, cwd?, env?, cols, rows })`, `invoke("pty_write", { id, data })`, `invoke("pty_resize", { id, cols, rows })`, `invoke("pty_kill", { id })` | A real interactive terminal (resize, ANSI escapes) via `portable-pty`, for plugins needing more than `api.shell`'s piped output — e.g. an in-app shell. **You generate `id` yourself** (a UUID) and must `listen("pty-output:" + id, fn)` / `listen("pty-exit:" + id, fn)` **before** calling `invoke("pty_spawn", ...)` — output starts flushing within ~16ms, so listening first is required, not just best practice, or early events (batched output, or a fast-exiting process's `pty-exit`) are silently dropped. `pty-exit` fires once with `{ code }`, after all output has flushed. Reusing an `id` that's still live makes `pty_spawn` reject. **On Windows, the terminal writes a cursor-position query (`ESC[6n`) on startup and won't render further output until you write back `ESC[<row>;<col>R` via `pty_write`** — a real terminal emulator (xterm.js) does this for you automatically via its `onData`; anything else reading `pty-output` directly must answer it itself. Kill on deactivate yourself (`ctx.onDispose(() => invoke("pty_kill", { id }))`) — nothing does it for you, same as `api.shell.spawn`. **Faster opt-in variant:** `invoke("pty_spawn_v2", { id, program, args, cwd?, env?, cols, rows, onOutput: new Channel() })` streams output as binary `ArrayBuffer` batches on the Channel (no `pty-output` events; still `listen("pty-exit:" + id)` first) and is flow-controlled: you MUST `invoke("pty_ack", { id, bytes })` with the UTF-8 byte length of each batch once processed (e.g. from `term.write(data, cb)`), or the host pauses reading after ~100 KB unacked. On a host without it, `invoke` rejects with `Command pty_spawn_v2 not found`; fall back to `pty_spawn`. |
 

@@ -15,6 +15,7 @@ import type { StorageApi } from "../host/api/storage";
 import type { FsApi } from "../host/api/fs";
 import type { LogApi } from "../host/api/logging";
 import type { AiApi } from "../host/api/ai";
+import type { SettingsApi } from "../host/api/settings";
 
 export interface PluginManifest {
   id: string;
@@ -373,6 +374,8 @@ export interface PluginApi {
    * a custom endpoint; CLI or API key) is the user's choice in Settings > AI.
    * See host/api/ai.ts. */
   ai: AiApi;
+  /** Read the plugin's own settings.json (see host/api/settings.ts). */
+  settings: SettingsApi;
 }
 
 export interface PluginContext {

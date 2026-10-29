@@ -52,14 +52,10 @@ Omit the file entirely if your plugin has nothing to configure and doesn't
 need to set `category`/`version` - Configure will still work, offering a
 starter `{ "category": "" }` object to fill in.
 
-**No built-in way for a plugin to read its own custom keys back at runtime
-today** - `ctx.api.fs` is sandboxed to the plugin's app-data folder, not its
-own install folder where `settings.json` actually lives. A plugin wanting to
-consume its own custom values (anything besides `category`/`version`, which
-are purely host-side concerns) would need the same `ctx.api.shell.exec`-based
-workaround `plugins/claude-settings-editor/index.tsx` uses to reach a file
-outside its sandbox. This is a known limitation, not something this
-convention solves.
+Read your own keys at runtime with `await ctx.api.settings.get<MySettings>()`
+(fresh from disk on every call; a missing or malformed file reads as `{}`).
+Saving the file from Settings > Plugins > Configure hot-reloads the plugin, so
+`activate()` re-runs and sees the new values - there is no subscribe.
 
 For backward compatibility, a `plugin.json` with old-style `category`/`version`
 fields and no `settings.json` still works (the manifest values are used as a

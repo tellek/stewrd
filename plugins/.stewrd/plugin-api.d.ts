@@ -378,6 +378,8 @@ declare module "stewrd-plugin-api" {
         },
       ): { readonly pid: number; kill(): void; done: Promise<string> };
     };
+    /** Reads this plugin's own settings.json fresh from disk; a missing or malformed file reads as {}. Saving the file (Settings > Plugins > Configure) hot-reloads the plugin, so activate() re-runs and get() sees the new values. */
+    settings: { get<T extends Record<string, unknown> = Record<string, unknown>>(): Promise<T> };
   }
 
   export interface PluginContext {

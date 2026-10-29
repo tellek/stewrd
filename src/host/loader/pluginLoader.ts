@@ -21,13 +21,13 @@ let nextGeneration = 1;
  * activate() succeed - any failure leaves it marked so the next app launch's
  * reconcileBootMarks() auto-disables this plugin (see docs/architecture-plan.md).
  */
-export async function loadPlugin(manifest: PluginManifest, source: string): Promise<LoadedPlugin> {
+export async function loadPlugin(manifest: PluginManifest, source: string, dir: string = manifest.id): Promise<LoadedPlugin> {
   await markPluginAttempt(manifest.id);
 
   const blob = new Blob([source], { type: "text/javascript" });
   const blobUrl = URL.createObjectURL(blob);
   const generation = nextGeneration++;
-  const createdContext = createPluginContext(manifest.id, generation);
+  const createdContext = createPluginContext(manifest.id, generation, dir);
 
   let mod: PluginModule;
   try {

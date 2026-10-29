@@ -13,6 +13,7 @@ import { createAiApi } from "./ai";
 import { createFsApi } from "./fs";
 import { createLogApi, logToHost } from "./logging";
 import { createModalApi } from "./modals";
+import { createSettingsApi } from "./settings";
 import { createShellApi } from "./shell";
 import { createStatusIconApi } from "./statusIcon";
 import { createSidebarApi } from "./sidebar";
@@ -78,7 +79,8 @@ export interface CreatedPluginContext {
   generation: number;
 }
 
-export function createPluginContext(pluginId: string, generation: number): CreatedPluginContext {
+/** `dir` is the plugin's folder name (api.settings reads its settings.json); defaults to the id. */
+export function createPluginContext(pluginId: string, generation: number, dir: string = pluginId): CreatedPluginContext {
   currentGeneration.set(pluginId, generation);
   const abortController = new AbortController();
   const disposeBag: Array<() => void> = [];
@@ -146,6 +148,7 @@ export function createPluginContext(pluginId: string, generation: number): Creat
       error: guardVoid(pluginId, generation, logBase.error),
     },
     ai: createAiApi(),
+    settings: createSettingsApi(dir),
   };
 
   const ctx: PluginContext = {

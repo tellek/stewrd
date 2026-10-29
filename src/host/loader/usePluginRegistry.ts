@@ -23,7 +23,7 @@ export function usePluginRegistry() {
 
     async function loadOne(dir: string, manifest: PluginManifest, source: string, category: string) {
       try {
-        const loaded = await loadPlugin(manifest, source);
+        const loaded = await loadPlugin(manifest, source, dir);
         if (cancelled) {
           unloadPlugin(loaded);
           return;
