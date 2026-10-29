@@ -59,6 +59,7 @@ declare module "stewrd-plugin-api" {
     label: string;
     onClick: () => void;
     disabled?: boolean;
+    accent?: boolean;
   }
 
   export interface IconTextButtonProps {

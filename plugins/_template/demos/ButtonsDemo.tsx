@@ -15,6 +15,7 @@ export function ButtonsDemo({ api }: { api: PluginApi }) {
       <api.ui.TextButton label="Disabled" disabled onClick={() => {}} />
       <api.ui.TextButton label="Borderless" bordered={false} onClick={() => api.log.info("borderless clicked")} />
       <api.ui.IconButton label="Idea" icon={ideaIcon} onClick={() => api.log.info("icon button clicked")} />
+      <api.ui.IconButton label="Accent Idea" icon={ideaIcon} accent onClick={() => api.log.info("accent icon button clicked")} />
       <api.ui.IconTextButton
         label="Settings"
         icon={settingsIcon}

@@ -473,6 +473,7 @@ export function Component({ api }: { api: PluginApi }) {
                     {existing && (
                       <api.ui.IconButton
                         icon={updateIcon}
+                        accent
                         label={busy ? "Working..." : updateButtonLabel(!!existing.broken, updateAvailable)}
                         onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
                         disabled={busy || !asset || upToDate}

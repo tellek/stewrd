@@ -6,7 +6,7 @@ import { disabledStyle } from "../shared/styles";
 
 /** Plugin-facing primitive, exposed via api.ui.IconButton. `icon` is a data
  * URL (see api.fs.readDataUrl) or other MaskIcon-compatible source. */
-export function IconButton({ icon, label, onClick, disabled }: IconButtonProps) {
+export function IconButton({ icon, label, onClick, disabled, accent }: IconButtonProps) {
   const palette = useAppStore((s) => s.palette);
   const [hover, setHover] = useState(false);
 
@@ -20,7 +20,7 @@ export function IconButton({ icon, label, onClick, disabled }: IconButtonProps) 
       onMouseLeave={() => setHover(false)}
       style={{
         background: hover ? palette.surfaceHover : "transparent",
-        border: `1px solid ${palette.border}`,
+        border: `1px solid ${accent ? palette.accent : palette.border}`,
         borderRadius: 4,
         width: 32,
         height: 32,
@@ -31,7 +31,7 @@ export function IconButton({ icon, label, onClick, disabled }: IconButtonProps) 
         ...(disabled ? disabledStyle() : {}),
       }}
     >
-      <MaskIcon png={icon} alt={label} color={palette.text} size={16} />
+      <MaskIcon png={icon} alt={label} color={accent ? palette.accent : palette.text} size={16} />
     </button>
   );
 }

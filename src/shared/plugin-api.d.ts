@@ -68,6 +68,8 @@ export interface IconButtonProps {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  /** Tints the border and icon with palette.accent. */
+  accent?: boolean;
 }
 
 export interface IconTextButtonProps {
