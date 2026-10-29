@@ -20,7 +20,7 @@ export function IconButton({ icon, label, onClick, disabled, accent }: IconButto
       onMouseLeave={() => setHover(false)}
       style={{
         background: hover ? palette.surfaceHover : "transparent",
-        border: `1px solid ${accent ? palette.accent : palette.border}`,
+        border: `1px solid ${accent && !disabled ? palette.accent : palette.border}`,
         borderRadius: 4,
         width: 32,
         height: 32,
@@ -31,7 +31,7 @@ export function IconButton({ icon, label, onClick, disabled, accent }: IconButto
         ...(disabled ? disabledStyle() : {}),
       }}
     >
-      <MaskIcon png={icon} alt={label} color={accent ? palette.accent : palette.text} size={16} />
+      <MaskIcon png={icon} alt={label} color={accent && !disabled ? palette.accent : palette.text} size={16} />
     </button>
   );
 }
