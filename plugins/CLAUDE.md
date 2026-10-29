@@ -167,7 +167,7 @@ API/file before building anything that touches one of these.
 
 | Field | Meaning |
 |---|---|
-| `id` | Unique identifier; should match the folder name. Used for storage/fs namespacing, hot-reload matching, boot-safety marks. |
+| `id` | Unique identifier; **must** match the folder name (a mismatch or a duplicate id is a discovery error). Used for storage/fs namespacing, hot-reload matching, boot-safety marks. |
 | `name` | Sidebar display name. |
 | `icon` | Unused — reserved. Drop `icon.png` into the plugin's own folder for a sidebar icon instead; it renders as a theme-tinted CSS mask. |
 | `entry` | Always `dist/index.js` — the **built** output. You write `index.tsx`; esbuild produces this. |

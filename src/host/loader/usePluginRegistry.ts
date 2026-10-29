@@ -107,6 +107,9 @@ export function usePluginRegistry() {
     const unlistenPromise = listen<string>("plugin-changed", async (event) => {
       const changedDir = event.payload;
       const discovered = await listPlugins();
+      // A plugin.json broken by a live edit would otherwise just vanish; keep
+      // the error list current, not only as of startup.
+      setDiscoveryErrors(partitionDiscovered(discovered).errors);
       const match = discovered.find(
         (d): d is Extract<typeof d, { status: "ok" }> => d.status === "ok" && d.dir === changedDir,
       );

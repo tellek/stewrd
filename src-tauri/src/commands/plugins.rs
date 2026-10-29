@@ -35,8 +35,12 @@ pub struct PluginManifest {
     /// already-installed plugin into "Other" the moment this ships.
     #[serde(default)]
     pub category: Option<String>,
+    /// Unused by the host (the sidebar icon is icon.png in the plugin folder),
+    /// so a manifest without it still loads.
+    #[serde(default)]
     pub icon: String,
     pub entry: String,
+    #[serde(default)]
     pub description: String,
     #[serde(rename = "apiVersion")]
     pub api_version: String,
@@ -58,6 +62,22 @@ pub enum PluginDiscoveryEntry {
     },
     #[serde(rename = "error")]
     Error { dir: String, message: String },
+}
+
+/// Why a parsed manifest can't be loaded, if it can't. The host keys a
+/// plugin's storage, data and hot-reload matching by `id` but locates it by
+/// folder, so the two must agree; two folders can't share one id either.
+pub(crate) fn manifest_problem(dir_name: &str, manifest: &PluginManifest, seen_ids: &HashSet<String>) -> Option<String> {
+    if manifest.id != dir_name {
+        return Some(format!(
+            "plugin.json id '{}' doesn't match its folder name '{dir_name}' (the folder must be named after the id)",
+            manifest.id
+        ));
+    }
+    if seen_ids.contains(&manifest.id) {
+        return Some(format!("another plugin folder already uses the id '{}'", manifest.id));
+    }
+    None
 }
 
 /// Resolution order: `STEWRD_PLUGINS` env var (dev convenience) -> a
@@ -266,6 +286,7 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
     let disabled_ids = read_id_set(&disabled_path);
 
     let mut entries = Vec::new();
+    let mut seen_ids: HashSet<String> = HashSet::new();
     let read_dir = match std::fs::read_dir(&plugins_dir) {
         Ok(rd) => rd,
         Err(e) => {
@@ -320,13 +341,22 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
             continue;
         }
 
+        if let Some(message) = manifest_problem(&dir_name, &manifest, &seen_ids) {
+            entries.push(PluginDiscoveryEntry::Error { dir: dir_name.clone(), message });
+            continue;
+        }
+        seen_ids.insert(manifest.id.clone());
+
         let entry_path = path.join(&manifest.entry);
         let source = match std::fs::read_to_string(&entry_path) {
             Ok(s) => s,
             Err(e) => {
                 entries.push(PluginDiscoveryEntry::Error {
-                    dir: dir_name,
-                    message: format!("missing built output {}: {e}", entry_path.display()),
+                    dir: dir_name.clone(),
+                    message: format!(
+                        "missing built output {}: {e} (build it with: node build-plugin.mjs {dir_name})",
+                        entry_path.display()
+                    ),
                 });
                 continue;
             }
@@ -352,6 +382,31 @@ pub fn list_plugins(app: AppHandle) -> Result<Vec<PluginDiscoveryEntry>, String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn manifest(id: &str) -> PluginManifest {
+        serde_json::from_str(&format!(r#"{{"id":"{id}","name":"N","entry":"dist/index.js","apiVersion":"1"}}"#)).unwrap()
+    }
+
+    #[test]
+    fn manifest_without_icon_or_description_still_parses() {
+        let m = manifest("p");
+        assert_eq!(m.icon, "");
+        assert_eq!(m.description, "");
+    }
+
+    #[test]
+    fn manifest_problem_requires_the_id_to_match_the_folder() {
+        let seen = HashSet::new();
+        assert!(manifest_problem("p", &manifest("p"), &seen).is_none());
+        let msg = manifest_problem("other-folder", &manifest("p"), &seen).unwrap();
+        assert!(msg.contains("doesn't match its folder name 'other-folder'"), "{msg}");
+    }
+
+    #[test]
+    fn manifest_problem_rejects_a_duplicate_id() {
+        let seen = HashSet::from(["p".to_string()]);
+        assert!(manifest_problem("p", &manifest("p"), &seen).unwrap().contains("already uses the id 'p'"));
+    }
 
     #[test]
     fn read_id_set_write_id_set_round_trips() {
