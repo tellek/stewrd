@@ -15,7 +15,9 @@ repo-less install (just `stewrd.exe`, `plugins/`, `assets/`, etc.).
 
 ## Start from the template
 
-Copy `plugins/_template/` wholesale, rename the folder, and update
+Easiest: **Settings > Plugins > Create New Plugin** creates a GitHub repo
+(`stewrd-<name>`), clones it into this folder and pushes a working Hello World
+plugin (needs the `gh` CLI signed in). Otherwise copy `plugins/_template/` wholesale, rename the folder, and update
 `plugin.json`'s `id`/`name` and `settings.json`'s `category`/`version` to
 match. `_template/index.tsx` has a commented-out example of every API surface
 below — uncomment what you need. `_template/README.md` covers the same ground

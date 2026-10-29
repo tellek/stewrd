@@ -1,0 +1,9 @@
+{
+  "id": "__PLUGIN_ID__",
+  "name": "__PLUGIN_NAME__",
+  "icon": "default",
+  "entry": "dist/index.js",
+  "description": "A Stewrd plugin created from the Hello World template.",
+  "apiVersion": "1",
+  "background": false
+}

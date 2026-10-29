@@ -16,6 +16,7 @@ import { TextBox } from "../../components/TextBox/TextBox";
 import { TextButton } from "../../components/TextButton/TextButton";
 import { IconButton } from "../../components/IconButton/IconButton";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { CreatePluginModal } from "./CreatePluginModal";
 import { activateIcon, configureIcon, deactivateIcon, removeIcon, reportIssueIcon } from "./pluginActionIcons";
 
 const modal = createModalApi();
@@ -105,6 +106,7 @@ export function SettingsPlugins() {
   const [entries, setEntries] = useState<PluginDiscoveryEntry[]>([]);
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [repoById, setRepoById] = useState<Map<string, string>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +171,25 @@ export function SettingsPlugins() {
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".zip,.tar,.tar.gz,.tgz"
+            disabled={installing}
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onFilePicked(file);
+            }}
+          />
+          <span title="Accepts .zip, .tar, .tar.gz, or .tgz archives">
+            <TextButton label="Add Plugin" onClick={() => fileInputRef.current?.click()} disabled={installing} />
+          </span>
+        </div>
+        <TextButton label="Create New Plugin" variant="primary" onClick={() => setCreating(true)} />
+      </div>
       <p style={{ color: palette.textMuted, fontSize: 13 }}>
         Installed plugins live in this app's own <code>plugins/</code> folder. Deactivating a plugin here unloads it
         immediately; removing one deletes its folder from disk. Configure opens the plugin's own{" "}
@@ -248,20 +269,7 @@ export function SettingsPlugins() {
         </tbody>
       </table>
 
-      <h3 style={{ fontSize: 13, marginTop: 20 }}>Add plugin</h3>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".zip,.tar,.tar.gz,.tgz"
-        disabled={installing}
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onFilePicked(file);
-        }}
-      />
-      <TextButton label="Choose File" onClick={() => fileInputRef.current?.click()} disabled={installing} />
-      <p style={{ color: palette.textMuted, fontSize: 11 }}>Accepts .zip, .tar, .tar.gz, or .tgz archives.</p>
+      <CreatePluginModal open={creating} onClose={() => setCreating(false)} />
     </div>
   );
 }

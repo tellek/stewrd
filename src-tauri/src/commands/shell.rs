@@ -94,6 +94,56 @@ pub async fn run_command(
     })
 }
 
+#[derive(Serialize)]
+pub struct TimedExecResult {
+    code: i32,
+    stdout: String,
+    stderr: String,
+    #[serde(rename = "timedOut")]
+    timed_out: bool,
+}
+
+/// Like `run_command`, but kills the whole process tree if it runs longer
+/// than `timeout_ms` (reported as `timedOut`, not an Err). Host-internal (used
+/// by the Create New Plugin / Publish wizards for git and gh): a hung
+/// credential prompt must not wedge a wizard step forever, and unlike the
+/// event-based `spawn_command` path, short commands can't lose their stdout
+/// to an exit event that races the output pumps. Stdin is null so nothing can
+/// block waiting for input.
+#[tauri::command]
+pub async fn run_command_timeout(
+    program: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    timeout_ms: u64,
+) -> Result<TimedExecResult, String> {
+    let mut cmd = build_command(&program, &args, &cwd, &env);
+    cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+    let child = cmd.spawn().map_err(|e| spawn_error(&program, &e))?;
+    let pid = child.id();
+    match tokio::time::timeout(Duration::from_millis(timeout_ms), child.wait_with_output()).await {
+        Ok(Ok(output)) => Ok(TimedExecResult {
+            code: output.status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            timed_out: false,
+        }),
+        Ok(Err(e)) => Err(format!("failed to run {program}: {e}")),
+        Err(_) => {
+            // The future (and the Child it owned) is dropped here, which
+            // start_kill()s the direct child; kill_tree reaches grandchildren
+            // (e.g. a .cmd shim's real CLI).
+            #[cfg(windows)]
+            if let Some(pid) = pid {
+                kill_tree(pid).await;
+            }
+            let _ = pid;
+            Ok(TimedExecResult { code: -1, stdout: String::new(), stderr: format!("{program} timed out after {timeout_ms}ms"), timed_out: true })
+        }
+    }
+}
+
 /// Streams stdout/stderr batched into ~30ms windows (a chatty process emitting
 /// one event per line would flood the IPC bridge and jank the UI).
 async fn pump_stream<R: AsyncRead + Unpin>(mut reader: R, app: tauri::AppHandle, id: String, stream: &'static str) {
@@ -267,6 +317,34 @@ mod tests {
         kill_tree(pid).await;
         let status = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
         assert!(status.is_ok(), "process tree was not killed");
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_command_timeout_kills_a_slow_process_and_reports_timed_out() {
+        let started = std::time::Instant::now();
+        let result = run_command_timeout(
+            "cmd".to_string(),
+            vec!["/c".to_string(), "ping -n 30 127.0.0.1 >nul".to_string()],
+            None,
+            None,
+            300,
+        )
+        .await
+        .unwrap();
+        assert!(result.timed_out);
+        assert!(started.elapsed() < Duration::from_secs(10));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn run_command_timeout_returns_output_for_a_fast_process() {
+        let result = run_command_timeout("cmd".to_string(), vec!["/c".to_string(), "echo".to_string(), "hi".to_string()], None, None, 10_000)
+            .await
+            .unwrap();
+        assert!(!result.timed_out);
+        assert_eq!(result.code, 0);
+        assert!(result.stdout.contains("hi"));
     }
 
     #[test]

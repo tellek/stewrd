@@ -132,13 +132,15 @@ mod tests {
     // These exercise the real OS backend (there is no per-test isolation), so
     // they use a distinct account name and clean up after themselves rather
     // than touching the real provider accounts.
-    fn test_entry() -> Entry {
-        Entry::new(SERVICE, "test-anthropic-api-key").unwrap()
+    // One account per test: they run in parallel, and a shared account let
+    // one test's set race the other's delete-then-expect-NoEntry.
+    fn test_entry(account: &str) -> Entry {
+        Entry::new(SERVICE, account).unwrap()
     }
 
     #[test]
     fn round_trips_a_key_through_set_then_get() {
-        let entry = test_entry();
+        let entry = test_entry("test-round-trip-api-key");
         entry.set_password("sk-test-123").unwrap();
         assert_eq!(entry.get_password().unwrap(), "sk-test-123");
         entry.delete_credential().unwrap();
@@ -146,7 +148,7 @@ mod tests {
 
     #[test]
     fn reports_no_entry_as_missing_rather_than_erroring() {
-        let entry = test_entry();
+        let entry = test_entry("test-missing-api-key");
         let _ = entry.delete_credential();
         assert!(matches!(entry.get_password(), Err(keyring::Error::NoEntry)));
     }

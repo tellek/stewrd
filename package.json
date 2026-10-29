@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "plugin:build": "node scripts/stewrd-plugin-build.mjs",
+    "template:build": "node scripts/build-template.mjs",
     "test": "vitest run"
   },
   "dependencies": {

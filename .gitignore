@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# The Hello World template's prebuilt bundle is committed on purpose: it is
+# include_str!'d into the binary (plugin_scaffold.rs), so a fresh checkout must compile
+!templates/hello/dist/
+
 # Plugin build output (each plugin's own esbuild dist/, not the host's)
 plugins/*/dist
 

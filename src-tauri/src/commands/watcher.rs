@@ -62,6 +62,11 @@ fn changed_plugin_dirs(events: &[(PathBuf, EventKind)], plugins_root: &Path) -> 
             // source file, which would remount the plugin and lose
             // in-progress UI state (cursor position, unsaved local state).
             Some(std::path::Component::Normal(next)) if next == "data" => continue,
+            // `<plugin>/.git/` is git bookkeeping for a plugin cloned from its
+            // own repo (the Create New Plugin wizard); every `git status` or
+            // IDE background fetch writes there and would otherwise remount
+            // the plugin.
+            Some(std::path::Component::Normal(next)) if next == ".git" => continue,
             // `<plugin>/storage.json` (and its write-staging temp file) is
             // the plugin's own api.storage key/value store - same
             // reasoning as data/ above.
@@ -119,6 +124,13 @@ mod tests {
     fn the_root_directory_itself_yields_nothing() {
         let root = Path::new("/plugins");
         let events = vec![modify_any("/plugins")];
+        assert!(changed_plugin_dirs(&events, root).is_empty());
+    }
+
+    #[test]
+    fn ignores_a_plugins_git_directory() {
+        let root = Path::new("/plugins");
+        let events = vec![modify_any("/plugins/notepad/.git/index"), modify_any("/plugins/notepad/.git/refs/heads/main")];
         assert!(changed_plugin_dirs(&events, root).is_empty());
     }
 

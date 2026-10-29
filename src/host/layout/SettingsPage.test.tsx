@@ -67,7 +67,7 @@ describe("SettingsPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Plugins" }));
 
-    expect(screen.getByRole("button", { name: "Choose File" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add Plugin" })).toBeTruthy();
   });
 
   it("switches to the Version tab when clicked", async () => {

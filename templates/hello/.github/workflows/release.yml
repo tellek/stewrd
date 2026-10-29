@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package zip
+        run: |
+          mkdir -p out/__PLUGIN_ID__
+          cp -r plugin.json settings.json dist README.md out/__PLUGIN_ID__/
+          [ -f icon.png ] && cp icon.png out/__PLUGIN_ID__/ || true
+          (cd out && zip -r ../__PLUGIN_ID__.zip __PLUGIN_ID__)
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" __PLUGIN_ID__.zip --generate-notes

@@ -90,6 +90,17 @@ describe("SettingsPlugins", () => {
     vi.unstubAllGlobals();
   });
 
+  it("puts Add Plugin on the left and Create New Plugin on the right of a single header row", async () => {
+    resetStore();
+    render(<SettingsPlugins />);
+
+    const add = await screen.findByRole("button", { name: "Add Plugin" });
+    const create = screen.getByRole("button", { name: "Create New Plugin" });
+    expect(add.closest("div[style*='space-between']")).toBe(create.closest("div[style*='space-between']"));
+    expect(add.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("Choose File")).toBeNull();
+  });
+
   it("renders row actions as icon buttons labelled with tooltips", async () => {
     resetStore();
     vi.mocked(listPlugins).mockResolvedValue([okEntry()]);

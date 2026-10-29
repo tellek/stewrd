@@ -9,6 +9,7 @@ pub mod logging;
 pub mod path_util;
 pub mod plugin_icons;
 pub mod plugin_install;
+pub mod plugin_scaffold;
 pub mod plugin_settings;
 pub mod plugins;
 pub mod pty;
