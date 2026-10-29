@@ -46,6 +46,7 @@ const SECTIONS: { title: string; items: string[] }[] = [
       "Settings > Plugins > Create New Plugin walks you through making your own tool: it creates a public GitHub repository named stewrd-<name>, clones it into the plugins folder, adds a working Hello World tool, and pushes it. It needs the GitHub CLI (gh) installed and signed in, and Git with your name and email set.",
       "Each step shows a check mark as it finishes. If one fails, fix the problem it names and click Retry; finished steps are skipped.",
       "When it's done, open the folder it shows with an AI coding assistant, or edit index.tsx by hand. See plugins/CLAUDE.md for the plugin API.",
+      "Open Plugins Folder (next to Add Plugin) shows where your tools live on disk.",
       "Settings > Plugins > Add Plugin installs a tool from a .zip, .tar, .tar.gz, or .tgz file.",
       "The upload icon on a tool's row (Publish To Marketplace) opens a pull request that adds the tool to the Marketplace. The tool must be a public GitHub repository with a release that has a .zip attached.",
     ],

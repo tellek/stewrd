@@ -296,9 +296,18 @@ import type { PluginContext, PluginApi } from "stewrd-plugin-api";
 
 ## Sharing a plugin
 
-Plugins are portable: zip up a plugin's folder (including its built `dist/`)
-and hand it to someone else, or install it via **Settings > Plugins > Add
-plugin** (`.zip`/`.tar`/`.tar.gz`/`.tgz` supported).
+Plugins are portable: `node build-plugin.mjs pack <id>` validates the plugin
+(id matches the folder, `apiVersion` is `"1"`, built entry exists) and writes
+`<id>.zip` (needs no zip tool). Hand it to someone else, or install it via
+**Settings > Plugins > Add Plugin** (`.zip`/`.tar`/`.tar.gz`/`.tgz` supported).
+
+To list a plugin in the Marketplace, keep it in its own public GitHub repo, give
+it a release with the zip attached (a `v<version>` tag does this if you started
+from the Hello World template, which includes the release workflow), then use
+the **Publish** button on its row in Settings > Plugins. That opens a pull
+request adding it to `docs/plugin-catalog.json`; see
+`docs/plugin-catalog.README.md` in the Stewrd repo for the entry format and the
+trust model.
 
 <!-- stewrd:ai-calls -->
 ## Calling AI (`api.ai`)

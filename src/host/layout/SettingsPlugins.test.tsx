@@ -10,7 +10,12 @@ import { defaultPalette } from "../../shared/palette";
 import type { PluginDiscoveryEntry } from "../loader/pluginDiscovery";
 
 const mockOpenUrl = vi.fn().mockResolvedValue(undefined);
-vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: (...args: unknown[]) => mockOpenUrl(...args) }));
+const mockReveal = vi.fn().mockResolvedValue(undefined);
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: (...args: unknown[]) => mockOpenUrl(...args),
+  revealItemInDir: (...args: unknown[]) => mockReveal(...args),
+}));
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue("C:\app\plugins") }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
 vi.mock("../loader/pluginDiscovery", () => ({
   listPlugins: vi.fn(),
@@ -99,6 +104,17 @@ describe("SettingsPlugins", () => {
     expect(add.closest("div[style*='space-between']")).toBe(create.closest("div[style*='space-between']"));
     expect(add.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("Choose File")).toBeNull();
+  });
+
+  it("reveals the plugins folder from the Open Plugins Folder button", async () => {
+    resetStore();
+    mockReveal.mockClear();
+    const user = userEvent.setup();
+    render(<SettingsPlugins />);
+
+    await user.click(await screen.findByRole("button", { name: "Open Plugins Folder" }));
+
+    await waitFor(() => expect(mockReveal).toHaveBeenCalledWith("C:\app\plugins"));
   });
 
   it("renders row actions as icon buttons labelled with tooltips", async () => {

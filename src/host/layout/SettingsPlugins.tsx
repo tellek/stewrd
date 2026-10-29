@@ -15,7 +15,8 @@ import { createToastApi } from "../api/toast";
 import { TextBox } from "../../components/TextBox/TextBox";
 import { TextButton } from "../../components/TextButton/TextButton";
 import { IconButton } from "../../components/IconButton/IconButton";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { CreatePluginModal } from "./CreatePluginModal";
 import { PublishPluginModal } from "./PublishPluginModal";
 import type { PublishPlugin } from "./publishPluginSteps";
@@ -152,6 +153,14 @@ export function SettingsPlugins() {
     }
   }
 
+  async function onOpenPluginsFolder() {
+    try {
+      await revealItemInDir(await invoke<string>("get_plugins_dir"));
+    } catch (err) {
+      toast.show({ message: `Couldn't open the plugins folder: ${String(err)}`, kind: "error" });
+    }
+  }
+
   function onReportIssue(id: string) {
     const repo = repoById.get(id) ?? HOST_REPO;
     openUrl(`https://github.com/${repo}/issues`).catch((err) =>
@@ -176,7 +185,7 @@ export function SettingsPlugins() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input
             ref={fileInputRef}
             type="file"
@@ -191,6 +200,7 @@ export function SettingsPlugins() {
           <span title="Accepts .zip, .tar, .tar.gz, or .tgz archives">
             <TextButton label="Add Plugin" onClick={() => fileInputRef.current?.click()} disabled={installing} />
           </span>
+          <TextButton label="Open Plugins Folder" onClick={onOpenPluginsFolder} bordered={false} />
         </div>
         <TextButton label="Create New Plugin" variant="primary" onClick={() => setCreating(true)} />
       </div>

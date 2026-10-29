@@ -36,7 +36,13 @@ npm run tauri build                          # packaged app for the current OS
 
 ## Creating plugins
 
-Open a terminal in your Stewrd app folder's `plugins/` subfolder, launch an AI coding assistant (e.g. Claude Code), and just ask it to make a plugin — describe what it should do. `plugins/` ships with its own `CLAUDE.md` (plus a root-level [ARCHITECTURE.md](ARCHITECTURE.md) for full host internals) and a working `_template` plugin to copy from — it's enough context for the assistant to build whatever plugin you describe without extra hand-holding. Building requires [Node.js](https://nodejs.org/); `plugins/CLAUDE.md` walks through the one-time `npm install esbuild` setup.
+**Quickstart:**
+
+1. **Settings > Plugins > Create New Plugin** makes a GitHub repo (`stewrd-<name>`), clones it into your `plugins/` folder and pushes a working Hello World plugin (needs the GitHub CLI signed in). Or, without GitHub: `node build-plugin.mjs new <id>` in `plugins/`.
+2. Build it as you edit: `node build-plugin.mjs <id> --watch` (one-time `npm install esbuild`). Stewrd hot-reloads it.
+3. Ship it: `node build-plugin.mjs pack <id>` writes `<id>.zip`; push a `v<version>` tag so the included GitHub Action attaches a zip to a release, then use the **Publish** button on the plugin's row in Settings > Plugins to open a Marketplace pull request.
+
+Or open a terminal in your Stewrd app folder's `plugins/` subfolder, launch an AI coding assistant (e.g. Claude Code), and just ask it to make a plugin — describe what it should do. `plugins/` ships with its own `CLAUDE.md` (plus a root-level [ARCHITECTURE.md](ARCHITECTURE.md) for full host internals) and a working `_template` plugin to copy from — it's enough context for the assistant to build whatever plugin you describe without extra hand-holding. Building requires [Node.js](https://nodejs.org/); `plugins/CLAUDE.md` walks through the one-time `npm install esbuild` setup.
 
 Plugins are portable and shareable: zip up a plugin's folder, hand the zip to someone else (or move it to another machine), and they can load it straight into their own Stewrd install.
 
