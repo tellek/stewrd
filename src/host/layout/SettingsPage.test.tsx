@@ -59,6 +59,17 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("button", { name: "Create New Palette" })).toBeTruthy();
   });
 
+  it("keeps the title and tabs fixed and scrolls only the tab content", async () => {
+    resetStore();
+    render(<SettingsPage />);
+    await screen.findByText("stewrd");
+
+    const content = screen.getByTestId("settings-content");
+    expect(content.style.overflowY).toBe("auto");
+    expect(content.contains(screen.getByRole("button", { name: "Plugins" }))).toBe(false);
+    expect(content.contains(screen.getByRole("heading", { name: "Settings" }))).toBe(false);
+  });
+
   it("switches to the Plugins tab when clicked", async () => {
     resetStore();
     const user = userEvent.setup();

@@ -7,7 +7,6 @@ import { countLeaves } from "../state/paneTree";
 import { SettingsPage } from "./SettingsPage";
 import { PaneZoomControl, useEffectiveZoom, useOverlayVisibility, usePaneZoomInput } from "./PaneZoomControl";
 import type { Palette } from "../../shared/palette";
-import { scrollbarStyle } from "../../components/shared/styles";
 
 // Minimum size (percent) either side of a split may shrink to - stops a
 // divider drag from collapsing a pane to unusable size.
@@ -325,7 +324,8 @@ export function MainContent({
       }}
     >
       {view === "settings" ? (
-        <div style={{ flex: 1, overflow: "auto", padding: 16, ...scrollbarStyle(palette) }}>
+        // Not scrollable itself: SettingsPage keeps its title and tabs fixed and scrolls only the tab content.
+        <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: 16 }}>
           <SettingsPage />
         </div>
       ) : (

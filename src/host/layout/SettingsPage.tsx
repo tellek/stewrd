@@ -7,6 +7,7 @@ import { SettingsPlugins } from "./SettingsPlugins";
 import { SettingsAi } from "./SettingsAi";
 import { SettingsHelp } from "./SettingsHelp";
 import { SettingsVersion } from "./SettingsVersion";
+import { scrollbarStyle } from "../../components/shared/styles";
 
 type SettingsTab = "general" | "categories" | "themes" | "plugins" | "ai" | "help" | "version";
 
@@ -25,9 +26,9 @@ export function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>("general");
 
   return (
-    <div>
-      <h2 style={{ marginTop: 0 }}>Settings</h2>
-      <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${palette.border}`, marginBottom: 16 }}>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <h2 style={{ marginTop: 0, flexShrink: 0 }}>Settings</h2>
+      <div style={{ display: "flex", gap: 4, borderBottom: `1px solid ${palette.border}`, marginBottom: 16, flexShrink: 0 }}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -46,13 +47,15 @@ export function SettingsPage() {
           </button>
         ))}
       </div>
-      {tab === "general" && <SettingsGeneral />}
-      {tab === "categories" && <SettingsCategories />}
-      {tab === "themes" && <SettingsThemes />}
-      {tab === "plugins" && <SettingsPlugins />}
-      {tab === "ai" && <SettingsAi />}
-      {tab === "help" && <SettingsHelp />}
-      {tab === "version" && <SettingsVersion />}
+      <div data-testid="settings-content" style={{ flex: 1, minHeight: 0, overflowY: "auto", ...scrollbarStyle(palette) }}>
+        {tab === "general" && <SettingsGeneral />}
+        {tab === "categories" && <SettingsCategories />}
+        {tab === "themes" && <SettingsThemes />}
+        {tab === "plugins" && <SettingsPlugins />}
+        {tab === "ai" && <SettingsAi />}
+        {tab === "help" && <SettingsHelp />}
+        {tab === "version" && <SettingsVersion />}
+      </div>
     </div>
   );
 }

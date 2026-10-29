@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "../state/appStore";
 import { InlineDialog } from "../../components/InlineDialog/InlineDialog";
 import { TextBox } from "../../components/TextBox/TextBox";
 import { TextButton } from "../../components/TextButton/TextButton";
 import { Banner } from "../../components/Banner/Banner";
+import { Link } from "../../components/Link/Link";
 import { StepRow, type StepStatus } from "./StepRow";
 import { STEPS, checkName, checkPrerequisites, slugify, type NameCheck, type Prerequisites } from "./createPluginSteps";
 
@@ -64,6 +65,7 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
   const ready = prereq?.ok === true && nameCheck !== null && nameCheck.kind !== "invalid";
   const id = nameCheck && nameCheck.kind !== "invalid" ? nameCheck.id : slugify(name);
   const repo = `${prereq?.owner ?? ""}/stewrd-${id}`;
+  const repoUrl = `https://github.com/${repo}`;
 
   async function start() {
     if (!ready || !prereq) return;
@@ -154,6 +156,9 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
               It lives in <code>{folder}</code>. Open that folder with an AI coding assistant and ask it to build
               something, or edit <code>index.tsx</code> by hand if you're feeling frisky. See{" "}
               <code>plugins/CLAUDE.md</code> for the plugin API.
+            </div>
+            <div style={{ marginTop: 4 }}>
+              Your repository: <Link label={repoUrl} onClick={() => openUrl(repoUrl).catch(() => {})} />
             </div>
           </div>
         )}

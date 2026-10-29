@@ -106,6 +106,46 @@ describe("SettingsPlugins", () => {
     expect(screen.queryByText("Choose File")).toBeNull();
   });
 
+  it("replaces Report an Issue with Publish for a plugin that isn't in the loaded catalog", async () => {
+    resetStore();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [{ id: "other", repo: "tellek/stewrd-other" }] }));
+    vi.mocked(listPlugins).mockResolvedValue([okEntry()]);
+    render(<SettingsPlugins />);
+
+    expect(await screen.findByRole("button", { name: "Publish To Marketplace" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Report an Issue" })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps Report an Issue for catalog plugins, bundled plugins, and when the catalog can't load", async () => {
+    resetStore();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [{ id: "notepad", repo: "tellek/stewrd-notepad" }] }));
+    vi.mocked(listPlugins).mockResolvedValue([
+      okEntry(),
+      okEntry({
+        dir: "marketplace",
+        manifest: { id: "marketplace", name: "Marketplace", icon: "icon.png", entry: "index.js", description: "Browse plugins", apiVersion: "1", background: true },
+      }),
+    ]);
+    render(<SettingsPlugins />);
+    await screen.findByText("Marketplace", { exact: false });
+    await waitFor(() => expect(fetch).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("button", { name: "Publish To Marketplace" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Report an Issue" })).toHaveLength(2);
+    vi.unstubAllGlobals();
+
+    cleanup();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+    vi.mocked(listPlugins).mockResolvedValue([okEntry()]);
+    render(<SettingsPlugins />);
+    await screen.findByText("Notepad", { exact: false });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole("button", { name: "Publish To Marketplace" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Report an Issue" })).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
   it("reveals the plugins folder from the Open Plugins Folder button", async () => {
     resetStore();
     mockReveal.mockClear();

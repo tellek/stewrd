@@ -12,10 +12,14 @@ const mocks = vi.hoisted(() => ({
   stepRuns: [] as Array<(...args: unknown[]) => Promise<void>>,
   invoke: vi.fn(),
   reveal: vi.fn(),
+  openUrl: vi.fn(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...a: unknown[]) => mocks.invoke(...a) }));
-vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: (...a: unknown[]) => mocks.reveal(...a) }));
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  revealItemInDir: (...a: unknown[]) => mocks.reveal(...a),
+  openUrl: (...a: unknown[]) => mocks.openUrl(...a),
+}));
 vi.mock("./createPluginSteps", async () => {
   const actual = await vi.importActual<typeof import("./createPluginSteps")>("./createPluginSteps");
   return {
@@ -38,6 +42,7 @@ beforeEach(() => {
   mocks.stepRuns = [0, 1, 2, 3].map(() => vi.fn().mockResolvedValue(undefined)) as unknown as typeof mocks.stepRuns;
   mocks.invoke.mockReset().mockResolvedValue("C:\\app\\plugins");
   mocks.reveal.mockReset().mockResolvedValue(undefined);
+  mocks.openUrl.mockReset().mockResolvedValue(undefined);
 });
 
 describe("CreatePluginModal", () => {
@@ -65,6 +70,8 @@ describe("CreatePluginModal", () => {
     mocks.stepRuns.forEach((run) => expect(run).toHaveBeenCalledTimes(1));
     await user.click(screen.getByRole("button", { name: "Show In Folder" }));
     expect(mocks.reveal).toHaveBeenCalledWith("C:\\app\\plugins\\my-plugin");
+    await user.click(screen.getByText("https://github.com/octo/stewrd-my-plugin"));
+    expect(mocks.openUrl).toHaveBeenCalledWith("https://github.com/octo/stewrd-my-plugin");
   });
 
   it("keeps Create disabled for an invalid name and shows why", async () => {

@@ -48,7 +48,7 @@ const SECTIONS: { title: string; items: string[] }[] = [
       "When it's done, open the folder it shows with an AI coding assistant, or edit index.tsx by hand. See plugins/CLAUDE.md for the plugin API.",
       "Open Plugins Folder (next to Add Plugin) shows where your tools live on disk.",
       "Settings > Plugins > Add Plugin installs a tool from a .zip, .tar, .tar.gz, or .tgz file.",
-      "The upload icon on a tool's row (Publish To Marketplace) opens a pull request that adds the tool to the Marketplace. The tool must be a public GitHub repository with a release that has a .zip attached.",
+      "For a tool that isn't in the Marketplace yet, the upload icon on its row (Publish To Marketplace) takes the place of Report an Issue and opens a pull request that adds the tool to the Marketplace. The tool must be a public GitHub repository with a release that has a .zip attached.",
     ],
   },
   {

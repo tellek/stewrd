@@ -28,6 +28,8 @@ const toast = createToastApi();
 // Same catalog the Marketplace plugin browses; maps a plugin id to its GitHub
 // repo so each row can link to that repo's issues page.
 const CATALOG_URL = "https://raw.githubusercontent.com/tellek/stewrd/main/docs/plugin-catalog.json";
+// Bundled with the app, so never publishable and always reported against the app's repo.
+const BUNDLED_IDS = new Set(["marketplace", "_template"]);
 // Plugins that ship with the app and aren't in the catalog live in this repo.
 const HOST_REPO = "tellek/stewrd";
 
@@ -113,6 +115,10 @@ export function SettingsPlugins() {
   const [publishing, setPublishing] = useState<PublishPlugin | null>(null);
   const [repoById, setRepoById] = useState<Map<string, string>>(new Map());
   const catalogIds = useMemo(() => new Set(repoById.keys()), [repoById]);
+  // Plugins you made (not bundled, not in the Marketplace catalog) get Publish
+  // in place of Report an Issue. Needs a loaded catalog: offline, every plugin
+  // would otherwise look unpublished.
+  const canPublish = (id: string) => catalogIds.size > 0 && !catalogIds.has(id) && !BUNDLED_IDS.has(id);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(() => {
@@ -256,26 +262,28 @@ export function SettingsPlugins() {
                         label={disabled ? "Activate" : "Deactivate"}
                         onClick={() => onToggleDisabled(entry)}
                       />
-                      <IconButton
-                        icon={reportIssueIcon}
-                        label="Report an Issue"
-                        onClick={() => onReportIssue(manifest.id)}
-                      />
-                      <IconButton
-                        icon={publishIcon}
-                        label="Publish To Marketplace"
-                        disabled={manifest.id === "marketplace" || manifest.id === "_template" || catalogIds.has(manifest.id)}
-                        onClick={() =>
-                          setPublishing({
-                            dir,
-                            id: manifest.id,
-                            name: manifest.name,
-                            description: manifest.description,
-                            apiVersion: manifest.apiVersion,
-                            category,
-                          })
-                        }
-                      />
+                      {canPublish(manifest.id) ? (
+                        <IconButton
+                          icon={publishIcon}
+                          label="Publish To Marketplace"
+                          onClick={() =>
+                            setPublishing({
+                              dir,
+                              id: manifest.id,
+                              name: manifest.name,
+                              description: manifest.description,
+                              apiVersion: manifest.apiVersion,
+                              category,
+                            })
+                          }
+                        />
+                      ) : (
+                        <IconButton
+                          icon={reportIssueIcon}
+                          label="Report an Issue"
+                          onClick={() => onReportIssue(manifest.id)}
+                        />
+                      )}
                       <IconButton
                         icon={removeIcon}
                         label="Remove"
