@@ -61,6 +61,9 @@ export interface HostSettings {
    * Layouts section. The current in-progress pane tree itself is session-only
    * and not persisted here - see appStore.ts's saveLayout/applyLayout. */
   layouts: SavedLayout[];
+  /** Last-used zoom factor per plugin id - the default for any pane of that
+   * plugin that has no zoom of its own. See appStore.ts's setPaneZoom. */
+  pluginZoom: Record<string, number>;
 }
 
 export async function loadHostSettings(): Promise<Partial<HostSettings>> {

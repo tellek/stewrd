@@ -7,8 +7,46 @@ import {
   findLeaf,
   findLeafForPlugin,
   resizeSplitInTree,
+  resolveZoomsInTree,
+  setPluginInTree,
+  setZoomInTree,
   splitLeafInTree,
+  type PaneLeaf,
+  type PaneNode,
 } from "./paneTree";
+
+describe("zoom helpers", () => {
+  const pair = (a: PaneLeaf, b: PaneLeaf): PaneNode => ({
+    type: "split",
+    id: "s",
+    direction: "row",
+    children: [a, b],
+    sizes: [50, 50],
+  });
+
+  it("setPluginInTree clears zoom only when the plugin changes", () => {
+    const leaf: PaneLeaf = { ...createLeaf("a"), zoom: 2 };
+    expect(setPluginInTree(leaf, leaf.id, "a")).toMatchObject({ zoom: 2 });
+    expect((setPluginInTree(leaf, leaf.id, "b") as PaneLeaf).zoom).toBeUndefined();
+  });
+
+  it("setZoomInTree zooms the target and pins unzoomed siblings of the same plugin", () => {
+    const a = createLeaf("p");
+    const b = createLeaf("p");
+    const tree = setZoomInTree(pair(a, b), a.id, 1.5, "p", 1.2);
+    if (tree.type !== "split") throw new Error("expected split");
+    expect(tree.children[0]).toMatchObject({ zoom: 1.5 });
+    expect(tree.children[1]).toMatchObject({ zoom: 1.2 });
+  });
+
+  it("resolveZoomsInTree writes effective zoom into plugin leaves only", () => {
+    const tree = resolveZoomsInTree(pair({ ...createLeaf("p"), zoom: 2 }, createLeaf(null)), { p: 1.3 });
+    if (tree.type !== "split") throw new Error("expected split");
+    expect(tree.children[0]).toMatchObject({ zoom: 2 });
+    expect((tree.children[1] as PaneLeaf).zoom).toBeUndefined();
+    expect(resolveZoomsInTree(createLeaf("q"), { q: 1.3 })).toMatchObject({ zoom: 1.3 });
+  });
+});
 
 describe("splitLeafInTree", () => {
   it.each([

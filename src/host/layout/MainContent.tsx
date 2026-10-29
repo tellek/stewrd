@@ -5,6 +5,7 @@ import type { PluginRegistryEntry } from "../loader/usePluginRegistry";
 import type { PaneEdge, PaneNode } from "../state/paneTree";
 import { countLeaves } from "../state/paneTree";
 import { SettingsPage } from "./SettingsPage";
+import { PaneZoomControl, useEffectiveZoom, useOverlayVisibility, usePaneZoomInput } from "./PaneZoomControl";
 import type { Palette } from "../../shared/palette";
 import { scrollbarStyle } from "../../components/shared/styles";
 
@@ -76,6 +77,9 @@ function PaneLeafView({
   const closePane = useAppStore((s) => s.closePane);
   const [dropZone, setDropZone] = useState<PaneEdge | "center" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoom = useEffectiveZoom(node.zoom, node.pluginId);
+  const overlay = useOverlayVisibility();
+  usePaneZoomInput(containerRef, node.id, node.pluginId, zoom, overlay.show);
 
   const active = node.pluginId ? entries.find((e) => e.manifest.id === node.pluginId) : undefined;
   const isActivePane = node.id === activePaneId;
@@ -159,9 +163,23 @@ function PaneLeafView({
             pluginId={active.manifest.id}
             onReload={() => onReload(active.manifest.id)}
           >
-            <active.Component api={active.api} paneId={node.id} />
+            <div
+              style={{ flex: 1, minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column", zoom }}
+            >
+              <active.Component api={active.api} paneId={node.id} />
+            </div>
           </PluginErrorBoundary>
         ) : null)}
+      {active?.loaded && active.api && !active.loadError && (
+        <PaneZoomControl
+          paneId={node.id}
+          zoom={zoom}
+          visible={overlay.visible}
+          palette={palette}
+          onHold={overlay.hold}
+          onRelease={overlay.release}
+        />
+      )}
       {dropZone && <div style={zoneOverlayStyle(dropZone, palette)} />}
     </div>
   );

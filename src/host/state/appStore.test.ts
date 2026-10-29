@@ -119,6 +119,48 @@ describe("hydrateHostSettings", () => {
   });
 });
 
+describe("pane zoom", () => {
+  it("hydrates pluginZoom from saved settings", async () => {
+    mockInvoke.mockImplementation((cmd: string) =>
+      Promise.resolve(cmd === "storage_get_all" ? { pluginZoom: { notepad: 1.4 } } : undefined),
+    );
+    await useAppStore.getState().hydrateHostSettings();
+    expect(useAppStore.getState().pluginZoom).toEqual({ notepad: 1.4 });
+  });
+
+  it("zooms panes of one plugin independently, clamped, and ignores empty panes", () => {
+    mockInvokeDefaults();
+    const a = createLeaf("p");
+    const b = createLeaf("p");
+    const empty = createLeaf(null);
+    const tree = {
+      type: "split" as const,
+      id: "s",
+      direction: "row" as const,
+      children: [a, b] as [typeof a, typeof b],
+      sizes: [50, 50] as [number, number],
+    };
+    useAppStore.setState({ paneTree: tree, pluginZoom: {} });
+    useAppStore.getState().setPaneZoom(a.id, 1.5);
+    useAppStore.getState().setPaneZoom(b.id, 99);
+    const result = useAppStore.getState().paneTree;
+    if (result.type !== "split") throw new Error("expected split");
+    expect(result.children[0]).toMatchObject({ zoom: 1.5 });
+    expect(result.children[1]).toMatchObject({ zoom: 3 });
+    expect(useAppStore.getState().pluginZoom).toEqual({ p: 3 });
+    useAppStore.setState({ paneTree: empty, pluginZoom: {} });
+    useAppStore.getState().setPaneZoom(empty.id, 2);
+    expect(useAppStore.getState().pluginZoom).toEqual({});
+  });
+
+  it("saveLayout stores each pane's effective zoom", () => {
+    mockInvokeDefaults();
+    useAppStore.setState({ paneTree: createLeaf("p"), pluginZoom: { p: 1.3 }, layouts: [] });
+    useAppStore.getState().saveLayout("L");
+    expect(useAppStore.getState().layouts[0].tree).toMatchObject({ zoom: 1.3 });
+  });
+});
+
 describe("hydrateStatusLog", () => {
   it("merges disk log lines into statusLog (one-shot per test file)", async () => {
     mockInvokeDefaults();

@@ -23,6 +23,8 @@ import {
   findLeafForPlugin,
   firstLeafId,
   resizeSplitInTree,
+  resolveZoomsInTree,
+  setZoomInTree,
   setPluginInTree,
   splitLeafInTree,
   type PaneEdge,
@@ -128,6 +130,12 @@ interface AppState {
    * Surfaced as the sidebar's Layouts section once non-empty or once more
    * than one pane is currently open. */
   layouts: SavedLayout[];
+  /** Last-used zoom factor per plugin id - persisted; the fallback for panes
+   * with no zoom of their own. */
+  pluginZoom: Record<string, number>;
+  /** Zooms pane `paneId` (clamped to ZOOM_MIN..ZOOM_MAX) and records it as
+   * its plugin's last-used zoom. No-op for an empty pane. */
+  setPaneZoom(paneId: string, zoom: number): void;
   /** Plugin id currently being dragged from the sidebar, if any - set on
    * dragstart/cleared on dragend by SidebarPluginItem.tsx. dataTransfer's
    * payload can't be read during a dragover (only on drop), so pane drop
@@ -265,6 +273,16 @@ export function resolvePalette(paletteId: string, customPalettes: NamedPalette[]
   return (found ?? premadePalettes[0]).colors;
 }
 
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 3;
+export const ZOOM_STEP = 0.1;
+
+export function clampZoom(zoom: number): number {
+  return Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
+}
+
+let zoomSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
 const initialPane = createLeaf();
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -272,6 +290,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   paneTree: initialPane,
   activePaneId: initialPane.id,
   layouts: [],
+  pluginZoom: {},
   draggingPluginId: null,
   statusLog: [],
   categoriesExpanded: {},
@@ -342,6 +361,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { paneTree, activePaneId, view: "plugin" };
     }),
 
+  setPaneZoom: (paneId, zoom) => {
+    const leaf = findLeaf(get().paneTree, paneId);
+    if (!leaf?.pluginId) return;
+    const pluginId = leaf.pluginId;
+    const clamped = clampZoom(zoom);
+    set((state) => {
+      const pinZoom = state.pluginZoom[pluginId] ?? 1;
+      return {
+        paneTree: setZoomInTree(state.paneTree, paneId, clamped, pluginId, pinZoom),
+        pluginZoom: { ...state.pluginZoom, [pluginId]: clamped },
+      };
+    });
+    // Each save rewrites the whole host settings file; coalesce a wheel burst.
+    if (zoomSaveTimer) clearTimeout(zoomSaveTimer);
+    zoomSaveTimer = setTimeout(() => saveHostSettings({ pluginZoom: get().pluginZoom }), 300);
+  },
+
   resizePane: (splitId, sizes) =>
     set((state) => ({ paneTree: resizeSplitInTree(state.paneTree, splitId, sizes) })),
 
@@ -356,7 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   saveLayout: (name) =>
     set((state) => {
-      const layout: SavedLayout = { id: crypto.randomUUID(), name, tree: structuredClone(state.paneTree) };
+      const layout: SavedLayout = { id: crypto.randomUUID(), name, tree: structuredClone(resolveZoomsInTree(state.paneTree, state.pluginZoom)) };
       const layouts = [...state.layouts, layout];
       saveHostSettings({ layouts });
       return { layouts };
@@ -476,6 +512,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const sidebarSubItemsExpanded = loaded.sidebarSubItemsExpanded ?? state.sidebarSubItemsExpanded;
       const categoriesExpanded = loaded.categoriesExpanded ?? state.categoriesExpanded;
       const layouts = loaded.layouts ?? state.layouts;
+      const pluginZoom = loaded.pluginZoom ?? state.pluginZoom;
       return {
         categories,
         pluginOrder,
@@ -490,6 +527,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         aiTiers,
         pluginsWithSidebarItems,
         layouts,
+        pluginZoom,
         hostSettingsLoaded: true,
         palette: resolvePalette(paletteId, customPalettes),
       };

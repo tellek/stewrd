@@ -9,6 +9,9 @@ export interface PaneLeaf {
   type: "leaf";
   id: string;
   pluginId: string | null;
+  /** This pane's own zoom factor. Missing = follow the plugin's last-used
+   * zoom (appStore's pluginZoom). Cleared when the pane's plugin changes. */
+  zoom?: number;
 }
 
 export interface PaneSplit {
@@ -53,7 +56,11 @@ export function firstLeafId(node: PaneNode): string {
 }
 
 export function setPluginInTree(node: PaneNode, paneId: string, pluginId: string | null): PaneNode {
-  if (node.type === "leaf") return node.id === paneId ? { ...node, pluginId } : node;
+  if (node.type === "leaf") {
+    if (node.id !== paneId) return node;
+    // A different plugin must not inherit the previous plugin's zoom.
+    return node.pluginId === pluginId ? node : { ...node, pluginId, zoom: undefined };
+  }
   const children: [PaneNode, PaneNode] = [
     setPluginInTree(node.children[0], paneId, pluginId),
     setPluginInTree(node.children[1], paneId, pluginId),
@@ -105,4 +112,32 @@ export function closeLeafInTree(node: PaneNode, paneId: string): PaneNode | null
   const newB = closeLeafInTree(b, paneId);
   if (newB !== b) return newB === null ? a : { ...node, children: [a, newB] };
   return node;
+}
+
+/** Sets leaf `paneId`'s zoom, and pins `pinZoom` onto every other leaf of
+ * `pluginId` that has no zoom of its own, so changing the shared per-plugin
+ * zoom doesn't drag unzoomed sibling panes along. */
+export function setZoomInTree(node: PaneNode, paneId: string, zoom: number, pluginId: string, pinZoom: number): PaneNode {
+  if (node.type === "leaf") {
+    if (node.id === paneId) return { ...node, zoom };
+    if (node.pluginId === pluginId && node.zoom === undefined) return { ...node, zoom: pinZoom };
+    return node;
+  }
+  const children: [PaneNode, PaneNode] = [
+    setZoomInTree(node.children[0], paneId, zoom, pluginId, pinZoom),
+    setZoomInTree(node.children[1], paneId, zoom, pluginId, pinZoom),
+  ];
+  return children[0] === node.children[0] && children[1] === node.children[1] ? node : { ...node, children };
+}
+
+/** Copies the tree with every plugin leaf's effective zoom written in
+ * (`leaf.zoom ?? pluginZoom[id] ?? 1`), for saving as a layout. */
+export function resolveZoomsInTree(node: PaneNode, pluginZoom: Record<string, number>): PaneNode {
+  if (node.type === "leaf") {
+    return node.pluginId ? { ...node, zoom: node.zoom ?? pluginZoom[node.pluginId] ?? 1 } : node;
+  }
+  return {
+    ...node,
+    children: [resolveZoomsInTree(node.children[0], pluginZoom), resolveZoomsInTree(node.children[1], pluginZoom)],
+  };
 }
