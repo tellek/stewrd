@@ -5,9 +5,10 @@ import { SettingsCategories } from "./SettingsCategories";
 import { SettingsThemes } from "./SettingsThemes";
 import { SettingsPlugins } from "./SettingsPlugins";
 import { SettingsAi } from "./SettingsAi";
+import { SettingsHelp } from "./SettingsHelp";
 import { SettingsVersion } from "./SettingsVersion";
 
-type SettingsTab = "general" | "categories" | "themes" | "plugins" | "ai" | "version";
+type SettingsTab = "general" | "categories" | "themes" | "plugins" | "ai" | "help" | "version";
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "General" },
@@ -15,6 +16,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: "themes", label: "Themes" },
   { id: "plugins", label: "Plugins" },
   { id: "ai", label: "AI" },
+  { id: "help", label: "Help" },
   { id: "version", label: "Version" },
 ];
 
@@ -49,6 +51,7 @@ export function SettingsPage() {
       {tab === "themes" && <SettingsThemes />}
       {tab === "plugins" && <SettingsPlugins />}
       {tab === "ai" && <SettingsAi />}
+      {tab === "help" && <SettingsHelp />}
       {tab === "version" && <SettingsVersion />}
     </div>
   );
