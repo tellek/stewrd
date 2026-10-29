@@ -23,21 +23,11 @@ export function OverlaysDemo({ api }: { api: PluginApi }) {
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
         <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
           Size (px)
-          <input
-            type="number"
-            value={size}
-            onChange={(e) => setSize(Number(e.target.value))}
-            style={{ width: 70 }}
-          />
+          <api.ui.TextBox singleLine value={String(size)} onChange={(v) => setSize(Number(v) || 0)} />
         </label>
         <label style={{ display: "flex", gap: 4, alignItems: "center" }}>
           Speed (ms)
-          <input
-            type="number"
-            value={durationMs}
-            onChange={(e) => setDurationMs(Number(e.target.value))}
-            style={{ width: 70 }}
-          />
+          <api.ui.TextBox singleLine value={String(durationMs)} onChange={(v) => setDurationMs(Number(v) || 0)} />
         </label>
       </div>
 

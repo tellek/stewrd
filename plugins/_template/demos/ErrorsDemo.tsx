@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { PluginApi } from "stewrd-plugin-api";
 
 /** Demonstrates that ALL exceptions - not just ones a plugin explicitly logs
  * via api.log.error - end up in the host's status bar (the bar at the
@@ -8,7 +9,7 @@ import { useState } from "react";
  * window.onerror/unhandledrejection handlers instead, which route into the
  * same sink. Clicking either button below is safe: it only crashes this
  * demo's own tiny bit of work, not the app. */
-export function ErrorsDemo() {
+export function ErrorsDemo({ api }: { api: PluginApi }) {
   const [thrown, setThrown] = useState(0);
 
   function throwInEventHandler() {
@@ -32,8 +33,8 @@ export function ErrorsDemo() {
         this to work.
       </p>
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={throwInEventHandler}>Throw From Click Handler</button>
-        <button onClick={rejectUnhandled}>Reject Unhandled Promise</button>
+        <api.ui.TextButton label="Throw From Click Handler" onClick={throwInEventHandler} />
+        <api.ui.TextButton label="Reject Unhandled Promise" onClick={rejectUnhandled} />
       </div>
     </div>
   );

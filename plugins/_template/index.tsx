@@ -152,7 +152,7 @@ export function Component({ api }: { api: PluginApi }) {
       <h2>Template Plugin</h2>
       <p>This is a starting point, not a real plugin - copy this folder to build one.</p>
       <p>
-        Count: {count} <button onClick={() => setCount((c) => c + 1)}>+1</button>
+        Count: {count} <api.ui.TextButton label="+1" onClick={() => setCount((c) => c + 1)} bordered={false} />
       </p>
       <api.ui.StatusDot color="idle" />
 
@@ -175,7 +175,7 @@ export function Component({ api }: { api: PluginApi }) {
         {demoTab === "messaging" && <MessagingDemo api={api} />}
         {demoTab === "calendar" && <CalendarDemo api={api} />}
         {demoTab === "text-area" && <TextAreaDemo api={api} />}
-        {demoTab === "errors" && <ErrorsDemo />}
+        {demoTab === "errors" && <ErrorsDemo api={api} />}
         {demoTab === "ai" && <AiDemo api={api} />}
       </div>
     </div>

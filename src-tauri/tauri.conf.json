@@ -39,7 +39,9 @@
       "../ARCHITECTURE.md": "ARCHITECTURE.md",
       "../plugins/CLAUDE.md": "plugins/CLAUDE.md",
       "../plugins/build-plugin.mjs": "plugins/build-plugin.mjs",
-      "../plugins/.stewrd/plugin-api.d.ts": "plugins/.stewrd/plugin-api.d.ts"
+      "../plugins/hello-template.mjs": "plugins/hello-template.mjs",
+      "../plugins/.stewrd/plugin-api.d.ts": "plugins/.stewrd/plugin-api.d.ts",
+      "../plugins/.stewrd/assets.d.ts": "plugins/.stewrd/assets.d.ts"
     }
   }
 }

@@ -204,7 +204,7 @@ Your built `dist/index.js` must export:
 interface PluginModule {
   activate(ctx: PluginContext): void | Promise<void>;
   deactivate?(): void | Promise<void>;
-  Component: React.ComponentType<{ api: PluginApi }>;
+  Component: React.ComponentType<{ api: PluginApi; paneId?: string }>;
 }
 ```
 

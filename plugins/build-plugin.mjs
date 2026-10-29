@@ -6,7 +6,10 @@
 // node_modules/scripts, which a real install doesn't have).
 //
 // Usage: node build-plugin.mjs <pluginDir> [--watch]
-import * as esbuild from "esbuild";
+//        node build-plugin.mjs new <id> ["Display Name"]
+//
+// esbuild is imported lazily (build/watch only) so `new` works before
+// `npm install esbuild` has been run.
 import path from "node:path";
 import fs from "node:fs";
 
@@ -14,9 +17,39 @@ const [, , pluginDirArg, ...rest] = process.argv;
 const watch = rest.includes("--watch");
 
 if (!pluginDirArg) {
-  console.error("Usage: build-plugin <pluginDir> [--watch]");
+  console.error("Usage: build-plugin <pluginDir> [--watch]\n       build-plugin new <id> [\"Display Name\"]");
   process.exit(1);
 }
+
+if (pluginDirArg === "new") {
+  const [id, ...nameParts] = rest;
+  const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
+  if (!id || !/^[a-z0-9][a-z0-9-]*$/.test(id) || RESERVED.test(id)) {
+    console.error('Usage: build-plugin new <id> ["Display Name"]  (id: lowercase letters, digits and hyphens)');
+    process.exit(1);
+  }
+  const name = nameParts.join(" ").trim() || id.split("-").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+  if (/["\\\u0000-\u001f]/.test(name)) {
+    console.error("The display name can't contain quotes, backslashes or control characters.");
+    process.exit(1);
+  }
+  const dest = path.resolve(id);
+  if (fs.existsSync(dest)) {
+    console.error(`${dest} already exists.`);
+    process.exit(1);
+  }
+  const { files } = await import("./hello-template.mjs");
+  const quotedName = JSON.stringify(name).slice(1, -1);
+  for (const f of files) {
+    const out = path.join(dest, f.path);
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, f.content.replaceAll("__PLUGIN_ID__", id).replaceAll("__PLUGIN_NAME__", f.quoted ? quotedName : name));
+  }
+  console.log(`Created ${dest}\nNext: node build-plugin.mjs ${id} --watch`);
+  process.exit(0);
+}
+
+const esbuild = await import("esbuild");
 
 const pluginDir = path.resolve(pluginDirArg);
 const candidates = ["index.tsx", "index.ts", "index.jsx", "index.js"];

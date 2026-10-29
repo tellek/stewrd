@@ -59,12 +59,7 @@ export function MessagingDemo({ api }: { api: PluginApi }) {
 
         <label style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 8 }}>
           Stay Open (ms)
-          <input
-            type="number"
-            value={topBannerMs}
-            onChange={(e) => setTopBannerMs(Number(e.target.value))}
-            style={{ width: 80 }}
-          />
+          <api.ui.TextBox singleLine value={String(topBannerMs)} onChange={(v) => setTopBannerMs(Number(v) || 0)} />
         </label>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

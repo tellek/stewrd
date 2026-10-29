@@ -29,6 +29,7 @@ const TEMPLATE_FILES: &[(&str, &str, Kind)] = &[
     ("plugin.json", include_str!("../../../templates/hello/plugin.json"), Kind::Quoted),
     ("settings.json", include_str!("../../../templates/hello/settings.json"), Kind::Quoted),
     ("index.tsx", include_str!("../../../templates/hello/index.tsx"), Kind::Quoted),
+    ("tsconfig.json", include_str!("../../../templates/hello/tsconfig.json"), Kind::Quoted),
     ("dist/index.js", include_str!("../../../templates/hello/dist/index.js"), Kind::Quoted),
     ("README.md", include_str!("../../../templates/hello/README.md"), Kind::Plain),
     (".gitignore", include_str!("../../../templates/hello/.gitignore"), Kind::Plain),

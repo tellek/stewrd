@@ -436,7 +436,7 @@ pub fn apply_pending_update_if_present() {
     // host-owned reference docs and scripts, not user data - unlike assets/,
     // always overwrite them with the newly staged version so an in-app
     // update (not just a fresh/re-run installer) keeps them current.
-    for rel in ["ARCHITECTURE.md", "plugins/CLAUDE.md", "plugins/build-plugin.mjs"] {
+    for rel in HOST_OWNED_FILES {
         overwrite_copy_if_present(&pending_dir.join(rel), &deploy_dir.join(rel));
     }
 
@@ -447,6 +447,20 @@ pub fn apply_pending_update_if_present() {
     let marker = serde_json::json!({ "version": meta.version }).to_string();
     let _ = std::fs::write(state_dir.join("just-updated.json"), marker);
 }
+
+/// Plugin-author files that ship with the app (tauri.conf.json
+/// `bundle.resources`) and are overwritten on every in-app update. Anything
+/// listed in resources for authors must be here too, or users who update in
+/// place (instead of re-running the installer) never receive it; a test keeps
+/// the two lists in agreement.
+const HOST_OWNED_FILES: &[&str] = &[
+    "ARCHITECTURE.md",
+    "plugins/CLAUDE.md",
+    "plugins/build-plugin.mjs",
+    "plugins/hello-template.mjs",
+    "plugins/.stewrd/plugin-api.d.ts",
+    "plugins/.stewrd/assets.d.ts",
+];
 
 /// Delivers any bundled plugin folder present in the staged update's
 /// `plugins/<id>` (the real path in the update zip - `bundled-plugins/` is
@@ -605,6 +619,22 @@ mod tests {
         overwrite_copy_if_present(&src, &dst);
 
         assert_eq!(std::fs::read_to_string(&dst).unwrap(), "new docs");
+    }
+
+    #[test]
+    fn host_owned_files_match_the_author_files_in_bundle_resources() {
+        let conf = include_str!("../../tauri.conf.json");
+        let value: serde_json::Value = serde_json::from_str(conf).unwrap();
+        let resources = value["bundle"]["resources"].as_object().unwrap();
+        let shipped: std::collections::BTreeSet<&str> = resources
+            .values()
+            .filter_map(|v| v.as_str())
+            .filter(|dest| *dest == "ARCHITECTURE.md" || (dest.starts_with("plugins/") && dest.matches('/').count() >= 1 && !dest.ends_with('/')))
+            // bundled plugin folders (plugins/_template, plugins/marketplace) are seeded, not overwritten
+            .filter(|dest| dest.contains('.'))
+            .collect();
+        let overwritten: std::collections::BTreeSet<&str> = HOST_OWNED_FILES.iter().copied().collect();
+        assert_eq!(shipped, overwritten);
     }
 
     #[test]

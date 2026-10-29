@@ -48,14 +48,10 @@ export function AiDemo({ api }: { api: PluginApi }) {
       </p>
       <api.ui.TextBox value={prompt} onChange={setPrompt} rows={2} placeholder="Ask something..." />
       <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-        <button onClick={ask} disabled={asking}>
-          {asking ? "Asking..." : "Ask"}
-        </button>
-        <button onClick={cancel} disabled={!asking}>
-          Cancel
-        </button>
+        <api.ui.TextButton label={asking ? "Asking..." : "Ask"} onClick={ask} disabled={asking} variant="primary" />
+        <api.ui.TextButton label="Cancel" onClick={cancel} disabled={!asking} />
       </div>
-      {error && <p style={{ color: "#ef4444" }}>{error}</p>}
+      {error && <p style={{ color: api.theme.palette.status.error }}>{error}</p>}
       {output && <pre style={{ whiteSpace: "pre-wrap" }}>{output}</pre>}
     </div>
   );
