@@ -18,6 +18,8 @@ export const removeIcon = svg(
   '<path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12ZM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4Z"/>',
 );
 
+export const publishIcon = svg('<path d="M5 20h14v-2H5v2ZM12 2 6 8h4v6h4V8h4l-6-6Z"/>');
+
 export const reportIssueIcon = svg(
   '<path d="M20 8h-2.8a6 6 0 0 0-1.6-1.8L17 4.8 15.6 3.4l-2 2a6 6 0 0 0-3.2 0l-2-2L7 4.8l1.4 1.4A6 6 0 0 0 6.8 8H4v2h2.1c-.1.3-.1.7-.1 1v1H4v2h2v1c0 .3 0 .7.1 1H4v2h2.8a6 6 0 0 0 10.4 0H20v-2h-2.1c.1-.3.1-.7.1-1v-1h2v-2h-2v-1c0-.3 0-.7-.1-1H20V8Zm-6 8h-4v-2h4v2Zm0-4h-4v-2h4v2Z"/>',
 );

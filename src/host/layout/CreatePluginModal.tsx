@@ -6,31 +6,8 @@ import { InlineDialog } from "../../components/InlineDialog/InlineDialog";
 import { TextBox } from "../../components/TextBox/TextBox";
 import { TextButton } from "../../components/TextButton/TextButton";
 import { Banner } from "../../components/Banner/Banner";
+import { StepRow, type StepStatus } from "./StepRow";
 import { STEPS, checkName, checkPrerequisites, slugify, type NameCheck, type Prerequisites } from "./createPluginSteps";
-
-type Status = "pending" | "running" | "done" | "error";
-
-function Row({ status, label, detail }: { status: Status; label: string; detail?: string }) {
-  const palette = useAppStore((s) => s.palette);
-  const glyph = { pending: "○", running: "…", done: "✓", error: "✕" }[status];
-  const color = {
-    pending: palette.textMuted,
-    running: palette.status["in-progress"],
-    done: palette.status.success,
-    error: palette.status.error,
-  }[status];
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "3px 0" }}>
-      <span aria-hidden style={{ color, width: 16, textAlign: "center", fontWeight: 600 }}>
-        {glyph}
-      </span>
-      <div>
-        <div style={{ color: status === "pending" ? palette.textMuted : palette.text }}>{label}</div>
-        {detail && <div style={{ fontSize: 12, color: status === "error" ? palette.status.error : palette.textMuted }}>{detail}</div>}
-      </div>
-    </div>
-  );
-}
 
 /** Settings > Plugins > Create New Plugin. A checklist that walks through
  * creating a GitHub repo, cloning it into the plugins folder, writing the
@@ -42,7 +19,7 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
   const [nameCheck, setNameCheck] = useState<NameCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [phase, setPhase] = useState<"setup" | "running" | "done">("setup");
-  const [statuses, setStatuses] = useState<Record<string, Status>>({});
+  const [statuses, setStatuses] = useState<Record<string, StepStatus>>({});
   const [error, setError] = useState<string | null>(null);
   const [folder, setFolder] = useState("");
   const confirmed = useRef(false);
@@ -118,9 +95,9 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
   }
 
   const busy = phase === "running" && !error;
-  const prereqStatus: Status = prereq === null ? "running" : prereq.ok ? "done" : "error";
-  const nameStatus: Status = ready ? "done" : nameCheck?.kind === "invalid" ? "error" : "pending";
-  const permissionStatus: Status = phase === "setup" ? "pending" : "done";
+  const prereqStatus: StepStatus = prereq === null ? "running" : prereq.ok ? "done" : "error";
+  const nameStatus: StepStatus = ready ? "done" : nameCheck?.kind === "invalid" ? "error" : "pending";
+  const permissionStatus: StepStatus = phase === "setup" ? "pending" : "done";
 
   return (
     <InlineDialog open={open} onClose={() => !busy && onClose()} title="Create New Plugin">
@@ -130,7 +107,7 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
           Hello World plugin and pushes it. It uses your signed-in GitHub CLI.
         </p>
 
-        <Row
+        <StepRow
           status={prereqStatus}
           label="GitHub CLI And Git Ready"
           detail={prereq && !prereq.ok ? undefined : prereq?.owner ? `Signed in as ${prereq.owner}` : undefined}
@@ -139,7 +116,7 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
           <Banner tone="warning" message={prereq.problems.join(" ")} />
         )}
 
-        <Row
+        <StepRow
           status={nameStatus}
           label="Name Your Plugin"
           detail={
@@ -158,15 +135,15 @@ export function CreatePluginModal({ open, onClose }: { open: boolean; onClose: (
           </div>
         )}
 
-        <Row
+        <StepRow
           status={permissionStatus}
           label="Permission To Create The Repository"
           detail={ready ? `Creates ${repo} (public) on GitHub` : undefined}
         />
-        <Row status={statuses.repo ?? "pending"} label="Repository Created" />
-        <Row status={statuses.clone ?? "pending"} label="Cloned Into The Plugins Folder" />
-        <Row status={statuses.scaffold ?? "pending"} label="Hello World Plugin Created" />
-        <Row status={statuses.push ?? "pending"} label="Committed And Pushed To Main" />
+        <StepRow status={statuses.repo ?? "pending"} label="Repository Created" />
+        <StepRow status={statuses.clone ?? "pending"} label="Cloned Into The Plugins Folder" />
+        <StepRow status={statuses.scaffold ?? "pending"} label="Hello World Plugin Created" />
+        <StepRow status={statuses.push ?? "pending"} label="Committed And Pushed To Main" />
 
         {error && <Banner tone="error" message={error} />}
 

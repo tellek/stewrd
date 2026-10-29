@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useAppStore } from "../state/appStore";
 import {
@@ -17,7 +17,9 @@ import { TextButton } from "../../components/TextButton/TextButton";
 import { IconButton } from "../../components/IconButton/IconButton";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { CreatePluginModal } from "./CreatePluginModal";
-import { activateIcon, configureIcon, deactivateIcon, removeIcon, reportIssueIcon } from "./pluginActionIcons";
+import { PublishPluginModal } from "./PublishPluginModal";
+import type { PublishPlugin } from "./publishPluginSteps";
+import { activateIcon, configureIcon, deactivateIcon, publishIcon, removeIcon, reportIssueIcon } from "./pluginActionIcons";
 
 const modal = createModalApi();
 const toast = createToastApi();
@@ -107,7 +109,9 @@ export function SettingsPlugins() {
   const [configuring, setConfiguring] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [publishing, setPublishing] = useState<PublishPlugin | null>(null);
   const [repoById, setRepoById] = useState<Map<string, string>>(new Map());
+  const catalogIds = useMemo(() => new Set(repoById.keys()), [repoById]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(() => {
@@ -248,6 +252,21 @@ export function SettingsPlugins() {
                         onClick={() => onReportIssue(manifest.id)}
                       />
                       <IconButton
+                        icon={publishIcon}
+                        label="Publish To Marketplace"
+                        disabled={manifest.id === "marketplace" || manifest.id === "_template" || catalogIds.has(manifest.id)}
+                        onClick={() =>
+                          setPublishing({
+                            dir,
+                            id: manifest.id,
+                            name: manifest.name,
+                            description: manifest.description,
+                            apiVersion: manifest.apiVersion,
+                            category,
+                          })
+                        }
+                      />
+                      <IconButton
                         icon={removeIcon}
                         label="Remove"
                         disabled={manifest.id === "marketplace"}
@@ -270,6 +289,7 @@ export function SettingsPlugins() {
       </table>
 
       <CreatePluginModal open={creating} onClose={() => setCreating(false)} />
+      <PublishPluginModal plugin={publishing} catalogIds={catalogIds} onClose={() => setPublishing(null)} />
     </div>
   );
 }
