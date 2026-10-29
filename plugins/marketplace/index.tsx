@@ -470,15 +470,15 @@ export function Component({ api }: { api: PluginApi }) {
                 </td>
                 <td style={{ padding: 6 }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    {existing && (
-                      <api.ui.IconButton
-                        icon={updateIcon}
-                        accent
-                        label={busy ? "Working..." : updateButtonLabel(!!existing.broken, updateAvailable)}
-                        onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
-                        disabled={busy || !asset || upToDate}
-                      />
-                    )}
+                    <api.ui.IconButton
+                      icon={existing ? updateIcon : installIcon}
+                      accent
+                      label={
+                        busy ? "Working..." : existing ? updateButtonLabel(!!existing.broken, updateAvailable) : "Install"
+                      }
+                      onClick={() => state?.release && installOrUpdate(entry, state.release, existing)}
+                      disabled={busy || !asset || upToDate}
+                    />
                     <api.ui.IconButton icon={reportIssueIcon} label="Report an Issue" onClick={() => reportIssue(entry)} />
                     {existing ? (
                       <api.ui.IconButton
