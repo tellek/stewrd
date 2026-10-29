@@ -43,12 +43,15 @@ API/file before building anything that touches one of these.
     `status.warning`; breaking error = `status.error`.
   - `success` is held until the app AND the plugin have focus, then reverts
     3 seconds later. If the user is in another app or plugin it stays
-    `success` until they return, and the 3 seconds start then.
+    `success` until they return, and the 3 seconds start then. The host does
+    this for you; don't run timers of your own.
   - The sidebar icon follows the dot colors. With multiple dots, priority is
-    error > warning > in-progress > success > idle.
+    error > warning > in-progress > success > idle. Report each dot under its
+    own source (`statusIcon.set(color, tooltip, "save")`) and the host resolves
+    the priority; a plain `set(color)` is the `"default"` source.
   - When the dot is `status.idle`, the sidebar icon uses its default color,
     not `status.idle`.
-- Sidebar icon alert/status color: `api.statusIcon.set(color, tooltip?)`
+- Sidebar icon alert/status color: `api.statusIcon.set(color, tooltip?, source?)`
   recolors the whole sidebar icon (`idle | in-progress | success | warning |
   error`).
   - It's a silent no-op before the sidebar entry exists (early `activate()`

@@ -26,6 +26,11 @@ export function activate(ctx: PluginContext) {
   // ctx.api.statusIcon.set("in-progress", "checking something...");
   // ctx.api.statusIcon.set("success");
   // ctx.api.statusIcon.set("error", "something went wrong");
+  // Independent activities report under their own source; the host shows the worst one
+  // (error > warning > in-progress > success > idle) and fades a success to idle 3s after
+  // the app and this plugin are focused, so you never track that yourself:
+  // ctx.api.statusIcon.set("in-progress", "saving...", "save");
+  // ctx.api.statusIcon.set("success", undefined, "save");
 
   // --- modal: blocking-style dialogs, all return a Promise ---
   // await ctx.api.modal.info({ title: "Heads up", message: "Just so you know..." });

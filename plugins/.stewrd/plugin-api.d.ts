@@ -277,7 +277,11 @@ declare module "stewrd-plugin-api" {
 
   export interface PluginApi {
     theme: { readonly palette: Palette; subscribe(fn: (p: Palette) => void): () => void };
-    statusIcon: { set(color: StatusColor, tooltip?: string): void; get(): StatusColor };
+    statusIcon: {
+      /** `source` (default "default") lets independent activities report separately; the icon shows the worst across sources (error > warning > in-progress > success > idle). A success is held until the app and this plugin are focused, then fades to idle 3s later. */
+      set(color: StatusColor, tooltip?: string, source?: string): void;
+      get(): StatusColor;
+    };
     sidebar: { setItems(items: SidebarItem[]): void; setSelected(id: string | null): void };
     modal: {
       error(opts: { title: string; message: string }): Promise<void>;
