@@ -40,7 +40,9 @@ const buildOptions = {
   platform: "browser",
   target: "es2022",
   jsx: "automatic",
-  sourcemap: true,
+  // Inline: the host loads the bundle from a Blob URL, so an external
+  // index.js.map next to it could never be resolved.
+  sourcemap: "inline",
   // react/react-dom: share the host's single instance (see import map).
   // @tauri-apps/api/*: escape hatch for advanced plugins needing raw
   // invoke()/listen() beyond the standard PluginApi surface (e.g. Git

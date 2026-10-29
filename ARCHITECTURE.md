@@ -182,6 +182,8 @@ This is **editor-only** — plugins get no real module resolution back to the ho
 
 ---
 
+- **Error attribution:** plugin code runs from Blob URLs, so `host/loader/blobOwners.ts` maps each live blob URL to its plugin id (registered in `loadPlugin`, dropped on unload) and `globalErrorHandlers.ts` uses it to tag an uncaught error or unhandled rejection with the plugin whose frame is in the stack. Plugin builds use **inline** source maps (an external `index.js.map` could never resolve from a Blob URL); release builds of the host have no devtools, so this mainly helps `tauri dev`.
+
 ## 5. The plugin loading mechanism (why it's not a normal dynamic `import()`)
 
 This was the highest-risk, most-revised part of the design (`docs/architecture-plan.md` has the full history of two rejected approaches — read it before changing this). Short version:

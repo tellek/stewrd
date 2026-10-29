@@ -5,6 +5,7 @@
 // "ALL exceptions anywhere" really does include uncaught event-handler
 // throws and unhandled promise rejections, not just React render errors.
 import { logToHost } from "../api/logging";
+import { pluginIdFromStack } from "../loader/blobOwners";
 
 let installed = false;
 
@@ -15,12 +16,12 @@ export function registerGlobalErrorHandlers(): void {
   window.addEventListener("error", (event) => {
     const message = event.error instanceof Error ? event.error.message : String(event.error ?? event.message);
     console.error("[global:onerror]", event.error ?? event.message);
-    logToHost("error", message);
+    logToHost("error", message, pluginIdFromStack(event.error instanceof Error ? event.error.stack : undefined));
   });
 
   window.addEventListener("unhandledrejection", (event) => {
     const message = event.reason instanceof Error ? event.reason.message : String(event.reason);
     console.error("[global:unhandledrejection]", event.reason);
-    logToHost("error", message);
+    logToHost("error", message, pluginIdFromStack(event.reason instanceof Error ? event.reason.stack : undefined));
   });
 }

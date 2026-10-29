@@ -1,5 +1,6 @@
 import type { PluginApi, PluginManifest, PluginModule } from "../../shared/plugin-api.d.ts";
 import { clearPluginAttempt, markPluginAttempt } from "./pluginDiscovery";
+import { registerBlobOwner, unregisterBlobOwner } from "./blobOwners";
 import { createPluginContext, destroyPluginContext, type CreatedPluginContext } from "../api/createPluginApi";
 
 export interface LoadedPlugin {
@@ -26,6 +27,7 @@ export async function loadPlugin(manifest: PluginManifest, source: string, dir: 
 
   const blob = new Blob([source], { type: "text/javascript" });
   const blobUrl = URL.createObjectURL(blob);
+  registerBlobOwner(blobUrl, manifest.id);
   const generation = nextGeneration++;
   const createdContext = createPluginContext(manifest.id, generation, dir);
 
@@ -35,6 +37,7 @@ export async function loadPlugin(manifest: PluginManifest, source: string, dir: 
     await mod.activate(createdContext.ctx);
   } catch (err) {
     destroyPluginContext(createdContext);
+    unregisterBlobOwner(blobUrl);
     URL.revokeObjectURL(blobUrl);
     throw err;
   }
@@ -48,6 +51,7 @@ export function unloadPlugin(loaded: LoadedPlugin): void {
     loaded.module.deactivate?.();
   } finally {
     destroyPluginContext(loaded.createdContext);
+    unregisterBlobOwner(loaded.blobUrl);
     URL.revokeObjectURL(loaded.blobUrl);
   }
 }
