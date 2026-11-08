@@ -1,20 +1,14 @@
 // Watches every plugin's directory tree and emits "plugin-changed" with the
 // affected plugin's directory name, so the frontend can hot-reload/hot-add/
-// hot-remove just that one plugin. Matches on ANY change within a plugin's
-// immediate subtree (not just dist/index.js specifically) - a whole-folder
-// delete (hot-remove) may only ever emit a single remove event for the
-// directory path itself, never a per-file "dist/index.js" event, so a
-// filename-specific match would miss it entirely.
-//
-// Two kinds of a plugin's own runtime writes are deliberately ignored so
-// they don't trigger a pointless hot-reload (which would remount the
-// plugin's whole Component, dropping in-progress UI state like cursor
-// position/scroll):
-//   - `<plugin>/data/...` - the plugin's own sandboxed api.fs storage.
-//   - `<plugin>/storage.json` (and its `storage.json.tmp` write-staging
-//     file) - the plugin's own api.storage key/value store (storage.rs's
-//     write_store_atomic tmp-then-rename). This includes the host's own
-//     settings, stored under the synthetic "__host__" plugin id.
+// hot-remove just that one plugin. Inside a plugin folder only the files the
+// host loads count (`dist/`, `plugin.json`, `settings.json`, `icon.png`, see
+// RELOAD_TRIGGERS); anything else - the plugin's own `data/` and
+// `storage.json` runtime writes, `.git/`, source files, editor and AI tool
+// caches - is ignored, since a hot-reload remounts the plugin's whole
+// Component and drops in-progress UI state like cursor position/scroll.
+// Events on the plugin folder itself still count - a whole-folder delete
+// (hot-remove) may only ever emit a single remove event for the directory
+// path itself, never a per-file "dist/index.js" event.
 // A storage.json rewrite is a tmp-write-then-rename directly inside the
 // plugin's own folder (there's no subfolder to catch it at, unlike data/),
 // and on Windows that can surface as a plain Modify event on the plugin
@@ -44,6 +38,10 @@ fn is_bare_folder_modify_noise(kind: &EventKind) -> bool {
     )
 }
 
+/// Top-level entries of a plugin folder whose change means the host must
+/// reload it: the built bundle, the manifest, its settings and its icon.
+const RELOAD_TRIGGERS: [&str; 4] = ["dist", "plugin.json", "settings.json", "icon.png"];
+
 fn changed_plugin_dirs(events: &[(PathBuf, EventKind)], plugins_root: &Path) -> HashSet<String> {
     let mut ids = HashSet::new();
     for (path, kind) in events {
@@ -55,26 +53,10 @@ fn changed_plugin_dirs(events: &[(PathBuf, EventKind)], plugins_root: &Path) -> 
             continue;
         };
         match components.next() {
-            // `<plugin>/data/` is the plugin's own runtime storage (see
-            // fs.rs's fs_plugin_data_dir) - notes, caches, etc a plugin
-            // writes at runtime, not source it was built from. A save in
-            // there shouldn't trigger the same hot-reload as an edited
-            // source file, which would remount the plugin and lose
-            // in-progress UI state (cursor position, unsaved local state).
-            Some(std::path::Component::Normal(next)) if next == "data" => continue,
-            // `<plugin>/.git/` is git bookkeeping for a plugin cloned from its
-            // own repo (the Create New Plugin wizard); every `git status` or
-            // IDE background fetch writes there and would otherwise remount
-            // the plugin.
-            Some(std::path::Component::Normal(next)) if next == ".git" => continue,
-            // `<plugin>/storage.json` (and its write-staging temp file) is
-            // the plugin's own api.storage key/value store - same
-            // reasoning as data/ above.
-            Some(std::path::Component::Normal(next))
-                if next == "storage.json" || next == "storage.json.tmp" =>
-            {
-                continue
-            }
+            // Only files the host actually loads count; everything else
+            // (source, data/, storage.json, .git/, editor/AI tool caches)
+            // would otherwise remount the plugin on every write.
+            Some(std::path::Component::Normal(next)) if !RELOAD_TRIGGERS.iter().any(|t| next == *t) => continue,
             // A bare `<plugin>` path (no further component) that's just
             // "file changed underneath me" noise, not a rename/create/
             // remove of the folder itself - see the module doc comment.
@@ -167,6 +149,25 @@ mod tests {
         let root = Path::new("/plugins");
         let events = vec![modify_any("/plugins/__host__/storage.json")];
         assert!(changed_plugin_dirs(&events, root).is_empty());
+    }
+
+    #[test]
+    fn ignores_tool_caches_and_source_files() {
+        let root = Path::new("/plugins");
+        let events = vec![
+            modify_any("/plugins/metrics/.remember/now.md"),
+            modify_any("/plugins/metrics/graft/.cache/ask-index.json"),
+            modify_any("/plugins/metrics/index.tsx"),
+        ];
+        assert!(changed_plugin_dirs(&events, root).is_empty());
+    }
+
+    #[test]
+    fn reacts_to_every_reload_trigger() {
+        let root = Path::new("/plugins");
+        for p in ["/plugins/a/dist/index.js", "/plugins/a/plugin.json", "/plugins/a/settings.json", "/plugins/a/icon.png"] {
+            assert_eq!(changed_plugin_dirs(&[modify_any(p)], root), HashSet::from(["a".to_string()]), "{p}");
+        }
     }
 
     #[test]
